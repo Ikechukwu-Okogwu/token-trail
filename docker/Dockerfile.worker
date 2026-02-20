@@ -1,0 +1,14 @@
+# Token Trail - Analysis Worker
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install dependencies (same as backend)
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code (worker lives in backend/app/worker)
+COPY backend/ .
+
+# Run the worker
+CMD ["python", "-m", "app.worker.worker"]

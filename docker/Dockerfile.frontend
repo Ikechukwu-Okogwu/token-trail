@@ -1,0 +1,20 @@
+# Token Trail - React + Vite Frontend (dev server)
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY frontend/package.json ./
+
+# Install dependencies (allow npm install without lockfile)
+RUN npm install
+
+# Copy frontend code (will be overridden by volume mount in dev)
+COPY frontend/ .
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+COPY frontend/docker-entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
