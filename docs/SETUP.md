@@ -135,3 +135,11 @@ To also remove the MongoDB volume:
 ```bash
 docker compose down -v
 ```
+
+---
+
+## Skeleton Placeholder Notes
+
+- Some SRS coverage endpoints are intentionally scaffold-only and currently return `501 Not Implemented` (see `docs/API_CONTRACT.md`).
+- `.env.example` includes optional placeholder settings for future retention, anonymization, notifications, and rate-limiting modules.
+- These placeholders provide implementation locations only; they do not change the current happy-path behavior.

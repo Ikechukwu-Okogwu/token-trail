@@ -223,7 +223,12 @@ Copy the `id` — that's your `courseId`.
   "courseId": "<courseId from step 3>",
   "title": "HW1 Sorting",
   "language": "java",
-  "isOpen": true
+  "isOpen": true,
+  "dueDate": "2025-06-08T23:59:59+00:00",
+  "keyExpiry": "2025-06-09T00:00:00+00:00",
+  "autoAnalysis": false,
+  "allowLate": false,
+  "exclusionCode": null
 }
 ```
 
@@ -237,6 +242,11 @@ Expected `201`:
   "language": "java",
   "assignmentKey": "4829103756",
   "isOpen": true,
+  "dueDate": "2025-06-08T23:59:59+00:00",
+  "keyExpiry": "2025-06-09T00:00:00+00:00",
+  "autoAnalysis": false,
+  "allowLate": false,
+  "exclusionCode": null,
   "createdAt": "2025-..."
 }
 ```
@@ -362,25 +372,35 @@ backend/
 └── app/
     ├── main.py                        FastAPI app, CORS, /api/health, router registration
     ├── core/
-    │   ├── config.py                  Reads env vars: MONGO_URI, JWT_SECRET, UPLOAD_DIR, etc.
+    │   ├── config.py                  Reads env vars (Mongo, JWT, uploads, retention/privacy placeholders, etc.)
     │   ├── db.py                      PyMongo client singleton and get_db() helper
     │   ├── security.py                bcrypt password hashing + JWT create/verify (HS256)
     │   └── deps.py                    get_current_instructor() auth guard + to_object_id()
+    ├── middleware/
+    │   └── rate_limit.py              Stub — future rate-limit enforcement helpers
     ├── routers/
     │   ├── auth.py                    POST /signup, POST /login, GET /me
     │   ├── public.py                  POST /assignment-key/validate, POST /submissions
-    │   └── instructor.py              Courses, assignments, submissions list, analysis runs
+    │   ├── instructor.py              Courses, assignments, submissions list, analysis runs
+    │   ├── instructor_similarity.py   Stub routes for ranked results, pair detail, side-by-side compare
+    │   └── instructor_admin.py        Stub routes for key mgmt/admin actions (returns 501)
     ├── schemas/                       Pydantic models defining request/response shapes
     │   ├── auth.py                    SignupRequest, LoginRequest, AuthResponse, MeResponse
     │   ├── course.py                  CourseCreateRequest, CourseResponse
-    │   ├── assignment.py              AssignmentCreate/Update/Response
+    │   ├── assignment.py              AssignmentCreate/Update/Response (+ dueDate/keyExpiry/autoAnalysis/allowLate/exclusionCode)
     │   ├── public.py                  ValidateKeyRequest/Response, SubmissionResponse
-    │   └── analysis.py                CreateRunResponse, RunStatusResponse
+    │   ├── analysis.py                CreateRunResponse, RunStatusResponse
+    │   ├── similarity.py              Stub response shapes for similarity-report flow
+    │   ├── exclusion.py               Stub request/response shapes for exclusion-code CRUD
+    │   └── class_list.py              Stub request/response shapes for class-list management
     ├── services/
     │   ├── zip_service.py             safe_extract_zip, list_valid_source_files, is_binary_file
     │   ├── merge_service.py           merge_source_files (deterministic, sorted, with headers)
     │   ├── submission_service.py      create_submission helper (inserts Mongo doc)
-    │   └── analysis_service.py        Stub — will hold the winnowing pipeline
+    │   ├── analysis_service.py        Stub (no-op) — will hold the winnowing pipeline
+    │   ├── retention_service.py       Stub — future 30-day cleanup/purge flow
+    │   ├── anonymization_service.py   Stub — future student pseudonymization/hashing flow
+    │   └── notification_service.py    Stub — future submission confirmation/replacement emails
     ├── models/                        Reserved for future data-model helpers
     ├── analysis/                      Reserved for tokenisation + winnowing engine code
     └── worker/
@@ -399,13 +419,20 @@ frontend/
 └── src/
     ├── main.jsx                       React root
     ├── App.jsx                        Health-check display (current landing page)
+    ├── routes.jsx                     Skeleton route placeholders for future router wiring
     ├── index.css                      Base styles
+    ├── components/
+    │   ├── SimilarityRankedList.jsx   Stub component for ranked similarity rows
+    │   └── CodeComparison.jsx         Stub component for side-by-side highlighted compare
     ├── services/
     │   └── api.js                     apiFetch() helper — attaches JWT, handles errors
     └── pages/
         ├── LoginPage.jsx              Stub — wire up to POST /api/auth/login
         ├── StudentSubmitPage.jsx      Stub — wire up to POST /api/public/submissions
-        └── InstructorDashboardPage.jsx  Stub — wire up to GET /api/instructor/courses
+        ├── InstructorDashboardPage.jsx  Stub — wire up to GET /api/instructor/courses
+        ├── SimilarityReportPage.jsx   Stub — ranked results list page
+        ├── SimilarityPairDetailPage.jsx Stub — pair drill-down page
+        └── SimilarityComparisonPage.jsx Stub — side-by-side highlighted comparison page
 ```
 
 ### Both (Docker + shared env)
@@ -521,6 +548,20 @@ POST /api/instructor/assignments/{id}/analysis-runs
 GET  /api/instructor/analysis-runs/{runId}
   → { "runId", "assignmentId", "status", "algorithmVersion",
       "createdAt", "startedAt", "finishedAt", "errorMessage" }
+
+GET  /api/instructor/analysis-runs/{runId}/similarity-results
+GET  /api/instructor/similarity-results/{resultId}
+GET  /api/instructor/similarity-results/{resultId}/comparison
+  → currently placeholder routes returning 501 (skeleton contract only)
+
+POST /api/instructor/assignments/{id}/regenerate-key
+POST /api/instructor/assignments/{id}/expire-key
+GET  /api/instructor/assignments/{id}/submissions/download
+DELETE /api/instructor/assignments/{id}/submissions
+DELETE /api/instructor/assignments/{id}
+GET/PUT/DELETE /api/instructor/assignments/{id}/exclusion-code
+GET/PUT/POST /api/instructor/courses/{id}/class-list
+  → currently placeholder routes returning 501 (skeleton contract only)
 ```
 
 **Enums (use these exact strings):**
@@ -557,6 +598,7 @@ This merged file is the input the analysis engine will later read when computing
 - **No Redis / no Celery.** The worker is a simple Python loop that polls the `analysis_runs` MongoDB collection every 5 seconds. It uses `find_one_and_update` to atomically claim one `queued` job, which prevents two workers from processing the same run.
 - **JWT auth** uses HS256 via `python-jose`. Tokens expire after `JWT_EXPIRES_MINUTES` (default 60). The `get_current_instructor` dependency in `core/deps.py` validates the token and loads the instructor from MongoDB.
 - **Uploads persist** via the Docker Compose volume mount `./uploads:/app/uploads`. Files survive container restarts. They are git-ignored (only `uploads/.gitkeep` is tracked).
+- **SRS placeholders** for admin actions, key management, similarity-report APIs, retention/privacy, notifications, and rate-limits are intentionally scaffold-only right now. New placeholder endpoints return HTTP `501`.
 
 ---
 

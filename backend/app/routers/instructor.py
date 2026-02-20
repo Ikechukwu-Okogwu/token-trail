@@ -37,6 +37,11 @@ def _assignment_response(doc: dict) -> AssignmentResponse:
         language=doc["language"],
         assignmentKey=doc["assignmentKey"],
         isOpen=doc["isOpen"],
+        dueDate=doc.get("dueDate"),
+        keyExpiry=doc.get("keyExpiry"),
+        autoAnalysis=doc.get("autoAnalysis", False),
+        allowLate=doc.get("allowLate", False),
+        exclusionCode=doc.get("exclusionCode"),
         createdAt=doc["createdAt"],
     )
 
@@ -111,6 +116,11 @@ async def create_assignment(
         "language": body.language,
         "assignmentKey": key,
         "isOpen": body.isOpen,
+        "dueDate": body.dueDate,
+        "keyExpiry": body.keyExpiry,
+        "autoAnalysis": body.autoAnalysis,
+        "allowLate": body.allowLate,
+        "exclusionCode": body.exclusionCode,
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     result = db.assignments.insert_one(doc)

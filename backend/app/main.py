@@ -4,7 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_cors_origins_list
 from app.core.db import get_db
-from app.routers import auth, public, instructor
+from app.routers import (
+    auth,
+    instructor,
+    instructor_admin,
+    instructor_similarity,
+    public,
+)
 
 app = FastAPI(
     title="Token Trail API",
@@ -43,3 +49,5 @@ async def _create_indexes():
 app.include_router(auth.router, prefix="/api")
 app.include_router(public.router, prefix="/api")
 app.include_router(instructor.router, prefix="/api")
+app.include_router(instructor_admin.router, prefix="/api")
+app.include_router(instructor_similarity.router, prefix="/api")
