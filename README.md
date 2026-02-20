@@ -67,3 +67,13 @@ token-trail/
   docker/           # Dockerfiles
   docker-compose.yml
   .env.example
+```
+
+---## Getting Started
+
+1. **Copy env file:** `cp .env.example .env` (or `copy .env.example .env` on Windows)
+2. **Run the stack:** `docker compose up --build`
+3. **Open frontend:** http://localhost:5173
+4. **Open API docs:** http://localhost:8000/docs
+
+See [docs/SETUP.md](docs/SETUP.md) for prerequisites, troubleshooting, and more details
