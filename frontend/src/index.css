@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" layer(tw);
 
 /* some reused colors */
 @theme {
@@ -18,12 +18,6 @@
   --gradient-bg-landing: linear-gradient(to top, #564F67, #786D91);
 }
 
-@layer utilities {
-  .bg-landing {
-    background-image: var(--gradient-bg-landing);
-  }
-}
-
 @layer base {
   input, textarea {
     box-shadow: inset 0 1px 2px -1px rgba(0,0,0,0.25);
@@ -36,3 +30,16 @@
   }
 }
 
+@layer components {
+  
+}
+
+@layer utilities {
+  .bg-landing {
+    background-image: var(--gradient-bg-landing);
+  }
+
+  .font-title {
+    font-family: "Itim", cursive;
+  }
+}
