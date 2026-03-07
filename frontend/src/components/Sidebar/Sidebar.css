@@ -1,5 +1,22 @@
+@reference "tailwindcss";
+
+@layer base {
+    
+}
+
+@layer components {
+    
+}
+
 @layer utilities {
-    .shadow-right {
+    .shadow-right-sidebar {
         box-shadow: 2px 0 10px rgba(0,0,0,0.5);
     }
+
+    .shadow-button {
+        box-shadow: 
+            inset -40px 4px 10px -40px rgba(0,0,0,0.25),
+            inset 40px 4px 10px -40px rgba(0,0,0,0.25)
+    }
+    
 }
