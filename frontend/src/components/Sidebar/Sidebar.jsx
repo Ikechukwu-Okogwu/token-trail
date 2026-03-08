@@ -1,45 +1,123 @@
-import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import './Sidebar.css'
 import homeIcon from '../../assets/icons/home.svg'
+import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
+import assignmentIcon from '../../assets/icons/assignment.svg'
 
-export default function Sidebar() {
+const navLinkClass = ({ isActive }) =>
+  `flex items-center flex-1 gap-2 h-11 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`
 
-    return (
-        <aside className="fixed top-0 left-0 h-screen w-55 bg-brand-purple text-brand-pink shadow-right-sidebar shrink-0 flex flex-col">
-            <h1 className="font-title title pl-4" style={{fontSize:'1.65rem'}}>Token Trail</h1>
-            <div className="grow">
-                <nav>
-                    <ul>
-                        <li>
-                            <NavLink 
-                                to="/dashboard" 
-                                className={({isActive}) => 
-                                    `flex items-center gap-2 ${isActive?  "bg-purple-clicked" : ""}`
-                                }
-                            >
-                                {({isActive}) => (
-                                    <>
-                                        <div className={`w-2 h-10 ${isActive? "bg-[#FEF7FFBF]" : ""}`}/>
-                                        <img src={homeIcon} alt="Home"/>
-                                        <span>Home</span>
-                                    </>
-                                )}
-                                
-                            </NavLink>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-            <div className="h-17 border-t border-t-[#FFFFFF80] flex">
-                <button className='flex-1 shadow-button flex items-center justify-center'>
-                    <img src={accountIcon} alt="Account"/>
-                </button>
-                <button className='flex-1 shadow-button flex items-center justify-center'>
-                    <img src={notificationsIcon} alt="Notifications"/>
-                </button>
-            </div>
-        </aside>
+const navLinkContent = (isActive, icon, label) => (
+  <>
+    <div className={`w-2 h-full ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
+    <img src={icon} alt="" />
+    <span className='truncate'>{label}</span>
+  </>
+)
+
+function ChevronDown({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  )
+}
+
+function ChevronUp({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 15l-6-6-6 6" />
+    </svg>
+  )
+}
+
+export default function Sidebar({ courses = [] }) {
+  const location = useLocation()
+  const [expandedIds, setExpandedIds] = useState(new Set())
+
+  const toggleCourse = (courseId) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(courseId)) next.delete(courseId)
+      else next.add(courseId)
+      return next
+    })
+  }
+
+  return (
+    <aside className="fixed top-0 left-0 h-screen w-55 bg-brand-purple text-brand-pink shadow-right-sidebar shrink-0 flex flex-col">
+      <a href="/dashboard" className="font-title title pl-4 py-1" style={{ fontSize: '1.65rem' }}>Token Trail</a>
+      <div className="grow">
+        <nav>
+          <ul>
+            <li>
+              <NavLink to="/dashboard" className={navLinkClass}>
+                {({ isActive }) => navLinkContent(isActive, homeIcon, 'Home')}
+              </NavLink>
+            </li>
+            {courses.map((course) => {
+              const assignments = course.assignments ?? []
+              const hasActiveAssignment = assignments.some(
+                (a) => location.pathname === `/courses/${course.id}/assignments/${a.id}`
+              )
+              const isExpanded = expandedIds.has(course.id) || hasActiveAssignment
+              return (
+              <li key={course.id}>
+                <div className='flex items-center pr-2!'>
+                  <NavLink
+                    to={`/courses/${course.id}`}
+                    className={navLinkClass}
+                  >
+                    {({ isActive }) => navLinkContent(isActive, courseIcon, course.name)}
+                    
+                  </NavLink>
+                  <button 
+                    onClick={() => toggleCourse(course.id)} 
+                    className="p-1.5 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
+                  >
+                    <span className="">
+                      {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                    </span>
+                  </button>
+                </div>
+                
+                {isExpanded && assignments.length > 0 && (
+                  <ul className="border-l-[1.5px] border-purple-clicked ml-5">
+                    {assignments.map((a) => (
+                      <li key={a.id}>
+                        <NavLink
+                          to={`/courses/${course.id}/assignments/${a.id}`}
+                          className={({ isActive }) => `flex items-center gap-2 py-1.5 pl-1 rounded ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                        >
+                          {({ isActive }) => (
+                            <>
+                              <div className={`w-2 h-full ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
+                              <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
+                              <span className="truncate">{a.title}</span>
+                            </>
+                          )}
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+              )
+            })}
+          </ul>
+        </nav>
+      </div>
+      <div className="h-14 border-t border-t-[#FFFFFF80] flex">
+        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5 ">
+          <img src={accountIcon} alt="Account" className='h-8'/>
+        </button>
+        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5">
+          <img src={notificationsIcon} alt="Notifications" className='h-7'/>
+        </button>
+      </div>
+    </aside>
     )
 }
