@@ -205,6 +205,11 @@ Response `200`:
 
 `status` enum: `queued` | `running` | `completed` | `failed`.
 
+Errors:
+- `401` invalid / missing token
+- `403` analysis run belongs to another instructor
+- `404` run or backing assignment not found
+
 ---
 
 ## Public (no JWT)

@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.deps import get_current_instructor
 from app.schemas.class_list import ClassListUpsertRequest
+from app.schemas.common import NotImplementedResponse
 from app.schemas.exclusion import ExclusionCodeUpsertRequest
 
 router = APIRouter(prefix="/instructor", tags=["instructor-admin"])
@@ -21,7 +22,7 @@ def _not_implemented(feature: str) -> JSONResponse:
     )
 
 
-@router.post("/assignments/{assignment_id}/regenerate-key")
+@router.post("/assignments/{assignment_id}/regenerate-key", response_model=NotImplementedResponse)
 async def regenerate_assignment_key(
     assignment_id: str,
     current: dict = Depends(get_current_instructor),
@@ -31,7 +32,7 @@ async def regenerate_assignment_key(
     return _not_implemented("regenerate_assignment_key")
 
 
-@router.post("/assignments/{assignment_id}/expire-key")
+@router.post("/assignments/{assignment_id}/expire-key", response_model=NotImplementedResponse)
 async def expire_assignment_key(
     assignment_id: str,
     current: dict = Depends(get_current_instructor),
@@ -41,7 +42,10 @@ async def expire_assignment_key(
     return _not_implemented("expire_assignment_key")
 
 
-@router.get("/assignments/{assignment_id}/submissions/download")
+@router.get(
+    "/assignments/{assignment_id}/submissions/download",
+    response_model=NotImplementedResponse,
+)
 async def download_assignment_submissions_zip(
     assignment_id: str,
     current: dict = Depends(get_current_instructor),
@@ -51,7 +55,7 @@ async def download_assignment_submissions_zip(
     return _not_implemented("download_submissions_zip")
 
 
-@router.delete("/assignments/{assignment_id}/submissions")
+@router.delete("/assignments/{assignment_id}/submissions", response_model=NotImplementedResponse)
 async def delete_assignment_submissions(
     assignment_id: str,
     current: dict = Depends(get_current_instructor),
@@ -61,7 +65,7 @@ async def delete_assignment_submissions(
     return _not_implemented("delete_assignment_submissions")
 
 
-@router.delete("/assignments/{assignment_id}")
+@router.delete("/assignments/{assignment_id}", response_model=NotImplementedResponse)
 async def delete_assignment(
     assignment_id: str,
     current: dict = Depends(get_current_instructor),
@@ -71,7 +75,7 @@ async def delete_assignment(
     return _not_implemented("delete_assignment")
 
 
-@router.get("/assignments/{assignment_id}/exclusion-code")
+@router.get("/assignments/{assignment_id}/exclusion-code", response_model=NotImplementedResponse)
 async def get_exclusion_code(
     assignment_id: str,
     current: dict = Depends(get_current_instructor),
@@ -81,7 +85,7 @@ async def get_exclusion_code(
     return _not_implemented("get_exclusion_code")
 
 
-@router.put("/assignments/{assignment_id}/exclusion-code")
+@router.put("/assignments/{assignment_id}/exclusion-code", response_model=NotImplementedResponse)
 async def upsert_exclusion_code(
     assignment_id: str,
     body: ExclusionCodeUpsertRequest,
@@ -92,7 +96,10 @@ async def upsert_exclusion_code(
     return _not_implemented("upsert_exclusion_code")
 
 
-@router.delete("/assignments/{assignment_id}/exclusion-code")
+@router.delete(
+    "/assignments/{assignment_id}/exclusion-code",
+    response_model=NotImplementedResponse,
+)
 async def delete_exclusion_code(
     assignment_id: str,
     current: dict = Depends(get_current_instructor),
@@ -102,7 +109,7 @@ async def delete_exclusion_code(
     return _not_implemented("delete_exclusion_code")
 
 
-@router.get("/courses/{course_id}/class-list")
+@router.get("/courses/{course_id}/class-list", response_model=NotImplementedResponse)
 async def get_class_list(
     course_id: str,
     current: dict = Depends(get_current_instructor),
@@ -112,7 +119,7 @@ async def get_class_list(
     return _not_implemented("get_class_list")
 
 
-@router.put("/courses/{course_id}/class-list")
+@router.put("/courses/{course_id}/class-list", response_model=NotImplementedResponse)
 async def upsert_class_list(
     course_id: str,
     body: ClassListUpsertRequest,
@@ -123,7 +130,7 @@ async def upsert_class_list(
     return _not_implemented("upsert_class_list")
 
 
-@router.post("/courses/{course_id}/class-list")
+@router.post("/courses/{course_id}/class-list", response_model=NotImplementedResponse)
 async def create_class_list(
     course_id: str,
     body: ClassListUpsertRequest,

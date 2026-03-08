@@ -360,6 +360,16 @@ The worker polls MongoDB every 5 seconds. It atomically claims one `queued` job,
 
 Right now the analysis engine is a stub (no-op), so the run completes instantly. The real tokenisation + winnowing pipeline will be added later.
 
+### Common failure responses (expected)
+
+Use these to quickly confirm contract behavior during final confidence checks:
+
+- `POST /api/auth/signup` (duplicate email) -> `409` with `{"detail":"Email already registered"}`
+- `GET /api/auth/me` (no token) -> `401` with `{"detail":"Not authenticated"}`
+- `GET /api/instructor/assignments/not-an-id` -> `400` with `{"detail":"Invalid ID format: not-an-id"}`
+- `POST /api/public/assignment-key/validate` (unknown key) -> `200` with `{"valid":false,"assignment":null}`
+- `GET /api/instructor/analysis-runs/{runId}` as a different instructor -> `403` with `{"detail":"Not your analysis run"}`
+
 ---
 
 ## 4) Repo Structure (What Lives Where)

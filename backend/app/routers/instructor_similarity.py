@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from app.core.deps import get_current_instructor
+from app.schemas.common import NotImplementedResponse
 
 router = APIRouter(prefix="/instructor", tags=["instructor-similarity"])
 
@@ -19,7 +20,10 @@ def _not_implemented(feature: str) -> JSONResponse:
     )
 
 
-@router.get("/analysis-runs/{run_id}/similarity-results")
+@router.get(
+    "/analysis-runs/{run_id}/similarity-results",
+    response_model=NotImplementedResponse,
+)
 async def get_ranked_similarity_results(
     run_id: str,
     current: dict = Depends(get_current_instructor),
@@ -29,7 +33,7 @@ async def get_ranked_similarity_results(
     return _not_implemented("ranked_similarity_results")
 
 
-@router.get("/similarity-results/{result_id}")
+@router.get("/similarity-results/{result_id}", response_model=NotImplementedResponse)
 async def get_similarity_pair_detail(
     result_id: str,
     current: dict = Depends(get_current_instructor),
@@ -39,7 +43,10 @@ async def get_similarity_pair_detail(
     return _not_implemented("similarity_pair_detail")
 
 
-@router.get("/similarity-results/{result_id}/comparison")
+@router.get(
+    "/similarity-results/{result_id}/comparison",
+    response_model=NotImplementedResponse,
+)
 async def get_similarity_side_by_side_comparison(
     result_id: str,
     current: dict = Depends(get_current_instructor),
