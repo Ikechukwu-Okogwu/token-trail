@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import {Routes, Route} from 'react-router-dom'
 import Sidebar from './components/Sidebar/Sidebar'
 import LoginPage from './pages/LoginPage'
 import InstructorDashboardPage from './pages/InstructorDashboardPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
 import AssignmentPage from './pages/AssignmentPage'
+import CoursePage from './pages/CoursePage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+const token = localStorage.getItem("token");
 
 function App() {
   const [health, setHealth] = useState(null)
@@ -25,14 +27,18 @@ function App() {
         setError(err.message)
         setLoading(false)
       })
+      
   }, [])
 
-  // useEffect(() => {
-  //   fetch(`${API_BASE}/instructor/courses`)
-  //     .then(r => r.json())
-  //     .then(data => setCourses(data)) // adjust if wrapped
-  // }, [])
-  // document.getElementById("courses").innerHTML = courses;
+  useEffect(() => { //sample values
+    setCourses([
+      {id:"1", name:"COSC 4P02", assignments: [
+        { id: "a1", title: "Assignment 1" },
+        { id: "a2", title: "Assignment 2" },
+        { id: "a3", title: "Assignment 3" },
+      ],}, 
+      {id:"2", name:"COSC 4P01", assignments:[]}])
+  }, [])
 
   if (loading) return <p>Loading...</p>
   if (error) return <p>Error: {error}</p>
@@ -46,9 +52,16 @@ function App() {
       </pre> */}
       <Routes>
         <Route path="/" element={<LoginPage/>}/>
-        <Route path="/dashboard" element={<InstructorDashboardPage/>}/>
+        <Route path="/dashboard" element={<InstructorDashboardPage courses={courses}/>}/>
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
-        
+        {courses.map((course) => (
+          <Fragment key={course.id}>
+            <Route path={`/course/${course.id}`} element={<CoursePage courses={courses}/>}/>
+            {course.assignments.map((assignment) => (
+              <Route key={assignment.id} path={`/course/${course.id}/assignment/${assignment.id}`} element={<AssignmentPage courses={courses}/>}/>
+            ))}
+          </Fragment>
+        ))}
       </Routes>
       
     </div>

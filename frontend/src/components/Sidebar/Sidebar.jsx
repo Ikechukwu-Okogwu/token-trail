@@ -50,7 +50,7 @@ export default function Sidebar({ courses = [] }) {
   return (
     <aside className="fixed top-0 left-0 h-screen w-55 bg-brand-purple text-brand-pink shadow-right-sidebar shrink-0 flex flex-col">
       <a href="/dashboard" className="font-title title pl-4 py-1" style={{ fontSize: '1.65rem' }}>Token Trail</a>
-      <div className="grow">
+      <div className="grow overflow-y-auto">
         <nav>
           <ul>
             <li>
@@ -61,17 +61,17 @@ export default function Sidebar({ courses = [] }) {
             {courses.map((course) => {
               const assignments = course.assignments ?? []
               const hasActiveAssignment = assignments.some(
-                (a) => location.pathname === `/courses/${course.id}/assignments/${a.id}`
+                (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
               )
               const isExpanded = expandedIds.has(course.id) || hasActiveAssignment
               return (
               <li key={course.id}>
-                <div className='flex items-center pr-2!'>
+                <div className={`flex items-center pr-2  ${(location.pathname === `/course/${course.id}`) ? 'bg-purple-clicked' : ''}`}>
                   <NavLink
-                    to={`/courses/${course.id}`}
-                    className={navLinkClass}
+                    to={`/course/${course.id}`}
+                    className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
                   >
-                    {({ isActive }) => navLinkContent(isActive, courseIcon, course.name)}
+                    {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name)}
                     
                   </NavLink>
                   <button 
@@ -89,12 +89,12 @@ export default function Sidebar({ courses = [] }) {
                     {assignments.map((a) => (
                       <li key={a.id}>
                         <NavLink
-                          to={`/courses/${course.id}/assignments/${a.id}`}
-                          className={({ isActive }) => `flex items-center gap-2 py-1.5 pl-1 rounded ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                          to={`/course/${course.id}/assignment/${a.id}`}
+                          className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
                         >
                           {({ isActive }) => (
                             <>
-                              <div className={`w-2 h-full ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
+                              <div className={`w-2 h-full ml-[-1.5px] ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
                               <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
                               <span className="truncate">{a.title}</span>
                             </>
