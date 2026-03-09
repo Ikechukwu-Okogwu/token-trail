@@ -36,7 +36,22 @@ function ChevronUp({ className = 'w-4 h-4' }) {
 
 export default function Sidebar({ courses = [] }) {
   const location = useLocation()
-  const [expandedIds, setExpandedIds] = useState(new Set())
+  const [expandedIds, setExpandedIds] = useState(() => {
+    const initial = new Set()
+
+    courses.forEach((course) => {
+      const assignments = course.assignments ?? []
+      const hasActiveAssignment = assignments.some(
+        (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
+      )
+
+      if (hasActiveAssignment) {
+        initial.add(course.id)
+      }
+    })
+
+    return initial
+  })
 
   const toggleCourse = (courseId) => {
     setExpandedIds((prev) => {
@@ -60,28 +75,29 @@ export default function Sidebar({ courses = [] }) {
             </li>
             {courses.map((course) => {
               const assignments = course.assignments ?? []
-              const hasActiveAssignment = assignments.some(
-                (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
-              )
-              const isExpanded = expandedIds.has(course.id) || hasActiveAssignment
+              const isExpanded = expandedIds.has(course.id)
               return (
               <li key={course.id}>
-                <div className={`flex items-center pr-2  ${(location.pathname === `/course/${course.id}`) ? 'bg-purple-clicked' : ''}`}>
+                <div className={`flex items-center ${(location.pathname === `/course/${course.id}`) ? 'bg-purple-clicked' : ''}`}>
                   <NavLink
                     to={`/course/${course.id}`}
-                    className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                    className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? '' : 'hover:bg-white/5'}`}
                   >
                     {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name)}
                     
                   </NavLink>
-                  <button 
-                    onClick={() => toggleCourse(course.id)} 
-                    className="p-1.5 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
-                  >
-                    <span className="">
-                      {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                    </span>
-                  </button>
+                  {assignments.length > 0 && (
+                    <button 
+                      onClick={() => toggleCourse(course.id)} 
+                      className="p-1.5 mr-2 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
+                      aria-expanded={isExpanded}
+                    >
+                      <span className="">
+                        {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                      </span>
+                    </button>
+                  )}
+                  
                 </div>
                 
                 {isExpanded && assignments.length > 0 && (
