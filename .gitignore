@@ -211,3 +211,11 @@ uploads/*
 !uploads/.gitkeep
 node_modules/
 frontend/.env
+
+# analysis developing
+.dockerignore
+backend/app/analysis/**
+!backend/app/analysis/
+!backend/app/analysis/testWinowingCode/
+!backend/app/analysis/testWinowingCode/testWinowingLib.py
+!backend/app/analysis/testWinowingCode/winnowingCopy.py
