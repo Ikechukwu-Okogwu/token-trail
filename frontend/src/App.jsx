@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState, useEffect, Fragment } from 'react'
 import {Routes, Route} from 'react-router-dom'
 import Sidebar from './components/Sidebar/Sidebar'
@@ -64,8 +65,115 @@ function App() {
         ))}
       </Routes>
       
+=======
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import LoginPage from './pages/LoginPage'
+import StudentSubmitPage from './pages/StudentSubmitPage'
+
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem('token')
+  if (!token) return <Navigate to="/login" replace />
+  return children
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/*role selector (Student / Teacher) */}
+        <Route path="/" element={<HomePage />} />
+
+        {/* Teacher login/signup */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/*Student submit flow*/}
+        <Route path="/submit" element={<StudentSubmitPage />} />
+
+        {/*Catch-all*/}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+// -- Home screen - Student/Teacher selector ---- 
+function HomePage() {
+  return (
+    <div style={styles.page}>
+
+      {/* Top navigation bar */}
+      <div style={styles.navbar}>
+        <span style={styles.navTitle}>Token Trail</span>
+      </div>
+
+      {/* Two cards in the middle of the screen */}
+      <div style={styles.cardRow}>
+
+        {/* Student card — clicking this goes to /submit */}
+        <a href="/submit" style={styles.card}>
+          <h2 style={styles.cardTitle}>Student</h2>
+          <p style={styles.cardSub}>Submit an Assignment</p>
+        </a>
+
+        {/* Teacher card — clicking this goes to /login */}
+        <a href="/login" style={styles.card}>
+          <h2 style={styles.cardTitle}>Teacher</h2>
+          <p style={styles.cardSub}>Login as Teacher</p>
+        </a>
+
+      </div>
+>>>>>>> d66097a (Implement routing and protected routes in App component)
     </div>
   )
+}
+
+// Styles for the home page
+const styles = {
+  page: {
+    minHeight: '100vh',
+    backgroundColor: '#e0e0e0',
+    fontFamily: 'sans-serif',
+  },
+  navbar: {
+    backgroundColor: '#3d3d5c',
+    padding: '16px 24px',
+  },
+  navTitle: {
+    color: 'white',
+    fontSize: '20px',
+    fontWeight: 'bold',
+  },
+  cardRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '32px',
+    marginTop: '80px',
+  },
+  card: {
+    backgroundColor: '#b8a9d4',
+    border: '2px dashed #8a7aaa',
+    borderRadius: '16px',
+    padding: '40px',
+    width: '200px',
+    textAlign: 'center',
+    textDecoration: 'none',
+    color: '#1a1a1a',
+    cursor: 'pointer',
+  },
+  cardTitle: {
+    fontSize: '22px',
+    margin: '0 0 12px 0',
+  },
+  cardIcon: {
+    fontSize: '48px',
+    margin: '0 0 12px 0',
+  },
+  cardSub: {
+    fontSize: '13px',
+    color: '#3a3a5c',
+    margin: 0,
+  },
 }
 
 export default App
