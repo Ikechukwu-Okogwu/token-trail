@@ -28,3 +28,21 @@ export async function apiFetch(path, options = {}) {
 
   return res.json()
 }
+
+export function getInstructorAssignmentById(assignmentId) {
+  return apiFetch(`/instructor/assignments/${assignmentId}`)
+}
+
+export function getAssignmentSubmissions(assignmentId) {
+  return apiFetch(`/instructor/assignments/${assignmentId}/submissions`)
+}
+
+export function queueAnalysisRun(assignmentId) {
+  return apiFetch(`/instructor/assignments/${assignmentId}/analysis-runs`, {
+    method: 'POST',
+  })
+}
+
+export function getAnalysisRunStatus(runId) {
+  return apiFetch(`/instructor/analysis-runs/${runId}`)
+}
