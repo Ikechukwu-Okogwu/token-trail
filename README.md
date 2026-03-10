@@ -21,10 +21,9 @@ Token Trail is a web-based, instructor-facing code similarity detection system d
 - Sign up / log in
 - Create courses and assignments
 - Generate assignment keys
-- Upload exclusion (boilerplate) code
+- Placeholder endpoints for exclusion-code, class-list, and key-management operations (currently `501`)
 - View submissions and trigger analysis runs
-- View ranked similarity reports
-- Compare files side-by-side with highlighted matching regions
+- Placeholder endpoints/pages for ranked similarity reports and side-by-side comparison (currently `501` / UI stubs)
 
 ---
 
