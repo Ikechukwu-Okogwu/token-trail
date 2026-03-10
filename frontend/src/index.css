@@ -1,8 +1,13 @@
-body {
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #1a1a2e;
-  color: #eee;
-  min-height: 100vh;
-  padding: 2rem;
+  padding: 0;
 }
