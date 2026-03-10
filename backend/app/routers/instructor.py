@@ -271,6 +271,16 @@ async def get_analysis_run(
     if not run:
         raise HTTPException(status_code=404, detail="Analysis run not found")
 
+    assignment = db.assignments.find_one({"_id": to_object_id(run["assignmentId"])})
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    course = db.courses.find_one(
+        {"_id": ObjectId(assignment["courseId"]), "instructorId": current["id"]}
+    )
+    if not course:
+        raise HTTPException(status_code=403, detail="Not your analysis run")
+
     return RunStatusResponse(
         runId=str(run["_id"]),
         assignmentId=run["assignmentId"],
