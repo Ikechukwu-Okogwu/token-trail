@@ -155,6 +155,17 @@ docker compose ps
 
 All four services should show `Up` (or `running`).
 
+### Automated E2E verification
+
+For scrum leads and quick regression: run the pytest E2E suite after `docker compose up -d`:
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/e2e/ -v
+```
+
+This exercises smoke, happy path, edge cases, and boundary tests. See [tests/e2e/README.md](../tests/e2e/README.md) for details.
+
 ---
 
 ## 3) Full End-to-End Happy Path (Do This Once)
