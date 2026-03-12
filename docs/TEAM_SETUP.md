@@ -145,6 +145,8 @@ You should see `worker started`. The worker prints a line every time it picks up
 
 Open http://localhost:5173 in your browser. You should see "Token Trail" and a green health-check JSON block from the backend. If it shows an error, the backend probably isn't reachable — check that `token-trail-backend` is running.
 
+**Submission comparison view:** From Dashboard, go to a course (e.g. COSC 4P02) → Assignment 1, then click "View submission comparison". Or navigate directly to `/course/1/assignment/a1/submission/dummy-submission-id`. The page shows student details, similarity metrics, side-by-side code panels, and a list of similarity candidates (all dummy data for now).
+
 ### Both (Docker + shared env)
 
 Quick one-liner to see all container statuses:
@@ -428,18 +430,31 @@ frontend/
 ├── docker-entrypoint.sh               Runs npm install (if needed) + npm run dev in Docker
 └── src/
     ├── main.jsx                       React root
-    ├── App.jsx                        Health-check display (current landing page)
+    ├── App.jsx                        Routes, health check, instructor layout
     ├── routes.jsx                     Skeleton route placeholders for future router wiring
-    ├── index.css                      Base styles
+    ├── index.css                      Base styles, Tailwind theme
+    ├── constants/
+    │   └── submissionComparison.js    Dummy data for submission comparison view
     ├── components/
-    │   ├── SimilarityRankedList.jsx   Stub component for ranked similarity rows
-    │   └── CodeComparison.jsx         Stub component for side-by-side highlighted compare
+    │   ├── Sidebar/                   Sidebar nav (courses, assignments)
+    │   ├── SubmissionComparison/      Submission comparison UI components
+    │   │   ├── MetricsCard.jsx        Metric display (value + label, color)
+    │   │   ├── CodeComparisonPanel.jsx File dropdown, code display
+    │   │   └── SimilarityCandidatesList.jsx Clickable similarity candidate list
+    │   ├── SimilarityRankedList.jsx   Stub — ranked similarity rows
+    │   └── CodeComparison.jsx         Stub — side-by-side highlighted compare
     ├── services/
-    │   └── api.js                     apiFetch() helper — attaches JWT, handles errors
+    │   └── api.js                     apiFetch(), getInstructorAssignmentById, getAssignmentSubmissions,
+    │                                  queueAnalysisRun, getAnalysisRunStatus, getSimilarityResults,
+    │                                  getSimilarityComparison (stubs for 501 endpoints)
     └── pages/
         ├── LoginPage.jsx              Stub — wire up to POST /api/auth/login
         ├── StudentSubmitPage.jsx      Stub — wire up to POST /api/public/submissions
-        ├── InstructorDashboardPage.jsx  Stub — wire up to GET /api/instructor/courses
+        ├── InstructorDashboardPage.jsx Stub — wire up to GET /api/instructor/courses
+        ├── CoursePage.jsx             Course page with sidebar
+        ├── AssignmentPage.jsx         Assignment page; link to submission comparison
+        ├── SubmissionComparisonPage.jsx Implemented — submission detail + side-by-side comparison (dummy data)
+        ├── AssignmentDetailPage.jsx   Load by ID, submissions table, analysis run controls (not routed)
         ├── SimilarityReportPage.jsx   Stub — ranked results list page
         ├── SimilarityPairDetailPage.jsx Stub — pair drill-down page
         └── SimilarityComparisonPage.jsx Stub — side-by-side highlighted comparison page

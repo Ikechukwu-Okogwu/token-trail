@@ -6,6 +6,7 @@ import InstructorDashboardPage from './pages/InstructorDashboardPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
 import AssignmentPage from './pages/AssignmentPage'
 import CoursePage from './pages/CoursePage'
+import SubmissionComparisonPage from './pages/SubmissionComparisonPage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 const token = localStorage.getItem("token");
@@ -54,6 +55,7 @@ function App() {
         <Route path="/" element={<LoginPage/>}/>
         <Route path="/dashboard" element={<InstructorDashboardPage courses={courses}/>}/>
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
+        <Route path="/course/:courseId/assignment/:assignmentId/submission/:submissionId" element={<SubmissionComparisonPage courses={courses}/>}/>
         {courses.map((course) => (
           <Fragment key={course.id}>
             <Route path={`/course/${course.id}`} element={<CoursePage courses={courses}/>}/>

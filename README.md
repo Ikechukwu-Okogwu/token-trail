@@ -23,7 +23,7 @@ Token Trail is a web-based, instructor-facing code similarity detection system d
 - Generate assignment keys
 - Placeholder endpoints for exclusion-code, class-list, and key-management operations (currently `501`)
 - View submissions and trigger analysis runs
-- Placeholder endpoints/pages for ranked similarity reports and side-by-side comparison (currently `501` / UI stubs)
+- **Submission comparison view** — side-by-side code comparison with similarity metrics (UI implemented with dummy data; backend similarity APIs return `501` until implemented)
 
 ---
 
@@ -68,11 +68,15 @@ token-trail/
   .env.example
 ```
 
----## Getting Started
+---
+
+## Getting Started
 
 1. **Copy env file:** `cp .env.example .env` (or `copy .env.example .env` on Windows)
 2. **Run the stack:** `docker compose up --build`
 3. **Open frontend:** http://localhost:5173
 4. **Open API docs:** http://localhost:8000/docs
 
-See [docs/SETUP.md](docs/SETUP.md) for prerequisites, troubleshooting, and more details
+See [docs/SETUP.md](docs/SETUP.md) for prerequisites, troubleshooting, and more details.
+
+**Try the submission comparison view:** Go to Dashboard → Course → Assignment, then click "View submission comparison". Or navigate directly to `/course/1/assignment/a1/submission/dummy-submission-id`.

@@ -287,6 +287,8 @@ All endpoints below are deliberate skeleton contracts and currently return `501 
 - `GET /api/instructor/similarity-results/{resultId}`
 - `GET /api/instructor/similarity-results/{resultId}/comparison`
 
+**Frontend status:** The submission comparison UI is implemented (`SubmissionComparisonPage`, route `/course/:courseId/assignment/:assignmentId/submission/:submissionId`). It uses dummy data and API client stubs (`getSimilarityResults`, `getSimilarityComparison` in `frontend/src/services/api.js`). When the backend implements these endpoints, the frontend expects the response shapes documented in the JSDoc comments in `api.js` (per SRS 4.3.2 Ranked Similarity Results and 4.3.3 Detailed Comparison Report).
+
 ### Assignment Key Management
 
 - `POST /api/instructor/assignments/{assignmentId}/regenerate-key`

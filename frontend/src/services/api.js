@@ -46,3 +46,23 @@ export function queueAnalysisRun(assignmentId) {
 export function getAnalysisRunStatus(runId) {
   return apiFetch(`/instructor/analysis-runs/${runId}`)
 }
+
+/**
+ * Get ranked similarity results for an analysis run.
+ * TODO: Backend returns 501 until implemented.
+ * Expected response shape: { runId, results: [{ resultId, leftSubmissionId, rightSubmissionId, similarityScore, matchingLineCount?, leftStudentName?, rightStudentName? }] }
+ * Sorted descending by similarity score (per SRS 4.3.2).
+ */
+export function getSimilarityResults(runId) {
+  return apiFetch(`/instructor/analysis-runs/${runId}/similarity-results`)
+}
+
+/**
+ * Get side-by-side comparison for a similarity result.
+ * TODO: Backend returns 501 until implemented.
+ * Expected response shape: { resultId, leftFilePath, rightFilePath, matchingRegions: [{ leftStartLine, leftEndLine, rightStartLine, rightEndLine }], leftContent?, rightContent? }
+ * (per SRS 4.3.3 and Data Dictionary)
+ */
+export function getSimilarityComparison(resultId) {
+  return apiFetch(`/instructor/similarity-results/${resultId}/comparison`)
+}

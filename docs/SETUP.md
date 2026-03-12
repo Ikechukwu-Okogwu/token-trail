@@ -70,6 +70,7 @@ This builds and starts:
 1. Open http://localhost:5173 — you should see "Token Trail" and a health check JSON from the backend.
 2. Open http://localhost:8000/docs — Swagger UI should load.
 3. Call `GET /api/health` — should return `{"status":"ok","service":"token-trail-api"}`.
+4. **Submission comparison view:** Go to Dashboard → Course → Assignment, then "View submission comparison", or open `/course/1/assignment/a1/submission/dummy-submission-id` directly (uses dummy data).
 
 ---
 
