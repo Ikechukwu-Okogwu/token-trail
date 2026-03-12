@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import InstructorDashboardPage from './pages/InstructorDashboardPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
 import AssignmentPage from './pages/AssignmentPage'
+import AssignmentDetailPage from './pages/AssignmentDetailPage'
 import CoursePage from './pages/CoursePage'
 import SubmissionComparisonPage from './pages/SubmissionComparisonPage'
 
@@ -54,6 +55,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LoginPage/>}/>
         <Route path="/dashboard" element={<InstructorDashboardPage courses={courses}/>}/>
+        <Route path="/assignment-detail" element={<AssignmentDetailPage/>}/>
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
         <Route path="/course/:courseId/assignment/:assignmentId/submission/:submissionId" element={<SubmissionComparisonPage courses={courses}/>}/>
         {courses.map((course) => (
