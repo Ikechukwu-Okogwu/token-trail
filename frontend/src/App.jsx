@@ -35,7 +35,7 @@ function App() {
   useEffect(() => { //sample values
     setCourses([
       {id:"1", name:"COSC 4P02", assignments: [
-        { id: "a1", title: "Assignment 1" },
+        { id: "a1", title: "Assignment 1", details: true },
         { id: "a2", title: "Assignment 2" },
         { id: "a3", title: "Assignment 3" },
       ],}, 
@@ -55,14 +55,18 @@ function App() {
       <Routes>
         <Route path="/" element={<LoginPage/>}/>
         <Route path="/dashboard" element={<InstructorDashboardPage courses={courses}/>}/>
-        <Route path="/assignment-detail" element={<AssignmentDetailPage/>}/>
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
         <Route path="/course/:courseId/assignment/:assignmentId/submission/:submissionId" element={<SubmissionComparisonPage courses={courses}/>}/>
         {courses.map((course) => (
           <Fragment key={course.id}>
             <Route path={`/course/${course.id}`} element={<CoursePage courses={courses}/>}/>
             {course.assignments.map((assignment) => (
-              <Route key={assignment.id} path={`/course/${course.id}/assignment/${assignment.id}`} element={<AssignmentPage courses={courses}/>}/>
+              <Fragment key={assignment.id}>
+                <Route path={`/course/${course.id}/assignment/${assignment.id}`} element={<AssignmentPage courses={courses}/>}/>
+                {assignment.details && (
+                  <Route path={`/course/${course.id}/assignment/${assignment.id}/details`} element={<AssignmentDetailPage/>}/>
+                )}
+              </Fragment>
             ))}
           </Fragment>
         ))}
