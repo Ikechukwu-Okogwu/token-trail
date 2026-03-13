@@ -6,7 +6,7 @@ import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
 import assignmentIcon from '../../assets/icons/assignment.svg'
-import { getCourseAssignments } from '../../services/api'
+import { getCourseAssignments, getInstructorCourses } from '../../services/api'
 
 const navLinkClass = ({ isActive }) =>
   `flex items-center flex-1 gap-2 h-11 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`
@@ -35,9 +35,44 @@ function ChevronUp({ className = 'w-4 h-4' }) {
   )
 }
 
-export default function Sidebar({ courses = []}) {
+export default function Sidebar({refreshKey}) {
   const location = useLocation()
-  const [expandedIds, setExpandedIds] = useState(() => {
+  const [courses, setCourses] = useState([])
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    if (token) {
+      setCoursesLoading(true)
+      getInstructorCourses()
+        .then((fetchedCourses) => {
+          setCourses(fetchedCourses)
+        })
+        .catch((err) => {
+          console.error('Failed to fetch courses:', err)
+        })
+    }
+  }, [token, refreshKey])
+
+  useEffect(() => {
+    // TEMP: sample data for verifying routes/UI
+    setCourses([
+      {
+        id: 'course-1',
+        name: 'COSC 4P02',
+        assignments: [
+          { id: 'a1', title: 'Assignment 1' },
+          { id: 'a2', title: 'Assignment 2' },
+        ],
+      },
+      {
+        id: 'course-2',
+        name: 'COSC 4P01',
+        assignments: [{ id: 'a1', title: 'Assignment 1' }],
+      },
+    ])
+  }, [])
+  const [expandedIds, setExpandedIds] = useState(new Set())
+  useEffect(() => {
     const initial = new Set()
 
     courses.forEach((course) => {
@@ -51,8 +86,8 @@ export default function Sidebar({ courses = []}) {
       }
     })
 
-    return initial
-  })
+    setExpandedIds(initial)
+  }, [courses, location.pathname])
 
   const [courseAssignments, setCourseAssignments] = useState({})
 

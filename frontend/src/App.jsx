@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
-import InstructorDashboardPage from './pages/InstructorDashboardPage'
 import AssignmentDetailPage from './pages/AssignmentDetailPage'
 import CoursePage from './pages/CoursePage'
-import { getInstructorCourses } from './services/api'
+import HomePage from './pages/HomePage'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -19,8 +18,6 @@ export default function App() {
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [courses, setCourses] = useState([])
-  const [coursesLoading, setCoursesLoading] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE}/health`)
@@ -34,42 +31,6 @@ export default function App() {
     window.location.href = '/login'
   }
 
-  //nav with using api
-  // useEffect(() => {
-  //   if (token) {
-  //     setCoursesLoading(true)
-  //     getInstructorCourses()
-  //       .then((fetchedCourses) => {
-  //         setCourses(fetchedCourses)
-  //         setCoursesLoading(false)
-  //       })
-  //       .catch((err) => {
-  //         console.error('Failed to fetch courses:', err)
-  //         setCoursesLoading(false)
-  //       })
-  //   }
-  // }, [token])
-
-  useEffect(() => {
-  // TEMP: sample data for verifying routes/UI
-  setCourses([
-    {
-      id: 'course-1',
-      name: 'COSC 4P02',
-      assignments: [
-        { id: 'a1', title: 'Assignment 1' },
-        { id: 'a2', title: 'Assignment 2' },
-      ],
-    },
-    {
-      id: 'course-2',
-      name: 'COSC 4P01',
-      assignments: [{ id: 'a1', title: 'Assignment 1' }],
-    },
-  ])
-  setCoursesLoading(false)
-}, [])
-
   if (loading) return <p>Loading...</p>
   if (error) return <p>Error: {error}</p>
 
@@ -82,15 +43,15 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <InstructorDashboardPage onLogout={handleLogout} />
+              <HomePage onLogout={handleLogout} />
             </ProtectedRoute>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
-        {/* <Route path="/dashboard" element={<InstructorDashboardPage onLogout={handleLogout}/>}/> */}
+        {/* <Route path="/dashboard" element={<HomePage/>}/> */} {/* temp use */}
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
-        <Route path="/course/:courseId" element={<CoursePage courses={courses} coursesLoading={coursesLoading}/>}/>
-        <Route path="/course/:courseId/assignment/:assignmentId" element={<AssignmentDetailPage courses={courses} coursesLoading={coursesLoading}/>}/>
+        <Route path="/course/:courseId" element={<CoursePage/>}/>
+        <Route path="/course/:courseId/assignment/:assignmentId" element={<AssignmentDetailPage/>}/>
       </Routes>
 
       {health && (

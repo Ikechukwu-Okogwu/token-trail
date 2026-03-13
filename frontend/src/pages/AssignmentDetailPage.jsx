@@ -53,7 +53,7 @@ function runStatusColor(status) {
   }
 }
 
-export default function AssignmentDetailPage({ courses = [], coursesLoading = false }) {
+export default function AssignmentDetailPage() {
   const { assignmentId } = useParams()
   const [assignment, setAssignment] = useState(null)
   const [submissions, setSubmissions] = useState([])
@@ -209,7 +209,7 @@ export default function AssignmentDetailPage({ courses = [], coursesLoading = fa
 
   return (
     <div className="h-screen flex">
-      <Sidebar courses={courses} coursesLoading={coursesLoading}/>
+      <Sidebar/>
       <main className="ml-55 flex-1">
         <h2>Instructor Assignment Detail</h2>
         <p>Load assignment details, inspect submissions, and monitor analysis runs.</p>
