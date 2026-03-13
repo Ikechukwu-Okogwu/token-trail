@@ -213,7 +213,6 @@ node_modules/
 frontend/.env
 
 # analysis developing
-.dockerignore
 backend/app/analysis/**
 !backend/app/analysis/
 !backend/app/analysis/testWinowingCode/
