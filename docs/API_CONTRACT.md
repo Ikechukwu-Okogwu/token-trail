@@ -7,6 +7,9 @@
 All request/response bodies are JSON unless otherwise noted.
 Protected routes require `Authorization: Bearer <token>`.
 
+> Skeleton note: some endpoints are contract placeholders only and intentionally return `501 Not Implemented` with:
+> `{ "status": "not_implemented", "feature": "<feature_key>", "message": "Skeleton placeholder endpoint. Implementation planned in future sprint." }`
+
 ---
 
 ## Health Check
@@ -103,7 +106,12 @@ Request:
   "courseId": "665f...",
   "title": "HW1 Sorting",
   "language": "java",
-  "isOpen": true
+  "isOpen": true,
+  "dueDate": "2025-06-08T23:59:59+00:00",
+  "keyExpiry": "2025-06-09T00:00:00+00:00",
+  "autoAnalysis": false,
+  "allowLate": false,
+  "exclusionCode": null
 }
 ```
 
@@ -116,6 +124,11 @@ Response `201`:
   "language": "java",
   "assignmentKey": "4829103756",
   "isOpen": true,
+  "dueDate": "2025-06-08T23:59:59+00:00",
+  "keyExpiry": "2025-06-09T00:00:00+00:00",
+  "autoAnalysis": false,
+  "allowLate": false,
+  "exclusionCode": null,
   "createdAt": "2025-06-01T12:00:00+00:00"
 }
 ```
@@ -126,7 +139,14 @@ Response `201`:
 
 Request (all fields optional):
 ```json
-{ "isOpen": false }
+{
+  "isOpen": false,
+  "dueDate": "2025-06-08T23:59:59+00:00",
+  "keyExpiry": "2025-06-09T00:00:00+00:00",
+  "autoAnalysis": true,
+  "allowLate": true,
+  "exclusionCode": "starter template"
+}
 ```
 
 Response `200`: full `AssignmentResponse`.
@@ -184,6 +204,11 @@ Response `200`:
 ```
 
 `status` enum: `queued` | `running` | `completed` | `failed`.
+
+Errors:
+- `401` invalid / missing token
+- `403` analysis run belongs to another instructor
+- `404` run or backing assignment not found
 
 ---
 
@@ -249,3 +274,32 @@ When running the backend directly on your machine instead of in Docker, set:
 ```
 MONGO_URI=mongodb://localhost:27017
 ```
+
+---
+
+## Instructor Placeholder Endpoints (`501`)
+
+All endpoints below are deliberate skeleton contracts and currently return `501 Not Implemented`.
+
+### Similarity Report Flow
+
+- `GET /api/instructor/analysis-runs/{runId}/similarity-results`
+- `GET /api/instructor/similarity-results/{resultId}`
+- `GET /api/instructor/similarity-results/{resultId}/comparison`
+
+### Assignment Key Management
+
+- `POST /api/instructor/assignments/{assignmentId}/regenerate-key`
+- `POST /api/instructor/assignments/{assignmentId}/expire-key`
+
+### Instructor Admin Actions
+
+- `GET /api/instructor/assignments/{assignmentId}/submissions/download`
+- `DELETE /api/instructor/assignments/{assignmentId}/submissions`
+- `DELETE /api/instructor/assignments/{assignmentId}`
+- `GET /api/instructor/assignments/{assignmentId}/exclusion-code`
+- `PUT /api/instructor/assignments/{assignmentId}/exclusion-code`
+- `DELETE /api/instructor/assignments/{assignmentId}/exclusion-code`
+- `GET /api/instructor/courses/{courseId}/class-list`
+- `PUT /api/instructor/courses/{courseId}/class-list`
+- `POST /api/instructor/courses/{courseId}/class-list`

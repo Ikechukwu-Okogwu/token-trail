@@ -25,6 +25,25 @@ JWT_EXPIRES_MINUTES: int = int(_get_env("JWT_EXPIRES_MINUTES", "60"))
 UPLOAD_DIR: str = _get_env("UPLOAD_DIR", "./uploads")
 MAX_UPLOAD_MB: int = int(_get_env("MAX_UPLOAD_MB", "50"))
 
+# Assignment lifecycle placeholders
+DEFAULT_RETENTION_DAYS: int = int(_get_env("DEFAULT_RETENTION_DAYS", "30"))
+
+# Privacy/anonymization placeholders
+ANONYMIZATION_MODE: str = _get_env("ANONYMIZATION_MODE", "none")
+ANONYMIZATION_SALT: str = _get_env("ANONYMIZATION_SALT", "")
+
+# Notification/email placeholders
+EMAIL_PROVIDER: str = _get_env("EMAIL_PROVIDER", "none")
+EMAIL_FROM: str = _get_env("EMAIL_FROM", "")
+
+# Rate-limit placeholders
+RATE_LIMIT_AUTH_ATTEMPTS_PER_HOUR: int = int(
+    _get_env("RATE_LIMIT_AUTH_ATTEMPTS_PER_HOUR", "0")
+)
+RATE_LIMIT_SUBMISSION_ATTEMPTS_PER_HOUR: int = int(
+    _get_env("RATE_LIMIT_SUBMISSION_ATTEMPTS_PER_HOUR", "0")
+)
+
 
 def get_cors_origins_list() -> list[str]:
     """Parse CORS_ORIGINS into a list of allowed origins."""

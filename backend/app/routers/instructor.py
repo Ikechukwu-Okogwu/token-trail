@@ -37,6 +37,11 @@ def _assignment_response(doc: dict) -> AssignmentResponse:
         language=doc["language"],
         assignmentKey=doc["assignmentKey"],
         isOpen=doc["isOpen"],
+        dueDate=doc.get("dueDate"),
+        keyExpiry=doc.get("keyExpiry"),
+        autoAnalysis=doc.get("autoAnalysis", False),
+        allowLate=doc.get("allowLate", False),
+        exclusionCode=doc.get("exclusionCode"),
         createdAt=doc["createdAt"],
     )
 
@@ -111,6 +116,11 @@ async def create_assignment(
         "language": body.language,
         "assignmentKey": key,
         "isOpen": body.isOpen,
+        "dueDate": body.dueDate,
+        "keyExpiry": body.keyExpiry,
+        "autoAnalysis": body.autoAnalysis,
+        "allowLate": body.allowLate,
+        "exclusionCode": body.exclusionCode,
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     result = db.assignments.insert_one(doc)
@@ -260,6 +270,16 @@ async def get_analysis_run(
     run = db.analysis_runs.find_one({"_id": to_object_id(run_id)})
     if not run:
         raise HTTPException(status_code=404, detail="Analysis run not found")
+
+    assignment = db.assignments.find_one({"_id": to_object_id(run["assignmentId"])})
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    course = db.courses.find_one(
+        {"_id": ObjectId(assignment["courseId"]), "instructorId": current["id"]}
+    )
+    if not course:
+        raise HTTPException(status_code=403, detail="Not your analysis run")
 
     return RunStatusResponse(
         runId=str(run["_id"]),
