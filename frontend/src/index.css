@@ -1,8 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" layer(tw);
 
-:root {
+@theme {
   --color-brand-purple: #564F67;
   --color-purple-clicked: #393543;
   --color-brand-pink: #FEF7FF;

@@ -101,3 +101,11 @@ export function queueAnalysisRun(assignmentId) {
 export function getAnalysisRunStatus(runId) {
   return apiFetch(`/instructor/analysis-runs/${runId}`)
 }
+
+export function getInstructorCourses() {
+  return apiFetch('/instructor/courses')
+}
+
+export function getCourseAssignments(courseId) {
+  return apiFetch(`/instructor/courses/${courseId}/assignments`)
+}

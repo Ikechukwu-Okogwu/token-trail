@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
 import InstructorDashboardPage from './pages/InstructorDashboardPage'
+import AssignmentDetailPage from './pages/AssignmentDetailPage'
+import CoursePage from './pages/CoursePage'
+import { getInstructorCourses } from './services/api'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -14,6 +17,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api
 
 export default function App() {
   const [health, setHealth] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [courses, setCourses] = useState([])
+  const [coursesLoading, setCoursesLoading] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE}/health`)
@@ -27,12 +34,50 @@ export default function App() {
     window.location.href = '/login'
   }
 
+  //nav with using api
+  // useEffect(() => {
+  //   if (token) {
+  //     setCoursesLoading(true)
+  //     getInstructorCourses()
+  //       .then((fetchedCourses) => {
+  //         setCourses(fetchedCourses)
+  //         setCoursesLoading(false)
+  //       })
+  //       .catch((err) => {
+  //         console.error('Failed to fetch courses:', err)
+  //         setCoursesLoading(false)
+  //       })
+  //   }
+  // }, [token])
+
+  useEffect(() => {
+  // TEMP: sample data for verifying routes/UI
+  setCourses([
+    {
+      id: 'course-1',
+      name: 'COSC 4P02',
+      assignments: [
+        { id: 'a1', title: 'Assignment 1' },
+        { id: 'a2', title: 'Assignment 2' },
+      ],
+    },
+    {
+      id: 'course-2',
+      name: 'COSC 4P01',
+      assignments: [{ id: 'a1', title: 'Assignment 1' }],
+    },
+  ])
+  setCoursesLoading(false)
+}, [])
+
+  if (loading) return <p>Loading...</p>
+  if (error) return <p>Error: {error}</p>
+
   return (
     <>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/submit" element={<StudentSubmitPage />} />
         <Route
           path="/dashboard"
           element={
@@ -42,6 +87,10 @@ export default function App() {
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
+        {/* <Route path="/dashboard" element={<InstructorDashboardPage onLogout={handleLogout}/>}/> */}
+        <Route path="/student-submit" element={<StudentSubmitPage/>}/>
+        <Route path="/course/:courseId" element={<CoursePage courses={courses} coursesLoading={coursesLoading}/>}/>
+        <Route path="/course/:courseId/assignment/:assignmentId" element={<AssignmentDetailPage courses={courses} coursesLoading={coursesLoading}/>}/>
       </Routes>
 
       {health && (
@@ -53,7 +102,7 @@ export default function App() {
   )
 }
 
-function HomePage() {
+function LandingPage() {
   return (
     <div className="min-h-screen bg-gray-200 font-sans">
       <div className="bg-[#3d3d5c] px-6 py-4">

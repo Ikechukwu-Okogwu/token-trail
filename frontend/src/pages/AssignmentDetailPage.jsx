@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import {
   getAnalysisRunStatus,
   getAssignmentSubmissions,
   getInstructorAssignmentById,
   queueAnalysisRun,
 } from '../services/api'
+import Sidebar from '../components/Sidebar/Sidebar'
 
 function mapApiError(error, fallback) {
   const message = error?.message || ''
@@ -51,10 +53,8 @@ function runStatusColor(status) {
   }
 }
 
-export default function AssignmentDetailPage() {
-  const [assignmentIdInput, setAssignmentIdInput] = useState('')
-  const [assignmentId, setAssignmentId] = useState('')
-
+export default function AssignmentDetailPage({ courses = [], coursesLoading = false }) {
+  const { assignmentId } = useParams()
   const [assignment, setAssignment] = useState(null)
   const [submissions, setSubmissions] = useState([])
 
@@ -123,15 +123,9 @@ export default function AssignmentDetailPage() {
     }
   }, [runStatus?.status])
 
-  async function handleLoadAssignment(event) {
-    event.preventDefault()
-    const nextId = assignmentIdInput.trim()
-    if (!nextId) {
-      setPageError('Enter an assignment ID first.')
-      return
-    }
+  useEffect(() => {
+    if (!assignmentId) return
 
-    setAssignmentId(nextId)
     setLoadingAssignmentData(true)
     setPageError(null)
     setAssignmentError(null)
@@ -142,44 +136,48 @@ export default function AssignmentDetailPage() {
     setRunStatus(null)
     setIsPolling(false)
 
-    const [assignmentResult, submissionsResult] = await Promise.allSettled([
-      getInstructorAssignmentById(nextId),
-      getAssignmentSubmissions(nextId),
-    ])
+    const loadData = async () => {
+      const [assignmentResult, submissionsResult] = await Promise.allSettled([
+        getInstructorAssignmentById(assignmentId),
+        getAssignmentSubmissions(assignmentId),
+      ])
 
-    if (assignmentResult.status === 'fulfilled') {
-      setAssignment(assignmentResult.value)
-    } else {
-      setAssignment(null)
-      setAssignmentError(
-        mapApiError(
-          assignmentResult.reason,
-          'Could not load assignment details.'
+      if (assignmentResult.status === 'fulfilled') {
+        setAssignment(assignmentResult.value)
+      } else {
+        setAssignment(null)
+        setAssignmentError(
+          mapApiError(
+            assignmentResult.reason,
+            'Could not load assignment details.'
+          )
         )
-      )
-    }
+      }
 
-    if (submissionsResult.status === 'fulfilled') {
-      setSubmissions(submissionsResult.value)
-    } else {
-      setSubmissions([])
-      setSubmissionsError(
-        mapApiError(
-          submissionsResult.reason,
-          'Could not load assignment submissions.'
+      if (submissionsResult.status === 'fulfilled') {
+        setSubmissions(submissionsResult.value)
+      } else {
+        setSubmissions([])
+        setSubmissionsError(
+          mapApiError(
+            submissionsResult.reason,
+            'Could not load assignment submissions.'
+          )
         )
-      )
+      }
+
+      if (
+        assignmentResult.status === 'rejected' &&
+        submissionsResult.status === 'rejected'
+      ) {
+        setPageError('Unable to load assignment or submissions for this ID.')
+      }
+
+      setLoadingAssignmentData(false)
     }
 
-    if (
-      assignmentResult.status === 'rejected' &&
-      submissionsResult.status === 'rejected'
-    ) {
-      setPageError('Unable to load assignment or submissions for this ID.')
-    }
-
-    setLoadingAssignmentData(false)
-  }
+    loadData()
+  }, [assignmentId])
 
   async function handleQueueRun() {
     if (!assignmentId) return
@@ -210,177 +208,164 @@ export default function AssignmentDetailPage() {
   }
 
   return (
-    <div>
-      <h2>Instructor Assignment Detail</h2>
-      <p>Load assignment details, inspect submissions, and monitor analysis runs.</p>
+    <div className="h-screen flex">
+      <Sidebar courses={courses} coursesLoading={coursesLoading}/>
+      <main className="ml-55 flex-1">
+        <h2>Instructor Assignment Detail</h2>
+        <p>Load assignment details, inspect submissions, and monitor analysis runs.</p>
 
-      <form onSubmit={handleLoadAssignment} style={{ marginBottom: '1rem' }}>
-        <label htmlFor="assignment-id-input">Assignment ID</label>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-          <input
-            id="assignment-id-input"
-            type="text"
-            value={assignmentIdInput}
-            onChange={(event) => setAssignmentIdInput(event.target.value)}
-            placeholder="Enter assignment ID"
-            style={{ flex: 1, padding: '0.5rem' }}
-          />
-          <button type="submit" disabled={loadingAssignmentData}>
-            {loadingAssignmentData ? 'Loading...' : 'Load'}
-          </button>
-        </div>
-      </form>
+        {pageError && <p style={{ color: '#ff6b6b' }}>{pageError}</p>}
 
-      {pageError && <p style={{ color: '#ff6b6b' }}>{pageError}</p>}
-
-      <section style={{ marginBottom: '1.5rem' }}>
-        <h3>Assignment Details</h3>
-        {loadingAssignmentData && <p>Loading assignment data...</p>}
-        {assignmentError && <p style={{ color: '#ff6b6b' }}>{assignmentError}</p>}
-        {!loadingAssignmentData && !assignmentError && !assignment && (
-          <p>Enter an assignment ID to view details.</p>
-        )}
-        {assignment && (
-          <div style={{ background: '#16213e', borderRadius: 8, padding: '1rem' }}>
-            <p>
-              <strong>Title:</strong> {assignment.title}
-            </p>
-            <p>
-              <strong>Language:</strong> {assignment.language}
-            </p>
-            <p>
-              <strong>Assignment Key:</strong> {assignment.assignmentKey}
-            </p>
-            <p>
-              <strong>Open:</strong> {assignment.isOpen ? 'Yes' : 'No'}
-            </p>
-            <p>
-              <strong>Due Date:</strong> {formatDate(assignment.dueDate)}
-            </p>
-            <p>
-              <strong>Key Expiry:</strong> {formatDate(assignment.keyExpiry)}
-            </p>
-            <p>
-              <strong>Auto Analysis:</strong> {assignment.autoAnalysis ? 'Yes' : 'No'}
-            </p>
-            <p>
-              <strong>Allow Late:</strong> {assignment.allowLate ? 'Yes' : 'No'}
-            </p>
-            <p>
-              <strong>Exclusion Code:</strong> {assignment.exclusionCode || 'N/A'}
-            </p>
-            <p>
-              <strong>Created:</strong> {formatDate(assignment.createdAt)}
-            </p>
-          </div>
-        )}
-      </section>
-
-      <section style={{ marginBottom: '1.5rem' }}>
-        <h3>Submissions</h3>
-        {submissionsError && <p style={{ color: '#ff6b6b' }}>{submissionsError}</p>}
-        {!submissionsError && hasLoadedAssignment && submissions.length === 0 && (
-          <p>No submissions found for this assignment yet.</p>
-        )}
-        {submissions.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th align="left">Submission ID</th>
-                  <th align="left">Student Identifier</th>
-                  <th align="left">Student Name</th>
-                  <th align="left">Submitted At</th>
-                  <th align="left">File Count</th>
-                  <th align="left">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.map((submission) => (
-                  <tr key={submission.submissionId}>
-                    <td>{submission.submissionId}</td>
-                    <td>{submission.studentIdentifier}</td>
-                    <td>{submission.studentName || 'N/A'}</td>
-                    <td>{formatDate(submission.submittedAt)}</td>
-                    <td>{submission.fileCount}</td>
-                    <td>{submission.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section style={{ marginBottom: '1.5rem' }}>
-        <h3>Analysis Run</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={handleQueueRun}
-            disabled={!hasLoadedAssignment || queueLoading}
-          >
-            {queueLoading ? 'Queueing...' : 'Run Analysis'}
-          </button>
-          <button
-            type="button"
-            onClick={() => refreshRunStatus()}
-            disabled={!hasRun || statusLoading}
-          >
-            {statusLoading ? 'Refreshing...' : 'Refresh Status'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsPolling((current) => !current)}
-            disabled={!hasRun || terminalRunState}
-          >
-            {isPolling ? 'Stop Polling' : 'Start Polling'}
-          </button>
-        </div>
-
-        {queueError && <p style={{ color: '#ff6b6b' }}>{queueError}</p>}
-        {statusError && <p style={{ color: '#ff6b6b' }}>{statusError}</p>}
-
-        {!hasRun && <p>Queue a run to start monitoring analysis status.</p>}
-        {currentRun && (
-          <div style={{ marginTop: '1rem', background: '#16213e', borderRadius: 8, padding: '1rem' }}>
-            <p>
-              <strong>Run ID:</strong> {currentRun.runId}
-            </p>
-            <p>
-              <strong>Algorithm Version:</strong> {runStatus?.algorithmVersion || currentRun.algorithmVersion}
-            </p>
-            <p>
-              <strong>Status:</strong>{' '}
-              <span
-                style={{
-                  color: runStatusBadge?.color || '#9aa0a6',
-                  fontWeight: 700,
-                }}
-              >
-                {runStatusBadge?.text || currentRun.status?.toUpperCase() || 'UNKNOWN'}
-              </span>
-            </p>
-            <p>
-              <strong>Created:</strong> {formatDate(runStatus?.createdAt)}
-            </p>
-            <p>
-              <strong>Started:</strong> {formatDate(runStatus?.startedAt)}
-            </p>
-            <p>
-              <strong>Finished:</strong> {formatDate(runStatus?.finishedAt)}
-            </p>
-            {runStatus?.errorMessage && (
-              <p style={{ color: '#ff6b6b' }}>
-                <strong>Failure:</strong> {runStatus.errorMessage}
+        <section style={{ marginBottom: '1.5rem' }}>
+          <h3>Assignment Details</h3>
+          {loadingAssignmentData && <p>Loading assignment data...</p>}
+          {assignmentError && <p style={{ color: '#ff6b6b' }}>{assignmentError}</p>}
+          {!loadingAssignmentData && !assignmentError && !assignment && (
+            <p>Enter an assignment ID to view details.</p>
+          )}
+          {assignment && (
+            <div style={{ background: '#16213e', borderRadius: 8, padding: '1rem' }}>
+              <p>
+                <strong>Title:</strong> {assignment.title}
               </p>
-            )}
-            {isPolling && !terminalRunState && (
-              <p style={{ color: '#4ea1ff' }}>Polling run status every 3 seconds.</p>
-            )}
+              <p>
+                <strong>Language:</strong> {assignment.language}
+              </p>
+              <p>
+                <strong>Assignment Key:</strong> {assignment.assignmentKey}
+              </p>
+              <p>
+                <strong>Open:</strong> {assignment.isOpen ? 'Yes' : 'No'}
+              </p>
+              <p>
+                <strong>Due Date:</strong> {formatDate(assignment.dueDate)}
+              </p>
+              <p>
+                <strong>Key Expiry:</strong> {formatDate(assignment.keyExpiry)}
+              </p>
+              <p>
+                <strong>Auto Analysis:</strong> {assignment.autoAnalysis ? 'Yes' : 'No'}
+              </p>
+              <p>
+                <strong>Allow Late:</strong> {assignment.allowLate ? 'Yes' : 'No'}
+              </p>
+              <p>
+                <strong>Exclusion Code:</strong> {assignment.exclusionCode || 'N/A'}
+              </p>
+              <p>
+                <strong>Created:</strong> {formatDate(assignment.createdAt)}
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section style={{ marginBottom: '1.5rem' }}>
+          <h3>Submissions</h3>
+          {submissionsError && <p style={{ color: '#ff6b6b' }}>{submissionsError}</p>}
+          {!submissionsError && hasLoadedAssignment && submissions.length === 0 && (
+            <p>No submissions found for this assignment yet.</p>
+          )}
+          {submissions.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th align="left">Submission ID</th>
+                    <th align="left">Student Identifier</th>
+                    <th align="left">Student Name</th>
+                    <th align="left">Submitted At</th>
+                    <th align="left">File Count</th>
+                    <th align="left">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submissions.map((submission) => (
+                    <tr key={submission.submissionId}>
+                      <td>{submission.submissionId}</td>
+                      <td>{submission.studentIdentifier}</td>
+                      <td>{submission.studentName || 'N/A'}</td>
+                      <td>{formatDate(submission.submittedAt)}</td>
+                      <td>{submission.fileCount}</td>
+                      <td>{submission.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section style={{ marginBottom: '1.5rem' }}>
+          <h3>Analysis Run</h3>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleQueueRun}
+              disabled={!hasLoadedAssignment || queueLoading}
+            >
+              {queueLoading ? 'Queueing...' : 'Run Analysis'}
+            </button>
+            <button
+              type="button"
+              onClick={() => refreshRunStatus()}
+              disabled={!hasRun || statusLoading}
+            >
+              {statusLoading ? 'Refreshing...' : 'Refresh Status'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPolling((current) => !current)}
+              disabled={!hasRun || terminalRunState}
+            >
+              {isPolling ? 'Stop Polling' : 'Start Polling'}
+            </button>
           </div>
-        )}
-      </section>
+
+          {queueError && <p style={{ color: '#ff6b6b' }}>{queueError}</p>}
+          {statusError && <p style={{ color: '#ff6b6b' }}>{statusError}</p>}
+
+          {!hasRun && <p>Queue a run to start monitoring analysis status.</p>}
+          {currentRun && (
+            <div style={{ marginTop: '1rem', background: '#16213e', borderRadius: 8, padding: '1rem' }}>
+              <p>
+                <strong>Run ID:</strong> {currentRun.runId}
+              </p>
+              <p>
+                <strong>Algorithm Version:</strong> {runStatus?.algorithmVersion || currentRun.algorithmVersion}
+              </p>
+              <p>
+                <strong>Status:</strong>{' '}
+                <span
+                  style={{
+                    color: runStatusBadge?.color || '#9aa0a6',
+                    fontWeight: 700,
+                  }}
+                >
+                  {runStatusBadge?.text || currentRun.status?.toUpperCase() || 'UNKNOWN'}
+                </span>
+              </p>
+              <p>
+                <strong>Created:</strong> {formatDate(runStatus?.createdAt)}
+              </p>
+              <p>
+                <strong>Started:</strong> {formatDate(runStatus?.startedAt)}
+              </p>
+              <p>
+                <strong>Finished:</strong> {formatDate(runStatus?.finishedAt)}
+              </p>
+              {runStatus?.errorMessage && (
+                <p style={{ color: '#ff6b6b' }}>
+                  <strong>Failure:</strong> {runStatus.errorMessage}
+                </p>
+              )}
+              {isPolling && !terminalRunState && (
+                <p style={{ color: '#4ea1ff' }}>Polling run status every 3 seconds.</p>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
+      
     </div>
   )
 }
