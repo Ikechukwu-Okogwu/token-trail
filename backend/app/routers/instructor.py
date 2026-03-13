@@ -88,6 +88,24 @@ async def list_courses(current: dict = Depends(get_current_instructor)):
     ]
 
 
+@router.get("/courses/{course_id}/assignments", response_model=list[AssignmentResponse])
+async def list_course_assignments(
+    course_id: str,
+    current: dict = Depends(get_current_instructor),
+):
+    """List all assignments for a specific course."""
+    db = get_db()
+    oid = to_object_id(course_id)
+    
+    # Verify the course belongs to this instructor
+    course = db.courses.find_one({"_id": oid, "instructorId": current["id"]})
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    assignments = db.assignments.find({"courseId": course_id})
+    return [_assignment_response(a) for a in assignments]
+
+
 # ── Assignments ────────────────────────────────────
 
 
