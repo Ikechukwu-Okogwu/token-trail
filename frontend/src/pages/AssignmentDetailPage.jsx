@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import {
   getAnalysisRunStatus,
   getAssignmentSubmissions,
@@ -51,9 +52,14 @@ function runStatusColor(status) {
   }
 }
 
+function isValidAssignmentId(value) {
+  return /^[a-f0-9]{24}$/i.test(value || '')
+}
+
 export default function AssignmentDetailPage() {
-  const [assignmentIdInput, setAssignmentIdInput] = useState('')
-  const [assignmentId, setAssignmentId] = useState('')
+  const { courseId, assignmentId: assignmentIdParam } = useParams()
+  const [assignmentIdInput, setAssignmentIdInput] = useState(assignmentIdParam || '')
+  const [assignmentId, setAssignmentId] = useState(assignmentIdParam || '')
 
   const [assignment, setAssignment] = useState(null)
   const [submissions, setSubmissions] = useState([])
@@ -76,6 +82,10 @@ export default function AssignmentDetailPage() {
   const hasRun = Boolean(currentRun?.runId)
   const terminalRunState =
     runStatus?.status === 'completed' || runStatus?.status === 'failed'
+  const resultsUrl =
+    courseId && assignmentIdParam && currentRun?.runId
+      ? `/course/${courseId}/assignment/${assignmentIdParam}/run/${currentRun.runId}/results`
+      : null
 
   const refreshRunStatus = useCallback(
     async ({ silent = false } = {}) => {
@@ -123,9 +133,7 @@ export default function AssignmentDetailPage() {
     }
   }, [runStatus?.status])
 
-  async function handleLoadAssignment(event) {
-    event.preventDefault()
-    const nextId = assignmentIdInput.trim()
+  const loadAssignmentData = useCallback(async (nextId) => {
     if (!nextId) {
       setPageError('Enter an assignment ID first.')
       return
@@ -179,6 +187,24 @@ export default function AssignmentDetailPage() {
     }
 
     setLoadingAssignmentData(false)
+  }, [])
+
+  useEffect(() => {
+    if (!assignmentIdParam) return
+    setAssignmentIdInput(assignmentIdParam)
+    if (!isValidAssignmentId(assignmentIdParam)) {
+      setPageError(
+        'Route assignment ID is not in API format. Enter a valid assignment ID and click Load.'
+      )
+      return
+    }
+    loadAssignmentData(assignmentIdParam)
+  }, [assignmentIdParam, loadAssignmentData])
+
+  async function handleLoadAssignment(event) {
+    event.preventDefault()
+    const nextId = assignmentIdInput.trim()
+    await loadAssignmentData(nextId)
   }
 
   async function handleQueueRun() {
@@ -377,6 +403,11 @@ export default function AssignmentDetailPage() {
             )}
             {isPolling && !terminalRunState && (
               <p style={{ color: '#4ea1ff' }}>Polling run status every 3 seconds.</p>
+            )}
+            {runStatus?.status === 'completed' && resultsUrl && (
+              <p style={{ marginTop: '0.75rem' }}>
+                <Link to={resultsUrl}>View Similarity Results</Link>
+              </p>
             )}
           </div>
         )}

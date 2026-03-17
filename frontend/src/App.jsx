@@ -8,6 +8,7 @@ import AssignmentPage from './pages/AssignmentPage'
 import AssignmentDetailPage from './pages/AssignmentDetailPage'
 import CoursePage from './pages/CoursePage'
 import SubmissionComparisonPage from './pages/SubmissionComparisonPage'
+import SimilarityReportPage from './pages/SimilarityReportPage'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 const token = localStorage.getItem("token");
@@ -57,15 +58,14 @@ function App() {
         <Route path="/dashboard" element={<InstructorDashboardPage courses={courses}/>}/>
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
         <Route path="/course/:courseId/assignment/:assignmentId/submission/:submissionId" element={<SubmissionComparisonPage courses={courses}/>}/>
+        <Route path="/course/:courseId/assignment/:assignmentId/details" element={<AssignmentDetailPage/>}/>
+        <Route path="/course/:courseId/assignment/:assignmentId/run/:runId/results" element={<SimilarityReportPage/>}/>
         {courses.map((course) => (
           <Fragment key={course.id}>
             <Route path={`/course/${course.id}`} element={<CoursePage courses={courses}/>}/>
             {course.assignments.map((assignment) => (
               <Fragment key={assignment.id}>
                 <Route path={`/course/${course.id}/assignment/${assignment.id}`} element={<AssignmentPage courses={courses}/>}/>
-                {assignment.details && (
-                  <Route path={`/course/${course.id}/assignment/${assignment.id}/details`} element={<AssignmentDetailPage/>}/>
-                )}
               </Fragment>
             ))}
           </Fragment>
