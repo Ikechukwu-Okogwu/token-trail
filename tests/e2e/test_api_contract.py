@@ -3,11 +3,13 @@ E2E API contract tests for Token Trail.
 
 Test Plan:
 - Input partitions: valid (auth, courses, assignments, submissions), invalid (bad IDs,
-  missing token, wrong key), edge (empty list, minimal ZIP, unknown key)
+  missing token, wrong key, malformed resultId), edge (empty list, minimal ZIP, unknown key)
 - Boundaries: empty submissions list, single submission (0 pairs), minimal valid ZIP,
-  invalid key format (non-10-digit)
+  invalid key format (non-10-digit), pairwise ranking order over multiple pairs
+- Interface misuse: malformed ObjectId-like route params, malformed `resultId` for
+  similarity detail/comparison routes
 - Failure modes: API unreachable (connection refused), auth failures (401/403),
-  validation failures (400/404), 501 stubs
+  validation failures (400/404), placeholder-only 501 admin endpoints
 """
 import time
 import zipfile
@@ -268,7 +270,7 @@ def test_happy_path_poll_run_completed(
 def test_similarity_results_list_returns_ranked_pairs(
     base_url: str, auth_headers: dict, test_zip, tmp_path
 ) -> None:
-    """Guards: Similarity list endpoint returns ranked pairs for completed runs."""
+    """Guards: Similarity list returns ranked pairs and preserves descending score order."""
     rc = requests.post(
         f"{base_url}/api/instructor/courses",
         headers=auth_headers,
@@ -331,6 +333,25 @@ def test_similarity_results_list_returns_ranked_pairs(
         )
     up2.raise_for_status()
 
+    third_zip = tmp_path / "submission4.zip"
+    with zipfile.ZipFile(third_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "Hello.java",
+            "public class Hello { public static void main(String[] args) { int z = 99; } }",
+        )
+    with open(third_zip, "rb") as f:
+        up3 = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": assignment_key,
+                "studentIdentifier": "sim3@test.edu",
+                "studentName": "Sim Three",
+            },
+            files={"zipFile": ("sub3.zip", f, "application/zip")},
+            timeout=30,
+        )
+    up3.raise_for_status()
+
     rr = requests.post(
         f"{base_url}/api/instructor/assignments/{assignment_id}/analysis-runs",
         headers=auth_headers,
@@ -366,10 +387,15 @@ def test_similarity_results_list_returns_ranked_pairs(
     assert payload["runId"] == run_id
     assert payload["assignmentId"] == assignment_id
     assert isinstance(payload["results"], list)
-    assert len(payload["results"]) >= 1
+    assert len(payload["results"]) >= 3
+
+    # Regression check: list is sorted descending by similarityScore.
+    scores = [item["similarityScore"] for item in payload["results"]]
+    assert scores == sorted(scores, reverse=True)
 
     top = payload["results"][0]
     assert "resultId" in top
+    assert "__" in top["resultId"]
     assert top["runId"] == run_id
     assert top["assignmentId"] == assignment_id
     assert "leftSubmissionId" in top and "rightSubmissionId" in top
@@ -379,7 +405,7 @@ def test_similarity_results_list_returns_ranked_pairs(
 def test_similarity_pair_detail_and_comparison_return_payload(
     base_url: str, auth_headers: dict, test_zip, tmp_path
 ) -> None:
-    """Guards: Pair detail/comparison endpoints return expected contract."""
+    """Guards: Pair detail/comparison contract and bounded repeated calls remain stable."""
     # Reuse same setup pattern to guarantee at least one pair.
     rc = requests.post(
         f"{base_url}/api/instructor/courses",
@@ -497,6 +523,18 @@ def test_similarity_pair_detail_and_comparison_return_payload(
     assert "rightCode" in comparison and isinstance(comparison["rightCode"], str)
     assert isinstance(comparison["matchingRegions"], list)
 
+    # Stress/repeated-call check (bounded): repeated reads should stay stable.
+    for _ in range(5):
+        repeat = requests.get(
+            f"{base_url}/api/instructor/similarity-results/{result_id}/comparison",
+            headers=auth_headers,
+            timeout=10,
+        )
+        assert repeat.status_code == 200
+        repeated_payload = repeat.json()
+        assert repeated_payload["resultId"] == result_id
+        assert repeated_payload["assignmentId"] == assignment_id
+
 
 def test_similarity_results_for_wrong_instructor_return_403(
     base_url: str, happy_path_setup: dict
@@ -521,6 +559,21 @@ def test_similarity_results_for_wrong_instructor_return_403(
     data = r.json()
     assert "detail" in data
     assert "Not your analysis run" in str(data["detail"])
+
+
+def test_similarity_result_id_bad_format_returns_400(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: Malformed similarity resultId is rejected with explicit 400 contract."""
+    r = requests.get(
+        f"{base_url}/api/instructor/similarity-results/not-a-valid-result-id",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert r.status_code == 400
+    payload = r.json()
+    assert "detail" in payload
+    assert "Invalid resultId format" in str(payload["detail"])
 
 
 # --- Edge / defect ---
