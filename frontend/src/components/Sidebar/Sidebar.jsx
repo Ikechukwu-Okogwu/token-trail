@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import './Sidebar.css'
 import homeIcon from '../../assets/icons/home.svg'
@@ -6,6 +6,7 @@ import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
 import assignmentIcon from '../../assets/icons/assignment.svg'
+import { getCourseAssignments, getInstructorCourses } from '../../services/api'
 
 const navLinkClass = ({ isActive }) =>
   `flex items-center flex-1 gap-2 h-11 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`
@@ -34,9 +35,44 @@ function ChevronUp({ className = 'w-4 h-4' }) {
   )
 }
 
-export default function Sidebar({ courses = [] }) {
+export default function Sidebar({refreshKey}) {
   const location = useLocation()
-  const [expandedIds, setExpandedIds] = useState(() => {
+  const [courses, setCourses] = useState([])
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    if (token) {
+      setCoursesLoading(true)
+      getInstructorCourses()
+        .then((fetchedCourses) => {
+          setCourses(fetchedCourses)
+        })
+        .catch((err) => {
+          console.error('Failed to fetch courses:', err)
+        })
+    }
+  }, [token, refreshKey])
+
+  useEffect(() => {
+    // TEMP: sample data for verifying routes/UI
+    setCourses([
+      {
+        id: 'course-1',
+        name: 'COSC 4P02',
+        assignments: [
+          { id: 'a1', title: 'Assignment 1' },
+          { id: 'a2', title: 'Assignment 2' },
+        ],
+      },
+      {
+        id: 'course-2',
+        name: 'COSC 4P01',
+        assignments: [{ id: 'a1', title: 'Assignment 1' }],
+      },
+    ])
+  }, [])
+  const [expandedIds, setExpandedIds] = useState(new Set())
+  useEffect(() => {
     const initial = new Set()
 
     courses.forEach((course) => {
@@ -50,14 +86,29 @@ export default function Sidebar({ courses = [] }) {
       }
     })
 
-    return initial
-  })
+    setExpandedIds(initial)
+  }, [courses, location.pathname])
 
-  const toggleCourse = (courseId) => {
+  const [courseAssignments, setCourseAssignments] = useState({})
+
+  const toggleCourse = async (courseId) => {
     setExpandedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(courseId)) next.delete(courseId)
-      else next.add(courseId)
+      if (next.has(courseId)) {
+        next.delete(courseId)
+      } else {
+        next.add(courseId)
+        // Fetch assignments if not already fetched
+        if (!courseAssignments[courseId]) {
+          getCourseAssignments(courseId)
+            .then((assignments) => {
+              setCourseAssignments(prev => ({ ...prev, [courseId]: assignments }))
+            })
+            .catch((err) => {
+              console.error('Failed to fetch assignments for course', courseId, err)
+            })
+        }
+      }
       return next
     })
   }
@@ -74,7 +125,7 @@ export default function Sidebar({ courses = [] }) {
               </NavLink>
             </li>
             {courses.map((course) => {
-              const assignments = course.assignments ?? []
+              const assignments = courseAssignments[course.id] ?? course.assignments ?? []
               const isExpanded = expandedIds.has(course.id)
               return (
               <li key={course.id}>
