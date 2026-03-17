@@ -16,8 +16,6 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api
 
 export default function App() {
   const [health, setHealth] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
   useEffect(() => {
     fetch(`${API_BASE}/health`)
@@ -30,9 +28,6 @@ export default function App() {
     localStorage.removeItem('token')
     window.location.href = '/login'
   }
-
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error}</p>
 
   return (
     <>
