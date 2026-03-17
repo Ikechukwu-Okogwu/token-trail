@@ -42,11 +42,10 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
-        {/* <Route path="/dashboard" element={<HomePage/>}/> */} {/* temp use */}
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
         <Route path="/course/:courseId" element={<CoursePage/>}/>
         <Route path="/course/:courseId/assignment/:assignmentId" element={<AssignmentDetailPage/>}/>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       {health && (
@@ -67,7 +66,7 @@ function LandingPage() {
 
       <div className="flex justify-center items-center gap-8 mt-20">
         <a
-          href="/submit"
+          href="/student-submit"
           className="bg-[#b8a9d4] border-2 border-dashed border-[#8a7aaa] rounded-2xl p-10 w-52 text-center no-underline text-gray-900 cursor-pointer hover:shadow-lg transition-shadow"
         >
           <h2 className="text-xl font-bold mb-3">Student</h2>

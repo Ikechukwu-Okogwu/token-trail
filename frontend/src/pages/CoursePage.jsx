@@ -52,7 +52,7 @@ export default function CoursePage({ onAssignmentCreated, courses }) {
     setRefreshKey((k) => k + 1)
     onAssignmentCreated?.()
     // Navigate to the new assignment (teammate's page)
-    navigate(`/assignment/${assignment.id}`)
+    navigate(`/course/${courseId}/assignment/${assignment.id}`)
   }
 
   const filtered = assignments.filter((a) =>
