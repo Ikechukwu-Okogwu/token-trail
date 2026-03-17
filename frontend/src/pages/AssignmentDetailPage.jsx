@@ -241,7 +241,7 @@ export default function AssignmentDetailPage() {
           <p>Enter an assignment ID to view details.</p>
         )}
         {assignment && (
-          <div style={{ background: '#16213e', borderRadius: 8, padding: '1rem' }}>
+          <div style={{ background: '#67769c', borderRadius: 8, padding: '1rem' }}>
             <p>
               <strong>Title:</strong> {assignment.title}
             </p>
