@@ -343,7 +343,7 @@ export default function AssignmentDetailPage() {
 
         {!hasRun && <p>Queue a run to start monitoring analysis status.</p>}
         {currentRun && (
-          <div style={{ marginTop: '1rem', background: '#16213e', borderRadius: 8, padding: '1rem' }}>
+          <div style={{ marginTop: '1rem', background: '#4cbdd1', borderRadius: 8, padding: '1rem' }}>
             <p>
               <strong>Run ID:</strong> {currentRun.runId}
             </p>
