@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import {
   getAnalysisRunStatus,
   getAssignmentSubmissions,
@@ -55,6 +55,7 @@ function runStatusColor(status) {
 
 export default function AssignmentDetailPage() {
   const { assignmentId } = useParams()
+  const navigate = useNavigate()
   const [assignment, setAssignment] = useState(null)
   const [submissions, setSubmissions] = useState([])
 
@@ -361,6 +362,27 @@ export default function AssignmentDetailPage() {
               {isPolling && !terminalRunState && (
                 <p style={{ color: '#4ea1ff' }}>Polling run status every 3 seconds.</p>
               )}
+            </div>
+          )}
+
+          {runStatus?.status === 'completed' && currentRun?.runId && (
+            <div style={{ marginTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => navigate(`/similarity/${currentRun.runId}`)}
+                style={{
+                  backgroundColor: '#2db783',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 20px',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                View Similarity Results
+              </button>
             </div>
           )}
         </section>
