@@ -1,19 +1,17 @@
-
 import { useState } from 'react'
 import { login, signup } from '../services/api'
+import Button from '../components/ui/Button'
+import Input from '../components/ui/Input'
+import ErrorBanner from '../components/ui/ErrorBanner'
 
 export default function LoginPage() {
-
-  // "tab" controls which form is showing — 'signin' or 'signup'
   const [tab, setTab] = useState('signin')
 
-  // --- Sign In form values ---
   const [siEmail, setSiEmail]       = useState('')
   const [siPassword, setSiPassword] = useState('')
   const [siLoading, setSiLoading]   = useState(false)
   const [siError, setSiError]       = useState('')
 
-  // --- Sign Up form values ---
   const [suName, setSuName]         = useState('')
   const [suEmail, setSuEmail]       = useState('')
   const [suPassword, setSuPassword] = useState('')
@@ -21,291 +19,108 @@ export default function LoginPage() {
   const [suLoading, setSuLoading]   = useState(false)
   const [suError, setSuError]       = useState('')
 
-  // This runs when the teacher clicks "Sign In"
   async function handleSignIn(e) {
     e.preventDefault()
     setSiError('')
-
-    if (!siEmail || !siPassword) {
-      setSiError('Please fill in both fields.')
-      return
-    }
-
+    if (!siEmail || !siPassword) { setSiError('Please fill in both fields.'); return }
     setSiLoading(true)
     try {
       const data = await login(siEmail, siPassword)
       localStorage.setItem('token', data.accessToken)
       window.location.href = '/dashboard'
     } catch (err) {
-      if (err.status === 401) {
-        setSiError('Wrong email or password. Please try again.')
-      } else {
-        setSiError('Something went wrong. Please try again.')
-      }
+      setSiError(err.status === 401 ? 'Wrong email or password. Please try again.' : 'Something went wrong. Please try again.')
     } finally {
       setSiLoading(false)
     }
   }
 
-  // This runs when the teacher clicks "Sign Up"
   async function handleSignUp(e) {
     e.preventDefault()
     setSuError('')
-
-    if (!suName || !suEmail || !suPassword || !suConfirm) {
-      setSuError('Please fill in all fields.')
-      return
-    }
-
-    if (suPassword !== suConfirm) {
-      setSuError('Passwords do not match.')
-      return
-    }
-
+    if (!suName || !suEmail || !suPassword || !suConfirm) { setSuError('Please fill in all fields.'); return }
+    if (suPassword !== suConfirm) { setSuError('Passwords do not match.'); return }
     setSuLoading(true)
     try {
       const data = await signup(suName, suEmail, suPassword)
       localStorage.setItem('token', data.accessToken)
       window.location.href = '/dashboard'
     } catch (err) {
-      if (err.status === 409) {
-        setSuError('An account with this email already exists.')
-      } else {
-        setSuError('Something went wrong. Please try again.')
-      }
+      setSuError(err.status === 409 ? 'An account with this email already exists.' : 'Something went wrong. Please try again.')
     } finally {
       setSuLoading(false)
     }
   }
 
-  return (
-    <div style={styles.page}>
+  const tabBase = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-colors'
+  const tabActive = 'bg-[#3b3660] text-white shadow-sm'
+  const tabInactive = 'text-gray-500 hover:text-gray-700'
 
-      <div style={styles.navbar}>
-        <span style={styles.navTitle}>Token Trail</span>
+  return (
+    <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
+      {/* Navbar */}
+      <div className="bg-[#3b3660] px-6 py-4 flex-shrink-0">
+        <span className="text-white text-xl font-bold">Token Trail</span>
       </div>
 
-      <div style={styles.center}>
-        <div style={styles.card}>
+      {/* Centered card */}
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
 
-          <h2 style={styles.title}>Teacher Portal</h2>
-          <p style={styles.subtitle}>Sign in or create an account to manage assignments</p>
+          <h1 className="text-xl font-bold text-gray-900 text-center mb-1">Teacher Portal</h1>
+          <p className="text-sm text-gray-500 text-center mb-6">Sign in or create an account to manage assignments</p>
 
-          <div style={styles.tabs}>
-            <button
-              style={tab === 'signin' ? styles.tabActive : styles.tab}
-              onClick={() => { setTab('signin'); setSiError(''); setSuError('') }}
-            >
+          {/* Tab switcher */}
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+            <button className={`${tabBase} ${tab === 'signin' ? tabActive : tabInactive}`}
+              onClick={() => { setTab('signin'); setSiError(''); setSuError('') }}>
               Sign In
             </button>
-            <button
-              style={tab === 'signup' ? styles.tabActive : styles.tab}
-              onClick={() => { setTab('signup'); setSiError(''); setSuError('') }}
-            >
+            <button className={`${tabBase} ${tab === 'signup' ? tabActive : tabInactive}`}
+              onClick={() => { setTab('signup'); setSiError(''); setSuError('') }}>
               Sign Up
             </button>
           </div>
 
+          {/* Sign In form */}
           {tab === 'signin' && (
-            <form onSubmit={handleSignIn}>
-              {siError && <p style={styles.error}>{siError}</p>}
-              <div style={styles.field}>
-                <label style={styles.label}>Email</label>
-                <input
-                  type="email"
-                  value={siEmail}
-                  onChange={e => setSiEmail(e.target.value)}
-                  placeholder="JohnDoe@gmail.com"
-                  style={styles.input}
-                  disabled={siLoading}
-                />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Password</label>
-                <input
-                  type="password"
-                  value={siPassword}
-                  onChange={e => setSiPassword(e.target.value)}
-                  placeholder="••••••••••"
-                  style={styles.input}
-                  disabled={siLoading}
-                />
-              </div>
-              <button type="submit" style={styles.button} disabled={siLoading}>
-                {siLoading ? 'Signing in...' : 'Sign In'}
-              </button>
+            <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+              <ErrorBanner message={siError} />
+              <Input label="Email" type="email" value={siEmail}
+                onChange={e => setSiEmail(e.target.value)}
+                placeholder="you@university.edu" disabled={siLoading} />
+              <Input label="Password" type="password" value={siPassword}
+                onChange={e => setSiPassword(e.target.value)}
+                placeholder="••••••••" disabled={siLoading} />
+              <Button type="submit" fullWidth disabled={siLoading} size="lg" className="mt-1">
+                {siLoading ? 'Signing in…' : 'Sign In'}
+              </Button>
             </form>
           )}
 
+          {/* Sign Up form */}
           {tab === 'signup' && (
-            <form onSubmit={handleSignUp}>
-              {suError && <p style={styles.error}>{suError}</p>}
-              <div style={styles.field}>
-                <label style={styles.label}>Email</label>
-                <input
-                  type="email"
-                  value={suEmail}
-                  onChange={e => setSuEmail(e.target.value)}
-                  placeholder="JohnDoe@gmail.com"
-                  style={styles.input}
-                  disabled={suLoading}
-                />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Full Name</label>
-                <input
-                  type="text"
-                  value={suName}
-                  onChange={e => setSuName(e.target.value)}
-                  placeholder="John Doe"
-                  style={styles.input}
-                  disabled={suLoading}
-                />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Password</label>
-                <input
-                  type="password"
-                  value={suPassword}
-                  onChange={e => setSuPassword(e.target.value)}
-                  placeholder="••••••••••"
-                  style={styles.input}
-                  disabled={suLoading}
-                />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Confirm Password</label>
-                <input
-                  type="password"
-                  value={suConfirm}
-                  onChange={e => setSuConfirm(e.target.value)}
-                  placeholder="••••••••••"
-                  style={styles.input}
-                  disabled={suLoading}
-                />
-              </div>
-              <button type="submit" style={styles.button} disabled={suLoading}>
-                {suLoading ? 'Creating account...' : 'Sign Up'}
-              </button>
+            <form onSubmit={handleSignUp} className="flex flex-col gap-4">
+              <ErrorBanner message={suError} />
+              <Input label="Email" type="email" value={suEmail}
+                onChange={e => setSuEmail(e.target.value)}
+                placeholder="you@university.edu" disabled={suLoading} />
+              <Input label="Full Name" type="text" value={suName}
+                onChange={e => setSuName(e.target.value)}
+                placeholder="Jane Doe" disabled={suLoading} />
+              <Input label="Password" type="password" value={suPassword}
+                onChange={e => setSuPassword(e.target.value)}
+                placeholder="••••••••" disabled={suLoading} />
+              <Input label="Confirm Password" type="password" value={suConfirm}
+                onChange={e => setSuConfirm(e.target.value)}
+                placeholder="••••••••" disabled={suLoading} />
+              <Button type="submit" fullWidth disabled={suLoading} size="lg" className="mt-1">
+                {suLoading ? 'Creating account…' : 'Sign Up'}
+              </Button>
             </form>
           )}
-
         </div>
       </div>
     </div>
   )
-}
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    backgroundColor: '#c8c8c8',
-    fontFamily: 'sans-serif',
-  },
-  navbar: {
-    backgroundColor: '#3d3d5c',
-    padding: '16px 24px',
-  },
-  navTitle: {
-    color: 'white',
-    fontSize: '20px',
-    fontWeight: 'bold',
-  },
-  center: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '60px 24px',
-  },
-  card: {
-    backgroundColor: '#b0b0b0',
-    borderRadius: '12px',
-    padding: '32px 28px',
-    width: '100%',
-    maxWidth: '460px',
-  },
-  title: {
-    textAlign: 'center',
-    fontSize: '20px',
-    margin: '0 0 6px 0',
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: '13px',
-    color: '#444',
-    margin: '0 0 20px 0',
-  },
-  tabs: {
-    display: 'flex',
-    backgroundColor: '#888',
-    borderRadius: '8px',
-    padding: '3px',
-    marginBottom: '20px',
-    gap: '3px',
-  },
-  tab: {
-    flex: 1,
-    padding: '10px',
-    border: 'none',
-    borderRadius: '6px',
-    backgroundColor: 'transparent',
-    color: '#ddd',
-    fontSize: '14px',
-    cursor: 'pointer',
-    fontFamily: 'sans-serif',
-  },
-  tabActive: {
-    flex: 1,
-    padding: '10px',
-    border: 'none',
-    borderRadius: '6px',
-    backgroundColor: '#1a1a1a',
-    color: 'white',
-    fontSize: '14px',
-    cursor: 'pointer',
-    fontFamily: 'sans-serif',
-  },
-  error: {
-    backgroundColor: 'rgba(200,0,0,0.1)',
-    border: '1px solid rgba(200,0,0,0.3)',
-    borderRadius: '6px',
-    color: '#a00',
-    fontSize: '13px',
-    padding: '10px',
-    marginBottom: '12px',
-    textAlign: 'center',
-  },
-  field: {
-    marginBottom: '14px',
-  },
-  label: {
-    display: 'block',
-    fontSize: '13px',
-    fontWeight: '500',
-    marginBottom: '5px',
-    color: '#222',
-  },
-  input: {
-    width: '100%',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    border: 'none',
-    backgroundColor: '#e8e8e8',
-    fontSize: '14px',
-    fontFamily: 'sans-serif',
-    boxSizing: 'border-box',
-  },
-  button: {
-    width: '100%',
-    padding: '14px',
-    marginTop: '8px',
-    backgroundColor: '#1a1a1a',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    fontFamily: 'sans-serif',
-  },
 }
