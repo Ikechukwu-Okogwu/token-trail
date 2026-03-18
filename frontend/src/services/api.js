@@ -31,34 +31,37 @@ export async function apiFetch(path, options = {}) {
 
   //Return the server's response as a JavaScript object
   return res.json()
+  
+}
+export default apiFetch
 
-  //-Authorization Function-
+//-Authorization Function-
 
-  export function login (email, password){
-    return apiFetch ('/auth/login', { method: 'POST', body: JSON.stringify ({email, password}),
-    })
-  }
+export function login (email, password){
+  return apiFetch ('/auth/login', { method: 'POST', body: JSON.stringify ({email, password}),
+  })
+}
 //Create a new instructor account
-  export function signup(name, email, password) {
+export function signup(name, email, password) {
   return apiFetch('/auth/signup', {
     method: 'POST',
     body: JSON.stringify({ name, email, password }),
   })
 }
 //Log out — removes the token and sends user to login page
-  export function logout() {
+export function logout() {
   localStorage.removeItem('token')
   window.location.href = '/login'
 }
   
  // student function , no login needed
-  export function validateAssignmentKey(assignmentKey) {
+export function validateAssignmentKey(assignmentKey) {
   return apiFetch('/public/assignment-key/validate', {
     method: 'POST',
     body: JSON.stringify({ assignmentKey }),
   })
 }
-  export function submitAssignment({ assignmentKey, studentIdentifier, studentName, zipFile }) {
+export function submitAssignment({ assignmentKey, studentIdentifier, studentName, zipFile }) {
   const form = new FormData()
   form.append('assignmentKey', assignmentKey)
   form.append('studentIdentifier', studentIdentifier)
@@ -71,7 +74,7 @@ export async function apiFetch(path, options = {}) {
   })
 }
   //Instructor Functions, login required 
-/ Get list of courses for the logged-in instructor
+// Get list of courses for the logged-in instructor
 export function getCourses() {
   return apiFetch('/instructor/courses')
 }
@@ -79,8 +82,6 @@ export function getCourses() {
 //Gets lisst of submissions for an assignment
 export function listSubmissions(assignmentId) {
   return apiFetch(`/instructor/assignments/${assignmentId}/submissions`)
-}
-export default apiFetch  
 }
 
 export function getInstructorAssignmentById(assignmentId) {
