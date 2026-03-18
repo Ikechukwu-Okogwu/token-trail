@@ -11,6 +11,7 @@ class CreateRunResponse(BaseModel):
 class RunStatusResponse(BaseModel):
     runId: str
     assignmentId: str
+    courseId: str
     status: str
     algorithmVersion: str
     createdAt: str

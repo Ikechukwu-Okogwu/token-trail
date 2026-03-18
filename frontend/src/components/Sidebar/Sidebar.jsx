@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useParams } from 'react-router-dom'
 import './Sidebar.css'
 import homeIcon from '../../assets/icons/home.svg'
 import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
 import assignmentIcon from '../../assets/icons/assignment.svg'
-import { getCourseAssignments, getInstructorCourses } from '../../services/api'
+import { getCourseAssignments, getInstructorCourses, getAnalysisRunStatus } from '../../services/api'
 
 const navLinkClass = ({ isActive }) =>
   `flex items-center flex-1 gap-2 h-11 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`
@@ -42,6 +42,8 @@ export default function Sidebar({refreshKey}) {
   const [courseAssignments, setCourseAssignments] = useState({})
   const [loadingCourseAssignments, setLoadingCourseAssignments] = useState({})
   const [expandedIds, setExpandedIds] = useState(new Set())
+  const {runId} = useParams()
+  const [selectedAssign, setSelectedAssign] = useState('')
 
   const fetchAssignments = (courseId) => {
     if (courseAssignments[courseId] || loadingCourseAssignments[courseId]) return
@@ -76,41 +78,66 @@ export default function Sidebar({refreshKey}) {
     }
   }, [token, refreshKey])
   
-  useEffect(() => {
-    setExpandedIds((prevExpanded) => {
-      const nextExpanded = new Set(prevExpanded)
+  useEffect(() => { //open dropdown automatically if on course
+    if (runId) {
+      getAnalysisRunStatus(runId).then((status) => {
+        setSelectedAssign(status.assignmentId)
+        setExpandedIds((prevExpanded) => {
+          const nextExpanded = new Set(prevExpanded)
+          
+          courses.forEach((course) => {
+            const isActiveCourse = course.id === status.courseId
 
-      courses.forEach((course) => {
-        const isActiveCourse = location.pathname === `/course/${course.id}`
-        const isActiveAssignment = location.pathname.startsWith(`/course/${course.id}/assignment/`)
+            if (isActiveCourse) {
+              nextExpanded.add(course.id)
+            }
 
-        if (isActiveCourse || isActiveAssignment) {
-          nextExpanded.add(course.id)
-        }
+          })
 
-        const assignments = courseAssignments[course.id] ?? []
-        const hasActiveAssignment = assignments.some(
-          (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
-        )
+          return nextExpanded
+        })
+      })
+      .catch((err) => {
+        console.error('Failed to fetch run status:', err)
+      })
+    }
 
-        if (hasActiveAssignment) {
-          nextExpanded.add(course.id)
+    else {
+      setExpandedIds((prevExpanded) => {
+        const nextExpanded = new Set(prevExpanded)
+        
+        courses.forEach((course) => {
+          const isActiveCourse = location.pathname.startsWith(`/course/${course.id}`)
+
+          if (isActiveCourse) {
+            nextExpanded.add(course.id)
+          }
+        })
+
+        return nextExpanded
+      })
+    }
+    
+  }, [courses, courseAssignments, location.pathname, runId])
+
+  useEffect(() => { //fetches assignments automatically if on page where dropdown starts open
+    const match = location.pathname.match(/^\/course\/([^\/]+)(?:\/assignment\/[^\/]+)?$/)
+    if (match) {
+      const courseId = match[1]
+      if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
+        fetchAssignments(courseId)
+      }
+    }
+    else if (runId) {
+      getAnalysisRunStatus(runId).then((status) => {
+        const courseId = status.courseId
+        if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
+          fetchAssignments(courseId)
         }
       })
-
-      return nextExpanded
-    })
-  }, [courses, courseAssignments, location.pathname])
-
-  useEffect(() => {
-    const match = location.pathname.match(/^\/course\/([^\/]+)(?:\/assignment\/[^\/]+)?$/)
-    if (!match) return
-
-    const courseId = match[1]
-    if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
-      fetchAssignments(courseId)
     }
-  }, [location.pathname, courseAssignments, loadingCourseAssignments])
+    
+  }, [location.pathname, courseAssignments, loadingCourseAssignments, runId])
 
   const toggleCourse = (courseId) => {
     const isCurrentlyExpanded = expandedIds.has(courseId)
@@ -175,11 +202,11 @@ export default function Sidebar({refreshKey}) {
                         <li key={a.id}>
                           <NavLink
                             to={`/course/${course.id}/assignment/${a.id}`}
-                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive || a.id===selectedAssign ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
                           >
                             {({ isActive }) => (
                               <>
-                                <div className={`w-2 h-full ml-[-1.5px] ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
+                                <div className={`w-2 h-full ml-[-1.5px] ${isActive || a.id===selectedAssign ? 'bg-[#FEF7FFBF]' : ''}`} />
                                 <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
                                 <span className="truncate">{a.title}</span>
                               </>
