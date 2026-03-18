@@ -35,12 +35,6 @@ except ImportError:  # pragma: no cover
     )
 
 
-def load_file(path):
-    """Load file content as string."""
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-
 def marked_line_at_offset(text: str, offset: int):
     """
     Return (line_no, marked_line) for a character offset in text.
@@ -184,18 +178,9 @@ def compute_similarity_from_text(text_a: str, text_b: str, *, k: int = 5) -> flo
     - No file I/O
     - Empty text vs any text => 0
     """
-    if not text_a or not text_b:
-        return 0.0
-    if not text_a.strip() or not text_b.strip():
-        return 0.0
-
-    fp_a = winnow(text_a, k=k)
-    fp_b = winnow(text_b, k=k)
-
-    hashes_a = fingerprint_hashes(fp_a)
-    hashes_b = fingerprint_hashes(fp_b)
-
-    return float(jaccard_similarity(hashes_a, hashes_b))
+    # print("new implementation")
+    result = compare_texts_with_template(text_a, text_b, "", k=k)
+    return result["similarity"]
 
 
 def compare_files(path_a: str, path_b: str) -> dict:
@@ -203,8 +188,10 @@ def compare_files(path_a: str, path_b: str) -> dict:
     name_a = os.path.basename(path_a)
     name_b = os.path.basename(path_b)
 
-    text_a = load_file(path_a)
-    text_b = load_file(path_b)
+    with open(path_a, "r", encoding="utf-8") as f:
+        text_a = f.read()
+    with open(path_b, "r", encoding="utf-8") as f:
+        text_b = f.read()
 
     fp_a = winnow(text_a, k=5)
     fp_b = winnow(text_b, k=5)
@@ -255,57 +242,50 @@ def compare_files(path_a: str, path_b: str) -> dict:
     }
 
 
-def compare_files_with_template(path_a: str, path_b: str, path_template: str) -> dict:
-    """Compare two files with winnowing, excluding template hashes from overlap and similarity."""
-    name_a = os.path.basename(path_a)
-    name_b = os.path.basename(path_b)
+def compare_texts_with_template(
+    text_a: str, text_b: str, template: str = "", *, k: int = 5, name_a: str = "", name_b: str = ""
+) -> dict:
+    """Compare two texts with winnowing, optionally excluding template hashes from overlap and similarity.
 
-    text_a = load_file(path_a)
-    text_b = load_file(path_b)
-    text_template = load_file(path_template)
+    If template is empty string, no exclusion is applied.
+    """
+    if not text_a or not text_b or not text_a.strip() or not text_b.strip():
+        return {
+            "base_dir": os.path.dirname(os.path.abspath(__file__)),
+            "name_a": name_a,
+            "name_b": name_b,
+            "text_a": text_a,
+            "text_b": text_b,
+            "similarity": 0.0,
+            "overlap": 0,
+            "groups": [],
+            "points": [],
+        }
 
-    fp_a = winnow(text_a, k=5)
-    fp_b = winnow(text_b, k=5)
-    fp_template = winnow(text_template, k=5)
-
+    fp_a = winnow(text_a, k=k)
+    fp_b = winnow(text_b, k=k)
     index_a = fingerprint_index(fp_a)
     index_b = fingerprint_index(fp_b)
 
     hashes_a = set(index_a.keys())
     hashes_b = set(index_b.keys())
-    # template_hashes = fingerprint_hashes(fp_template)
-    template_hashes = set(fingerprint_index(fp_template).keys())
 
-    print("before template filtered:")
-    print("common hashes: ", len(hashes_a & hashes_b))
-    common_hashes = (hashes_a & hashes_b) - template_hashes
-    print("after template filtered:")
-    print("common hashes: ", len(common_hashes))
-
-    print("hashes a before template filtered: ", len(hashes_a))
-    print("hashes b before template filtered: ", len(hashes_b))
-    hashes_a_filtered = hashes_a - template_hashes
-    hashes_b_filtered = hashes_b - template_hashes
-    print("hashes a after template filtered: ", len(hashes_a_filtered))
-    print("hashes b after template filtered: ", len(hashes_b_filtered))
+    if template and template.strip():
+        fp_template = winnow(template, k=k)
+        template_hashes = set(fingerprint_index(fp_template).keys())
+        common_hashes = (hashes_a & hashes_b) - template_hashes
+        hashes_a_filtered = hashes_a - template_hashes
+        hashes_b_filtered = hashes_b - template_hashes
+        for h in template_hashes:
+            index_a.pop(h, None)
+            index_b.pop(h, None)
+    else:
+        common_hashes = hashes_a & hashes_b
+        hashes_a_filtered = hashes_a
+        hashes_b_filtered = hashes_b
 
     similarity = jaccard_similarity(hashes_a_filtered, hashes_b_filtered)
     overlap = len(common_hashes)
-
-    print(f"Winnowing test ({name_a} vs {name_b}) [template filtered]")
-    print("-" * 50)
-    print(f"{name_a}: {len(fp_a)} fingerprints, {len(hashes_a_filtered)} non-template hashes")
-    print(f"{name_b}: {len(fp_b)} fingerprints, {len(hashes_b_filtered)} non-template hashes")
-    print(f"Overlap:     {overlap} common hashes (excl. template)")
-    print(f"Jaccard similarity: {similarity:.2%}")
-
-    # Radical: remove template hashes from indexes before build_match_points
-    for h in template_hashes:
-        # print("popping hash: ", h)
-        # print("hash position at index a: ", index_a[h])
-        # print("hash position at index b: ", index_b[h])
-        index_a.pop(h, None)
-        index_b.pop(h, None)
 
     points = build_match_points(index_a, index_b, common_hashes, max_pos_each=100) if common_hashes else []
     groups = group_match_points(points, min_group_size=4, delta_tol=5, max_gap=20) if points else []
@@ -347,7 +327,21 @@ def main():
     from render_result import store_compare_result_as_html
     # r1 = compare_files(path_original, path_template)
 
-    r1 = compare_files_with_template(path_original, path_changed, path_template)
+    with open(path_original, "r", encoding="utf-8") as f:
+        text_original = f.read()
+    with open(path_changed, "r", encoding="utf-8") as f:
+        text_changed = f.read()
+    with open(path_template, "r", encoding="utf-8") as f:
+        text_template = f.read()
+
+    r1 = compare_texts_with_template(
+        text_original,
+        text_changed,
+        text_template,
+        k=5,
+        name_a=os.path.basename(path_original),
+        name_b=os.path.basename(path_changed),
+    )
 
 
     store_compare_result_as_html(
