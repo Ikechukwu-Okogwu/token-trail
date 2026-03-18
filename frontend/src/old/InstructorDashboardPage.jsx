@@ -5,18 +5,6 @@ import CoursePage from './CoursePage'
 
 /**
  * InstructorDashboardPage
- *
- * YOUR SCOPE:
- *   - home  → HomePage (course cards)
- *   - course → CoursePage (assignment cards + Course Settings tab)
- *
- * TEAMMATE'S SCOPE (handed off via onSelectAssignment prop):
- *   - assignment detail page
- *   - submission compare page
- *
- * Props:
- *   onSelectAssignment (assignmentId, courseId) => void  ← inject your teammate's handler here
- *   onLogout           () => void
  */
 export default function InstructorDashboardPage({ onSelectAssignment, onLogout }) {
   const [activePage, setActivePage] = useState({ type: 'home' })
@@ -34,7 +22,7 @@ export default function InstructorDashboardPage({ onSelectAssignment, onLogout }
     setSidebarKey((k) => k + 1)
   }
 
-  // When an assignment is clicked (sidebar or card) — hand off to teammate
+  // When an assignment is clicked (sidebar or card) 
   function handleSelectAssignment(assignmentId, courseId) {
     onSelectAssignment?.(assignmentId, courseId)
   }
