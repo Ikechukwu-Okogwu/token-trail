@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import './Sidebar.css'
 import homeIcon from '../../assets/icons/home.svg'
@@ -6,7 +6,7 @@ import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
 import assignmentIcon from '../../assets/icons/assignment.svg'
-import { getCourseAssignments, getInstructorCourses } from '../../services/api'
+import { getCourseAssignments, getInstructorCourses, logout } from '../../services/api'
 
 const navLinkClass = ({ isActive }) =>
   `flex items-center flex-1 gap-2 h-11 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`
@@ -39,6 +39,8 @@ export default function Sidebar({refreshKey}) {
   const location = useLocation()
   const [courses, setCourses] = useState([])
   const token = localStorage.getItem('token')
+  const [acctMenuOpen, setAcctMenuOpen] = useState(false)
+  const acctMenuRef = useRef(null)
 
   useEffect(() => {
     if (token) {
@@ -87,6 +89,20 @@ export default function Sidebar({refreshKey}) {
 
     setExpandedIds(initial)
   }, [courses, location.pathname])
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (acctMenuRef.current && !acctMenuRef.current.contains(e.target)) {
+        setAcctMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const [courseAssignments, setCourseAssignments] = useState({})
 
@@ -176,8 +192,22 @@ export default function Sidebar({refreshKey}) {
           </ul>
         </nav>
       </div>
+      {acctMenuOpen && (
+        <div className='flex flex-col h-16 w-28 bg-brand-pink z-50 absolute bottom-15 left-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-hidden' ref={acctMenuRef}>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5'>
+            Settings
+          </button>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red' onClick={() => logout()}>
+            Sign Out
+          </button>
+        </div>
+      )}
+      
       <div className="h-14 border-t border-t-[#FFFFFF80] flex">
-        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5 ">
+        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5 "
+          onClick={() => setAcctMenuOpen(!acctMenuOpen)}
+          ref={acctMenuRef}
+        >
           <img src={accountIcon} alt="Account" className='h-8'/>
         </button>
         <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5">
