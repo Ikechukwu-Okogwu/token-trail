@@ -5,6 +5,9 @@ import StudentSubmitPage from './pages/StudentSubmitPage'
 import AssignmentDetailPage from './pages/AssignmentDetailPage'
 import CoursePage from './pages/CoursePage'
 import HomePage from './pages/HomePage'
+import SimilarityReportPage from './pages/SimilarityReportPage'
+import SimilarityPairDetailPage from './pages/SimilarityPairDetailPage'
+import SimilarityComparisonPage from './pages/SimilarityComparisonPage'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -45,6 +48,9 @@ export default function App() {
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
         <Route path="/course/:courseId" element={<CoursePage/>}/>
         <Route path="/course/:courseId/assignment/:assignmentId" element={<AssignmentDetailPage/>}/>
+        <Route path="/similarity/:runId" element={<ProtectedRoute><SimilarityReportPage /></ProtectedRoute>}/>
+        <Route path="/similarity/:runId/pair/:resultId" element={<ProtectedRoute><SimilarityPairDetailPage /></ProtectedRoute>}/>
+        <Route path="/similarity/:runId/pair/:resultId/compare" element={<ProtectedRoute><SimilarityComparisonPage /></ProtectedRoute>}/>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
