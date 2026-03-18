@@ -77,27 +77,29 @@ export default function Sidebar({refreshKey}) {
   }, [token, refreshKey])
   
   useEffect(() => {
-    const initial = new Set()
+    setExpandedIds((prevExpanded) => {
+      const nextExpanded = new Set(prevExpanded)
 
-    courses.forEach((course) => {
-      const isActiveCourse = location.pathname === `/course/${course.id}`
-      const isActiveAssignment = location.pathname.startsWith(`/course/${course.id}/assignment/`)
+      courses.forEach((course) => {
+        const isActiveCourse = location.pathname === `/course/${course.id}`
+        const isActiveAssignment = location.pathname.startsWith(`/course/${course.id}/assignment/`)
 
-      if (isActiveCourse || isActiveAssignment) {
-        initial.add(course.id)
-      }
+        if (isActiveCourse || isActiveAssignment) {
+          nextExpanded.add(course.id)
+        }
 
-      const assignments = courseAssignments[course.id] ?? []
-      const hasActiveAssignment = assignments.some(
-        (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
-      )
+        const assignments = courseAssignments[course.id] ?? []
+        const hasActiveAssignment = assignments.some(
+          (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
+        )
 
-      if (hasActiveAssignment) {
-        initial.add(course.id)
-      }
+        if (hasActiveAssignment) {
+          nextExpanded.add(course.id)
+        }
+      })
+
+      return nextExpanded
     })
-
-    setExpandedIds(initial)
   }, [courses, courseAssignments, location.pathname])
 
   useEffect(() => {
@@ -113,6 +115,10 @@ export default function Sidebar({refreshKey}) {
   const toggleCourse = (courseId) => {
     const isCurrentlyExpanded = expandedIds.has(courseId)
 
+    if (!isCurrentlyExpanded) {
+          fetchAssignments(courseId)
+    }
+
     setExpandedIds((prev) => {
       const next = new Set(prev)
       if (next.has(courseId)) {
@@ -123,9 +129,7 @@ export default function Sidebar({refreshKey}) {
       return next
     })
 
-    if (!isCurrentlyExpanded) {
-      fetchAssignments(courseId)
-    }
+    
   }
 
   return (
@@ -184,7 +188,7 @@ export default function Sidebar({refreshKey}) {
                         </li>
                       ))
                     ) : (
-                      <li className="text-sm text-[#FEF7FFBF] py-2">No assignments yet</li>
+                      <li className="text-sm text-[#FEF7FFBF] p-2">No assignments yet</li>
                     )}
                   </ul>
                 )}
