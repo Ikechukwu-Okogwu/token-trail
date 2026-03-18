@@ -6,14 +6,15 @@ import { Link, useNavigate } from 'react-router-dom'
 
 /**
  * HomePage — instructor home, grid of course cards.
+ * Fetches real courses from GET /api/instructor/courses.
  *
- * Props:
- *   onSelectCourse  (courseId, courseName) => void
- *   onCourseCreated () => void  — tells shell to refetch sidebar
+ * API response shape per course:
+ *   { id, name, term, instructorId, createdAt }
  */
 export default function HomePage({ onCourseCreated, onLogout }) {
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState('grid')
   const [showCreate, setShowCreate] = useState(false)
@@ -22,30 +23,13 @@ export default function HomePage({ onCourseCreated, onLogout }) {
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     apiFetch('/instructor/courses')
-      .then(setCourses)
-      .catch(console.error)
+      // API returns array of { id, name, term, instructorId, createdAt }
+      .then((data) => setCourses(Array.isArray(data) ? data : []))
+      .catch((err) => setError(err.message || 'Failed to load courses.'))
       .finally(() => setLoading(false))
   }, [refreshKey])
-
-  useEffect(() => {
-  // TEMP: sample data for verifying routes/UI
-  setCourses([
-    {
-      id: 'course-1',
-      name: 'COSC 4P02',
-      assignments: [
-        { id: 'a1', title: 'Assignment 1' },
-        { id: 'a2', title: 'Assignment 2' },
-      ],
-    },
-    {
-      id: 'course-2',
-      name: 'COSC 4P01',
-      assignments: [{ id: 'a1', title: 'Assignment 1' }],
-    },
-  ])
-}, [])
 
   function handleCreated(course) {
     setShowCreate(false)
@@ -55,7 +39,7 @@ export default function HomePage({ onCourseCreated, onLogout }) {
   }
 
   const filtered = courses.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+    c.name?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -75,7 +59,7 @@ export default function HomePage({ onCourseCreated, onLogout }) {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Hinted search text"
+                  placeholder="Search courses…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="flex-1 bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none"
@@ -129,14 +113,45 @@ export default function HomePage({ onCourseCreated, onLogout }) {
               </button>
             </div>
 
-            {/* Course cards */}
-            {loading ? (
-              <div className="text-gray-400 text-sm text-center py-16">Loading courses…</div>
-            ) : filtered.length === 0 ? (
-              <div className="text-gray-400 text-sm text-center py-16">
-                {search ? 'No courses match your search.' : 'No courses yet — click + New to create one.'}
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-6 text-sm">
+                <svg style={{ display: 'block', width: 18, height: 18, flexShrink: 0 }}
+                  fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                </svg>
+                <span>{error}</span>
+                <button
+                  onClick={() => setRefreshKey((k) => k + 1)}
+                  className="ml-auto underline text-red-600 hover:text-red-800 font-medium"
+                >
+                  Retry
+                </button>
               </div>
-            ) : (
+            )}
+
+            {/* Loading */}
+            {loading && (
+              <div className="flex items-center justify-center gap-2 text-gray-400 text-sm py-16">
+                <svg className="animate-spin" style={{ width: 18, height: 18 }}
+                  fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                Loading courses…
+              </div>
+            )}
+
+            {/* Empty */}
+            {!loading && !error && filtered.length === 0 && (
+              <div className="text-gray-400 text-sm text-center py-16">
+                {search ? `No courses match "${search}"` : 'No courses yet — click + New to create one.'}
+              </div>
+            )}
+
+            {/* Course cards */}
+            {!loading && !error && filtered.length > 0 && (
               <div className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4' : 'flex flex-col gap-3'}>
                 {filtered.map((course) => (
                   <CourseCard key={course.id} course={course}/>
@@ -158,9 +173,7 @@ export default function HomePage({ onCourseCreated, onLogout }) {
           )}
         </div>
       </main>
-      
     </div>
-    
   )
 }
 
@@ -191,6 +204,9 @@ function CourseCard({ course }) {
           <div className="text-xs text-gray-500 mt-0.5">Analyses Complete</div>
         </div>
       </div>
+      {course.term && (
+        <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">{course.term}</div>
+      )}
     </Link>
   )
 }

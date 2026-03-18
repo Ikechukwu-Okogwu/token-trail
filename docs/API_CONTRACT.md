@@ -98,6 +98,16 @@ Response `200`: array of `CourseResponse`.
 
 ---
 
+### `GET /api/instructor/courses/{courseId}/assignments`
+
+Response `200`: array of `AssignmentResponse` for the given instructor-owned course.
+
+Errors:
+- `400` invalid course ID format
+- `404` course not found
+
+---
+
 ### `POST /api/instructor/assignments`
 
 Request:
@@ -212,6 +222,89 @@ Errors:
 
 ---
 
+### `GET /api/instructor/analysis-runs/{runId}/similarity-results`
+
+Response `200`:
+```json
+{
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "results": [
+    {
+      "resultId": "runId__leftSubmissionId__rightSubmissionId",
+      "runId": "665f...",
+      "assignmentId": "665f...",
+      "leftSubmissionId": "665f...",
+      "rightSubmissionId": "665f...",
+      "similarityScore": 0.87
+    }
+  ]
+}
+```
+
+Errors:
+- `400` invalid run ID format
+- `401` invalid / missing token
+- `403` analysis run belongs to another instructor
+- `404` run, assignment, or similarity results not found
+
+---
+
+### `GET /api/instructor/similarity-results/{resultId}`
+
+`resultId` format:
+`runId__leftSubmissionId__rightSubmissionId`
+
+Response `200`:
+```json
+{
+  "resultId": "runId__leftSubmissionId__rightSubmissionId",
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "leftSubmissionId": "665f...",
+  "rightSubmissionId": "665f...",
+  "similarityScore": 0.87,
+  "summary": "Pair similarity computed from merged submission sources."
+}
+```
+
+Errors:
+- `400` invalid `resultId` format
+- `401` invalid / missing token
+- `403` analysis run belongs to another instructor
+- `404` run, assignment, similarity result, or backing similarity document not found
+
+---
+
+### `GET /api/instructor/similarity-results/{resultId}/comparison`
+
+Response `200`:
+```json
+{
+  "resultId": "runId__leftSubmissionId__rightSubmissionId",
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "leftSubmissionId": "665f...",
+  "rightSubmissionId": "665f...",
+  "similarityScore": 0.87,
+  "leftFilePath": "uploads/.../merged/merged.txt",
+  "rightFilePath": "uploads/.../merged/merged.txt",
+  "leftCode": "//// FILE: ...",
+  "rightCode": "//// FILE: ...",
+  "matchingRegions": []
+}
+```
+
+`matchingRegions` is currently empty in the baseline engine; line-level match regions are a later enhancement.
+
+Errors:
+- `400` invalid `resultId` format
+- `401` invalid / missing token
+- `403` analysis run belongs to another instructor
+- `404` run, assignment, similarity result, or backing submissions not found
+
+---
+
 ## Public (no JWT)
 
 ### `POST /api/public/assignment-key/validate`
@@ -280,12 +373,6 @@ MONGO_URI=mongodb://localhost:27017
 ## Instructor Placeholder Endpoints (`501`)
 
 All endpoints below are deliberate skeleton contracts and currently return `501 Not Implemented`.
-
-### Similarity Report Flow
-
-- `GET /api/instructor/analysis-runs/{runId}/similarity-results`
-- `GET /api/instructor/similarity-results/{resultId}`
-- `GET /api/instructor/similarity-results/{resultId}/comparison`
 
 ### Assignment Key Management
 

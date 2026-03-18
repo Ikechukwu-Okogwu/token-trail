@@ -1,46 +1,43 @@
 // StudentSubmitPage.jsx
 // This is the student submission page.
-//   Step 1— Student enters their ID and assignment key.
-//   Step 2— Student uploads their ZIP file.
+//   Step 1 — Student enters their ID and assignment key.
+//   Step 2 — Student uploads their ZIP file.
 //   Step 3 — Success screen showing confirmation.
 import { useState, useRef } from 'react'
 import { validateAssignmentKey, submitAssignment } from '../services/api'
+import Button from '../components/ui/Button'
+import Input from '../components/ui/Input'
+import ErrorBanner from '../components/ui/ErrorBanner'
 
 export default function StudentSubmitPage() {
 
-  // "step" tracks which screen to show
-  // It can be:'key, upload, or done
+  // "step" tracks which screen to show: 'key', 'upload', or 'done'
   const [step, setStep] = useState('key')
-  // --values ---
-  const [studentId, setStudentId] = useState('')  //students ID number
-  const [key, setKey] = useState('')  //assignment key
+
+  const [studentId, setStudentId] = useState('')
+  const [key, setKey] = useState('')
   const [keyLoading, setKeyLoading] = useState(false)
   const [keyError, setKeyError] = useState('')
-  const [assignment, setAssignment] = useState(null) //info returned from server
+  const [assignment, setAssignment] = useState(null)
 
-  const [name, setName] = useState('')  // student's name (optional)
-  const [zipFile, setZipFile] = useState(null) // the ZIP file they choose
+  const [name, setName] = useState('')
+  const [zipFile, setZipFile] = useState(null)
   const [uploadLoading, setUploadLoading] = useState(false)
   const [uploadError, setUploadError] = useState('')
 
-  // --- Step 3 values ---
-  const [result, setResult] = useState(null) // confirmation from server
+  const [result, setResult] = useState(null)
 
-  // The ref lets us trigger the hidden file input
   const fileRef = useRef(null)
 
-  // ---- first we check the assignment key ----
   async function handleContinue(e) {
     e.preventDefault()
     setKeyError('')
 
-    // Make sure fields are not empty
     if (!studentId) { setKeyError('Please enter your Student ID.'); return }
     if (!key)       { setKeyError('Please enter your Assignment Key.'); return }
 
     setKeyLoading(true)
     try {
-      // Asking the backend if this key is valid and Returns: { valid: true/false, assignment: { id, language, isOpen } }
       const data = await validateAssignmentKey(key.trim())
 
       if (!data.valid || !data.assignment) {
@@ -52,7 +49,7 @@ export default function StudentSubmitPage() {
         setKeyError('This assignment is closed and not accepting submissions.')
         return
       }
-      // If Key is valid then save the assignment info and move to step 2
+
       setAssignment(data.assignment)
       setStep('upload')
 
@@ -63,12 +60,10 @@ export default function StudentSubmitPage() {
     }
   }
 
-  // ----  Upload the ZIP file ----
   function handleFileChange(e) {
     const file = e.target.files[0]
     if (!file) return
 
-    // Make sure its a zip file
     if (!file.name.endsWith('.zip')) {
       setUploadError('Please select a .zip file.')
       return
@@ -81,21 +76,19 @@ export default function StudentSubmitPage() {
   async function handleUpload(e) {
     e.preventDefault()
     setUploadError('')
-    
+
     if (!zipFile) {
       setUploadError('Please choose a ZIP file first.')
       return
     }
     setUploadLoading(true)
     try {
-      // Send the ZIP file to the backend
       const data = await submitAssignment({
         assignmentKey: key.trim(),
         studentIdentifier: studentId.trim(),
         studentName: name.trim() || undefined,
         zipFile: zipFile,
       })
-      // Save the result and move to success screen
       setResult(data)
       setStep('done')
 
@@ -111,7 +104,7 @@ export default function StudentSubmitPage() {
       setUploadLoading(false)
     }
   }
-  // Reset everything and go back to step 1
+
   function startOver() {
     setStep('key')
     setStudentId(''); setKey(''); setKeyError(''); setAssignment(null)
@@ -119,396 +112,145 @@ export default function StudentSubmitPage() {
   }
 
   return (
-    <div style={styles.page}>
+    <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
 
-      {/* Top navbar */}
-      <div style={styles.navbar}>
-        <span style={styles.navTitle}>Token Trail</span>
+      {/* Navbar */}
+      <div className="bg-[#3b3660] px-6 py-4 flex-shrink-0">
+        <span className="text-white text-xl font-bold">Token Trail</span>
       </div>
 
-      {/* --STEP 1: enter Student ID and Key--*/}
+      {/* STEP 1: enter Student ID and Key */}
       {step === 'key' && (
-        <div style={styles.center}>
-          <form onSubmit={handleContinue} style={styles.keyForm}>
-            <p style={styles.instruction}>
-              Enter your student ID and assignment key to submit your project!
+        <div className="flex-1 flex items-center justify-center px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
+            <h1 className="text-xl font-bold text-gray-900 text-center mb-1">Submit Assignment</h1>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              Enter your student ID and assignment key to get started.
             </p>
-            {/* Show error if there is one */}
-            {keyError && <p style={styles.error}>{keyError}</p>}
 
-            <div style={styles.field}>
-              <label style={styles.label}>Student ID</label>
-              <input
+            <form onSubmit={handleContinue} className="flex flex-col gap-4">
+              <ErrorBanner message={keyError} />
+              <Input
+                label="Student ID"
                 type="text"
                 value={studentId}
                 onChange={e => { setStudentId(e.target.value); setKeyError('') }}
-                placeholder="e.g 5342145"
-                style={styles.inputRound}
+                placeholder="e.g. 5342145"
                 disabled={keyLoading}
               />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>Assignment Key</label>
-              <input
+              <Input
+                label="Assignment Key"
                 type="text"
                 value={key}
                 onChange={e => { setKey(e.target.value); setKeyError('') }}
-                placeholder="e.g ASSIGN-0234-ABC"
-                style={styles.inputRound}
+                placeholder="e.g. ASSIGN-0234-ABC"
                 disabled={keyLoading}
               />
-            </div>
-
-            <button type="submit" style={styles.buttonRound} disabled={keyLoading}>
-              {keyLoading ? 'Checking...' : 'Continue'}
-            </button>
-
-          </form>
+              <Button type="submit" fullWidth disabled={keyLoading} size="lg" className="mt-1">
+                {keyLoading ? 'Checking…' : 'Continue'}
+              </Button>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* -STEP 2: upload ZIP -*/}
+      {/* STEP 2: upload ZIP */}
       {step === 'upload' && assignment && (
-        <div style={styles.uploadLayout}>
+        <div className="flex-1 flex items-start justify-center px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-2xl p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Upload Your Assignment</h2>
+            <p className="text-sm text-gray-500 mb-6">Key: <span className="font-mono">{key.trim()}</span></p>
 
-          {/* Sidebar */}
-          <div style={styles.sidebar}>
-            <a href="/" style={styles.sidebarLink}>Home</a>
-            <div style={styles.sidebarLinkActive}>Upload Assignment</div>
-          </div>
+            <form onSubmit={handleUpload} className="flex flex-col gap-5">
+              <ErrorBanner message={uploadError} />
 
-          {/* Main upload area */}
-          <div style={styles.uploadMain}>
-            <div style={styles.uploadCard}>
-
-              <h3 style={styles.uploadTitle}>Assignment Submission</h3>
-              <p style={styles.uploadSub}>Assignment Key: {key.trim()}</p>
-
-              {uploadError && <p style={styles.error}>{uploadError}</p>}
-
-              <form onSubmit={handleUpload}>
-
-                {/* Name and a note about student ID */}
-                <div style={styles.twoCol}>
-                  <div style={styles.field}>
-                    <label style={styles.label}>Your Name</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="e.g John Doe"
-                      style={styles.input}
-                      disabled={uploadLoading}
-                    />
-                  </div>
-                  <div style={styles.field}>
-                    <label style={styles.label}>Student ID</label>
-                    {/* Show the student ID they already entered — read only */}
-                    <input
-                      type="text"
-                      value={studentId}
-                      style={styles.input}
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                {/* zip file drop zone */}
-                <div style={styles.dropZone} onClick={() => fileRef.current.click()}>
-
-                  {/* Hidden file input */}
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept=".zip"
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                  />
-
-                  <p style={styles.dropIcon}>📤</p>
-                  <p style={styles.dropTitle}>
-                    {zipFile ? zipFile.name : 'Upload your Assignment'}
-                  </p>
-                  <p style={styles.dropSub}>
-                    {zipFile
-                      ? `${(zipFile.size / 1024).toFixed(1)} KB selected`
-                      : 'Select a .zip file containing your assignment'
-                    }
-                  </p>
-
-                  <button
-                    type="button"
-                    style={styles.chooseBtn}
-                    onClick={e => { e.stopPropagation(); fileRef.current.click() }}
-                  >
-                    {zipFile ? 'Change File' : 'Choose File'}
-                  </button>
-
-                </div>
-
-                <button
-                  type="submit"
-                  style={{ ...styles.buttonRound, marginTop: '16px' }}
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Your Name"
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Jane Doe"
                   disabled={uploadLoading}
+                />
+                <Input
+                  label="Student ID"
+                  type="text"
+                  value={studentId}
+                  readOnly
+                />
+              </div>
+
+              {/* Drop zone */}
+              <div
+                className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-[#3b3660] transition-colors"
+                onClick={() => fileRef.current.click()}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".zip"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <p className="text-3xl mb-2">📤</p>
+                <p className="text-sm font-semibold text-gray-700 mb-1">
+                  {zipFile ? zipFile.name : 'Upload your Assignment'}
+                </p>
+                <p className="text-xs text-gray-400 mb-4">
+                  {zipFile
+                    ? `${(zipFile.size / 1024).toFixed(1)} KB selected`
+                    : 'Select a .zip file containing your assignment'
+                  }
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={e => { e.stopPropagation(); fileRef.current.click() }}
                 >
-                  {uploadLoading ? 'Uploading...' : 'Submit Assignment'}
-                </button>
+                  {zipFile ? 'Change File' : 'Choose File'}
+                </Button>
+              </div>
 
-              </form>
-            </div>
+              <Button type="submit" fullWidth disabled={uploadLoading} size="lg">
+                {uploadLoading ? 'Uploading…' : 'Submit Assignment'}
+              </Button>
+            </form>
           </div>
-
         </div>
       )}
 
-      {/* -STEP 3: Success-*/}
+      {/* STEP 3: Success */}
       {step === 'done' && result && (
-        <div style={styles.center}>
-          <div style={styles.successCard}>
-
-            <p style={styles.successIcon}></p>
-            <h2>Submission Received!</h2>
-            <p style={{ color: '#555' }}>
+        <div className="flex-1 flex items-center justify-center px-4 py-12">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8 text-center">
+            <p className="text-5xl mb-3">✅</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Submission Received!</h2>
+            <p className="text-sm text-gray-500 mb-6">
               Save your submission ID below — your instructor may need it.
             </p>
 
-            {/*Show the details from the server*/}
-            <div style={styles.resultBox}>
-              <div style={styles.resultRow}>
-                <span style={styles.resultLabel}>Submission ID</span>
-                <span style={styles.resultValue}>{result.submissionId}</span>
+            <div className="rounded-xl border border-gray-100 overflow-hidden mb-6 text-left">
+              <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100">
+                <span className="text-xs text-gray-400 uppercase tracking-wide">Submission ID</span>
+                <span className="text-sm font-mono font-semibold text-gray-700 break-all text-right max-w-[60%]">{result.submissionId}</span>
               </div>
-              <div style={styles.resultRow}>
-                <span style={styles.resultLabel}>Files Detected</span>
-                <span style={styles.resultValue}>{result.fileCount}</span>
+              <div className="flex justify-between items-center px-4 py-3 border-b border-gray-100">
+                <span className="text-xs text-gray-400 uppercase tracking-wide">Files Detected</span>
+                <span className="text-sm font-semibold text-gray-700">{result.fileCount}</span>
               </div>
-              <div style={styles.resultRow}>
-                <span style={styles.resultLabel}>Status</span>
-                <span style={{ ...styles.resultValue, color: 'green' }}>{result.status}</span>
+              <div className="flex justify-between items-center px-4 py-3">
+                <span className="text-xs text-gray-400 uppercase tracking-wide">Status</span>
+                <span className="text-sm font-semibold text-green-600">{result.status}</span>
               </div>
             </div>
 
-            <button style={styles.buttonRound} onClick={startOver}>
-              Submit Another
-            </button>
-
+            <Button fullWidth onClick={startOver}>Submit Another</Button>
           </div>
         </div>
       )}
 
     </div>
   )
-}
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    backgroundColor: '#c8c8c8',
-    fontFamily: 'sans-serif',
-  },
-  navbar: {
-    backgroundColor: '#3d3d5c',
-    padding: '16px 24px',
-  },
-  navTitle: {
-    color: 'white',
-    fontSize: '20px',
-    fontWeight: 'bold',
-  },
-  center: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '60px 24px',
-  },
-  keyForm: {
-    width: '100%',
-    maxWidth: '600px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-  },
-  instruction: {
-    textAlign: 'center',
-    fontSize: '15px',
-    color: '#222',
-    margin: '0 0 8px 0',
-  },
-  error: {
-    backgroundColor: 'rgba(200,0,0,0.1)',
-    border: '1px solid rgba(200,0,0,0.3)',
-    borderRadius: '6px',
-    color: '#a00',
-    fontSize: '13px',
-    padding: '10px',
-    textAlign: 'center',
-    margin: '0',
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '5px',
-  },
-  label: {
-    fontSize: '13px',
-    fontWeight: '500',
-    color: '#222',
-  },
-  inputRound: {
-    padding: '13px 18px',
-    borderRadius: '24px',
-    border: 'none',
-    backgroundColor: '#e8e8e8',
-    fontSize: '14px',
-    fontFamily: 'sans-serif',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  input: {
-    padding: '12px 16px',
-    borderRadius: '8px',
-    border: 'none',
-    backgroundColor: '#e8e8e8',
-    fontSize: '14px',
-    fontFamily: 'sans-serif',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  buttonRound: {
-    width: '100%',
-    padding: '14px',
-    backgroundColor: '#1a1a1a',
-    color: 'white',
-    border: 'none',
-    borderRadius: '24px',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    fontFamily: 'sans-serif',
-  },
-
-  //Upload layout
-  uploadLayout: {
-    display: 'flex',
-    minHeight: 'calc(100vh - 54px)',
-  },
-  sidebar: {
-    width: '180px',
-    backgroundColor: 'white',
-    padding: '16px 0',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  sidebarLink: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    color: '#555',
-    textDecoration: 'none',
-    display: 'block',
-  },
-  sidebarLinkActive: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    color: '#1a1a1a',
-    fontWeight: 'bold',
-    backgroundColor: '#e8e8e8',
-  },
-  uploadMain: {
-    flex: 1,
-    padding: '32px',
-  },
-  uploadCard: {
-    backgroundColor: '#b0b0b0',
-    borderRadius: '12px',
-    padding: '28px',
-    maxWidth: '780px',
-  },
-  uploadTitle: {
-    fontSize: '18px',
-    margin: '0 0 4px 0',
-  },
-  uploadSub: {
-    fontSize: '13px',
-    color: '#444',
-    margin: '0 0 20px 0',
-  },
-  twoCol: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-    marginBottom: '20px',
-  },
-  dropZone: {
-    border: '2px dashed #888',
-    borderRadius: '8px',
-    padding: '40px 20px',
-    textAlign: 'center',
-    cursor: 'pointer',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-  },
-  dropIcon: {
-    fontSize: '36px',
-    margin: '0 0 8px 0',
-  },
-  dropTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    margin: '0 0 6px 0',
-    color: '#1a1a1a',
-  },
-  dropSub: {
-    fontSize: '12px',
-    color: '#555',
-    margin: '0 0 12px 0',
-  },
-  chooseBtn: {
-    backgroundColor: '#e8e8e8',
-    border: 'none',
-    borderRadius: '20px',
-    padding: '8px 20px',
-    fontSize: '13px',
-    cursor: 'pointer',
-    fontFamily: 'sans-serif',
-  },
-
-  //Success screen
-  successCard: {
-    backgroundColor: '#b0b0b0',
-    borderRadius: '12px',
-    padding: '40px',
-    maxWidth: '480px',
-    width: '100%',
-    textAlign: 'center',
-  },
-  successIcon: {
-    fontSize: '48px',
-    margin: '0 0 8px 0',
-  },
-  resultBox: {
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    margin: '20px 0',
-    textAlign: 'left',
-  },
-  resultRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '12px 16px',
-    borderBottom: '1px solid rgba(0,0,0,0.08)',
-  },
-  resultLabel: {
-    fontSize: '13px',
-    color: '#555',
-  },
-  resultValue: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#1a1a1a',
-    wordBreak: 'break-all',
-    maxWidth: '55%',
-    textAlign: 'right',
-  },
 }
