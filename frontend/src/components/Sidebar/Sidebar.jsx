@@ -38,39 +38,27 @@ function ChevronUp({ className = 'w-4 h-4' }) {
 export default function Sidebar({refreshKey}) {
   const location = useLocation()
   const [courses, setCourses] = useState([])
+  const [coursesLoading, setCoursesLoading] = useState(false)
   const token = localStorage.getItem('token')
 
   useEffect(() => {
-    if (token) {
-      setCoursesLoading(true)
-      getInstructorCourses()
-        .then((fetchedCourses) => {
-          setCourses(fetchedCourses)
-        })
-        .catch((err) => {
-          console.error('Failed to fetch courses:', err)
-        })
+    if (!token) {
+      setCourses([])
+      return
     }
-  }, [token, refreshKey])
 
-  useEffect(() => {
-    // TEMP: sample data for verifying routes/UI
-    setCourses([
-      {
-        id: 'course-1',
-        name: 'COSC 4P02',
-        assignments: [
-          { id: 'a1', title: 'Assignment 1' },
-          { id: 'a2', title: 'Assignment 2' },
-        ],
-      },
-      {
-        id: 'course-2',
-        name: 'COSC 4P01',
-        assignments: [{ id: 'a1', title: 'Assignment 1' }],
-      },
-    ])
-  }, [])
+    setCoursesLoading(true)
+    getInstructorCourses()
+      .then((fetchedCourses) => {
+        setCourses(fetchedCourses)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch courses:', err)
+      })
+      .finally(() => {
+        setCoursesLoading(false)
+      })
+  }, [token, refreshKey])
   const [expandedIds, setExpandedIds] = useState(new Set())
   useEffect(() => {
     const initial = new Set()
@@ -142,6 +130,7 @@ export default function Sidebar({refreshKey}) {
                       onClick={() => toggleCourse(course.id)} 
                       className="p-1.5 mr-2 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
                       aria-expanded={isExpanded}
+                      aria-label={`Toggle ${course.name}`}
                     >
                       <span className="">
                         {isExpanded ? <ChevronUp /> : <ChevronDown />}
