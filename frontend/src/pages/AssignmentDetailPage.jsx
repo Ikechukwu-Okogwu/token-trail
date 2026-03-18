@@ -13,6 +13,7 @@ import ErrorBanner from '../components/ui/ErrorBanner'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 
+// map api error to friendly message
 function mapApiError(error, fallback) {
   const message = error?.message || ''
   const normalized = message.toLowerCase()
@@ -26,16 +27,14 @@ function mapApiError(error, fallback) {
   if (normalized.includes('404') && normalized.includes('analysis run')) {
     return 'Analysis run not found. Queue a new run or check the run ID.'
   }
-  if (
-    normalized.includes('404') ||
-    normalized.includes('assignment not found')
-  ) {
+  if (normalized.includes('404') || normalized.includes('assignment not found')) {
     return 'Assignment not found. Check the assignment ID and try again.'
   }
 
   return message || fallback
 }
 
+// format date for display
 function formatDate(value) {
   if (!value) return 'N/A'
   const date = new Date(value)
@@ -44,30 +43,38 @@ function formatDate(value) {
 }
 
 export default function AssignmentDetailPage() {
+  // get assignment id from url
   const { assignmentId } = useParams()
   const navigate = useNavigate()
+
+  // state for assignment and submissions
   const [assignment, setAssignment] = useState(null)
   const [submissions, setSubmissions] = useState([])
 
+  // loading and error states for assignment and page
   const [loadingAssignmentData, setLoadingAssignmentData] = useState(false)
   const [assignmentError, setAssignmentError] = useState(null)
   const [submissionsError, setSubmissionsError] = useState(null)
   const [pageError, setPageError] = useState(null)
 
+  // state for queuing analysis
   const [queueLoading, setQueueLoading] = useState(false)
   const [queueError, setQueueError] = useState(null)
 
+  // state for current analysis run
   const [currentRun, setCurrentRun] = useState(null)
   const [runStatus, setRunStatus] = useState(null)
   const [statusLoading, setStatusLoading] = useState(false)
   const [statusError, setStatusError] = useState(null)
   const [isPolling, setIsPolling] = useState(false)
 
+  // derived flags
   const hasLoadedAssignment = Boolean(assignment?.id)
   const hasRun = Boolean(currentRun?.runId)
   const terminalRunState =
     runStatus?.status === 'completed' || runStatus?.status === 'failed'
 
+  // fetch latest run status from api
   const refreshRunStatus = useCallback(
     async ({ silent = false } = {}) => {
       if (!currentRun?.runId) return
@@ -89,6 +96,7 @@ export default function AssignmentDetailPage() {
     [currentRun?.runId]
   )
 
+  // poll run status every 3 seconds if polling and not finished
   useEffect(() => {
     if (!isPolling || !currentRun?.runId) return undefined
     if (terminalRunState) return undefined
@@ -100,12 +108,14 @@ export default function AssignmentDetailPage() {
     return () => clearInterval(timer)
   }, [currentRun?.runId, isPolling, refreshRunStatus, terminalRunState])
 
+  // stop polling if run finished
   useEffect(() => {
     if (terminalRunState) {
       setIsPolling(false)
     }
   }, [terminalRunState])
 
+  // fetch assignment details and submissions
   useEffect(() => {
     if (!assignmentId) return
 
@@ -162,6 +172,7 @@ export default function AssignmentDetailPage() {
     loadData()
   }, [assignmentId])
 
+  // queue new analysis run
   async function handleQueueRun() {
     if (!assignmentId) return
 
@@ -198,7 +209,7 @@ export default function AssignmentDetailPage() {
 
           <ErrorBanner message={pageError} />
 
-          {/* Assignment Details */}
+          {/* assignment details */}
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">Assignment Details</h2>
 
@@ -232,7 +243,7 @@ export default function AssignmentDetailPage() {
             )}
           </section>
 
-          {/* Submissions */}
+          {/* submissions */}
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">Submissions</h2>
 
@@ -272,11 +283,12 @@ export default function AssignmentDetailPage() {
             )}
           </section>
 
-          {/* Analysis Run */}
+          {/* analysis run */}
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-base font-bold text-gray-900 mb-4">Analysis Run</h2>
 
             <div className="flex flex-wrap gap-2 mb-4">
+              {/* buttons for run, refresh, polling */}
               <Button
                 onClick={handleQueueRun}
                 disabled={!hasLoadedAssignment || queueLoading}
