@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getSimilarityResults } from '../services/api'
 import Sidebar from '../components/Sidebar/Sidebar'
+import { ScoreBadge } from '../components/ui/Badge'
+import ErrorBanner from '../components/ui/ErrorBanner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
+import EmptyState from '../components/ui/EmptyState'
 
 export default function SimilarityReportPage() {
   const { runId } = useParams()
@@ -25,13 +29,11 @@ export default function SimilarityReportPage() {
           <h2 className="text-xl font-bold text-gray-900 mb-1">Similarity Results</h2>
           <p className="text-sm text-gray-500 mb-6">Run ID: {runId}</p>
 
-          {loading && <p className="text-gray-400 text-sm">Loading results…</p>}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>
-          )}
+          {loading && <LoadingSpinner message="Loading results…" />}
+          <ErrorBanner message={error} />
 
           {data && data.results.length === 0 && (
-            <p className="text-gray-400 text-sm">No similarity pairs found for this run.</p>
+            <EmptyState message="No similarity pairs found for this run." />
           )}
 
           {data && data.results.length > 0 && (
@@ -52,9 +54,7 @@ export default function SimilarityReportPage() {
                     <td className="py-3 pr-4 font-mono text-gray-700">{row.leftSubmissionId.slice(-8)}</td>
                     <td className="py-3 pr-4 font-mono text-gray-700">{row.rightSubmissionId.slice(-8)}</td>
                     <td className="py-3 pr-4">
-                      <span className={`font-bold ${row.similarityScore >= 0.8 ? 'text-red-500' : row.similarityScore >= 0.5 ? 'text-yellow-600' : 'text-green-600'}`}>
-                        {(row.similarityScore * 100).toFixed(1)}%
-                      </span>
+                      <ScoreBadge score={row.similarityScore} />
                     </td>
                     <td className="py-3">
                       <Link

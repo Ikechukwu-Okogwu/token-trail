@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getSimilarityComparison } from '../services/api'
 import Sidebar from '../components/Sidebar/Sidebar'
+import ErrorBanner from '../components/ui/ErrorBanner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 export default function SimilarityComparisonPage() {
   const { runId, resultId } = useParams()
@@ -33,10 +35,8 @@ export default function SimilarityComparisonPage() {
           )}
         </div>
 
-        {loading && <p className="text-gray-400 text-sm p-4">Loading comparison…</p>}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>
-        )}
+        {loading && <LoadingSpinner message="Loading comparison…" />}
+        {error && <ErrorBanner message={error} />}
 
         {data && (
           <div className="flex gap-3 flex-1 overflow-hidden">
