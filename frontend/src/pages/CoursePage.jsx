@@ -2,34 +2,24 @@ import { useState, useEffect } from 'react'
 import { apiFetch } from '../services/api'
 import CreateAssignmentForm from '../components/CreateAssignmentForm'
 
-/**
- * CoursePage — shown when an instructor selects a course.
- * Has two tabs: Assignments (grid of cards) and Course Settings.
- *
- * Props:
- *   courseId           string
- *   courseName         string
- *   onSelectAssignment (assignmentId, courseId) => void  ← teammate handles the next page
- *   onAssignmentCreated () => void  — refreshes sidebar
- */
 export default function CoursePage({ courseId, courseName, onSelectAssignment, onAssignmentCreated }) {
-  const [tab, setTab] = useState('assignments')        // 'assignments' | 'settings'
+  const [tab, setTab] = useState('assignments')
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [viewMode, setViewMode] = useState('grid')
   const [showCreate, setShowCreate] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
+    if (!courseId) return
     setLoading(true)
-    // Fetch the course list and find this course's assignments
-    apiFetch('/instructor/courses')
-      .then((courses) => {
-        const course = courses.find((c) => c.id === courseId)
-        setAssignments(course?.assignments || [])
-      })
-      .catch(console.error)
+    setError(null)
+    apiFetch(`/instructor/courses/${courseId}/assignments`)
+      // API returns array of { id, name, term, instructorId, createdAt }
+      .then((data) => setAssignments(Array.isArray(data) ? data : []))
+      .catch((err) => setError(err.message || 'Failed to load assignments.'))
       .finally(() => setLoading(false))
   }, [courseId, refreshKey])
 
@@ -37,19 +27,18 @@ export default function CoursePage({ courseId, courseName, onSelectAssignment, o
     setShowCreate(false)
     setRefreshKey((k) => k + 1)
     onAssignmentCreated?.()
-    // Navigate to the new assignment (teammate's page)
     onSelectAssignment?.(assignment.id, courseId)
   }
 
   const filtered = assignments.filter((a) =>
-    a.title.toLowerCase().includes(search.toLowerCase())
+    a.title?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
     <div className="p-6 min-h-full">
       <div className="bg-white rounded-2xl shadow-sm min-h-full">
 
-        {/* ── Tab bar ── */}
+        {/* Tab bar */}
         <div className="flex items-center gap-2 px-6 pt-5 pb-0 border-b border-gray-100">
           <button
             onClick={() => setTab('assignments')}
@@ -85,7 +74,7 @@ export default function CoursePage({ courseId, courseName, onSelectAssignment, o
                   </svg>
                   <input
                     type="text"
-                    placeholder="Hinted search text"
+                    placeholder="Search assignments…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="flex-1 bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none"
@@ -96,7 +85,6 @@ export default function CoursePage({ courseId, courseName, onSelectAssignment, o
                   </svg>
                 </div>
 
-                {/* View toggle */}
                 <div className="flex items-center bg-gray-100 rounded-xl p-1">
                   <button
                     onClick={() => setViewMode('list')}
@@ -136,14 +124,45 @@ export default function CoursePage({ courseId, courseName, onSelectAssignment, o
                 </button>
               </div>
 
-              {/* Assignment cards */}
-              {loading ? (
-                <div className="text-gray-400 text-sm text-center py-16">Loading assignments…</div>
-              ) : filtered.length === 0 ? (
-                <div className="text-gray-400 text-sm text-center py-16">
-                  {search ? 'No assignments match your search.' : 'No assignments yet — click + New to create one.'}
+              {/* Error */}
+              {error && (
+                <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-6 text-sm">
+                  <svg style={{ display: 'block', width: 18, height: 18, flexShrink: 0 }}
+                    fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  </svg>
+                  <span>{error}</span>
+                  <button
+                    onClick={() => setRefreshKey((k) => k + 1)}
+                    className="ml-auto underline text-red-600 hover:text-red-800 font-medium"
+                  >
+                    Retry
+                  </button>
                 </div>
-              ) : (
+              )}
+
+              {/* Loading */}
+              {loading && (
+                <div className="flex items-center justify-center gap-2 text-gray-400 text-sm py-16">
+                  <svg className="animate-spin" style={{ width: 18, height: 18 }}
+                    fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  Loading assignments…
+                </div>
+              )}
+
+              {/* Empty */}
+              {!loading && !error && filtered.length === 0 && (
+                <div className="text-gray-400 text-sm text-center py-16">
+                  {search ? `No assignments match "${search}"` : 'No assignments yet — click + New to create one.'}
+                </div>
+              )}
+
+              {/* Cards */}
+              {!loading && !error && filtered.length > 0 && (
                 <div className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4' : 'flex flex-col gap-3'}>
                   {filtered.map((a) => (
                     <AssignmentCard
@@ -163,7 +182,6 @@ export default function CoursePage({ courseId, courseName, onSelectAssignment, o
         </div>
       </div>
 
-      {/* Create assignment modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
@@ -179,35 +197,27 @@ export default function CoursePage({ courseId, courseName, onSelectAssignment, o
   )
 }
 
-/* ── Assignment card ── */
 function AssignmentCard({ assignment, onSelect }) {
   const isOpen = assignment.isOpen
-
   return (
     <div
       onClick={onSelect}
       className="relative bg-white border border-gray-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all group"
     >
-      {/* Open / Closed badge */}
       <div className={`absolute top-3 left-5 text-xs font-semibold ${isOpen ? 'text-green-500' : 'text-red-400'}`}>
         {isOpen ? 'Open' : 'Closed'}
       </div>
-
       <div className="flex items-start justify-between mt-4 mb-2">
         <span className="text-base font-bold text-gray-900">{assignment.title}</span>
         <button
           onClick={(e) => e.stopPropagation()}
           className="text-gray-400 hover:text-gray-700 text-lg leading-none px-1 opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label="Options"
         >⋮</button>
       </div>
       <hr className="border-gray-100 mb-4"/>
-
-      <div className="flex gap-6 mb-4">
+      <div className="flex gap-6 mb-3">
         <div>
-          <div className="text-3xl font-bold text-gray-900">
-            {assignment.submissionCount ?? '--'}
-          </div>
+          <div className="text-3xl font-bold text-gray-900">{assignment.submissionCount ?? '--'}</div>
           <div className="text-xs text-gray-500 mt-0.5">Submissions</div>
         </div>
         <div>
@@ -217,17 +227,15 @@ function AssignmentCard({ assignment, onSelect }) {
           <div className="text-xs text-gray-500 mt-0.5">Analysis Progress</div>
         </div>
       </div>
-
-      {assignment.dueDate && (
+      {(assignment.dueDate || assignment.language) && (
         <div className="text-xs text-gray-400 text-center pt-2 border-t border-gray-100">
-          Due Date: {assignment.dueDate}
+          {assignment.dueDate ? `Due: ${assignment.dueDate}` : assignment.language?.toUpperCase()}
         </div>
       )}
     </div>
   )
 }
 
-/* ── Course Settings tab placeholder ── */
 function CourseSettingsTab({ courseId, courseName }) {
   return (
     <div className="py-8 text-center text-gray-400 text-sm">
@@ -237,7 +245,6 @@ function CourseSettingsTab({ courseId, courseName }) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
       </svg>
       Course settings for <strong className="text-gray-600">{courseName}</strong> coming soon.
-      <br/>Wire to <code className="bg-gray-100 px-1 rounded text-xs">PATCH /api/instructor/courses/{courseId}</code>
     </div>
   )
 }
