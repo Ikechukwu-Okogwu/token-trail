@@ -66,6 +66,7 @@ export default function App() {
 function LandingPage() {
   return (
     <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
+
       <div className="bg-[#3b3660] px-6 py-4 flex-shrink-0">
         <span className="text-white text-xl font-bold">Token Trail</span>
       </div>
