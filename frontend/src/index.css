@@ -1,6 +1,5 @@
 @import "tailwindcss" layer(tw);
 
-/* some reused colors */
 @theme {
   --color-brand-purple: #564F67;
   --color-purple-clicked: #393543;
@@ -13,8 +12,6 @@
   --color-open-green: #059405B3;
   --color-border: #D9D9D9;
   --color-file-drop: #A1A0A0;
-
-  /* use bg-landing for this */
   --gradient-bg-landing: linear-gradient(to top, #564F67, #786D91);
 }
 
@@ -31,7 +28,6 @@
 }
 
 @layer components {
-  
 }
 
 @layer utilities {

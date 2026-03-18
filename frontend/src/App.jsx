@@ -1,71 +1,86 @@
-import { useState, useEffect, Fragment } from 'react'
-import {Routes, Route} from 'react-router-dom'
-import Sidebar from './components/Sidebar/Sidebar'
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
-import InstructorDashboardPage from './pages/InstructorDashboardPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
-import AssignmentPage from './pages/AssignmentPage'
+import AssignmentDetailPage from './pages/AssignmentDetailPage'
 import CoursePage from './pages/CoursePage'
+import HomePage from './pages/HomePage'
+
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem('token')
+  if (!token) return <Navigate to="/login" replace />
+  return children
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
-const token = localStorage.getItem("token");
 
-function App() {
+export default function App() {
   const [health, setHealth] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [courses, setCourses] = useState([])
 
   useEffect(() => {
     fetch(`${API_BASE}/health`)
       .then((res) => res.json())
-      .then((data) => {
-        setHealth(data)
-        setLoading(false)
-      })
-      .catch((err) => {
-        setError(err.message)
-        setLoading(false)
-      })
-      
+      .then(setHealth)
+      .catch(console.error)
   }, [])
 
-  useEffect(() => { //sample values
-    setCourses([
-      {id:"1", name:"COSC 4P02", assignments: [
-        { id: "a1", title: "Assignment 1" },
-        { id: "a2", title: "Assignment 2" },
-        { id: "a3", title: "Assignment 3" },
-      ],}, 
-      {id:"2", name:"COSC 4P01", assignments:[]}])
-  }, [])
-
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error}</p>
+  function handleLogout() {
+    localStorage.removeItem('token')
+    window.location.href = '/login'
+  }
 
   return (
-    <div>
-      {/* <h1>Token Trail</h1>
-      <p>Health check from backend:</p>
-      <pre style={{ background: '#16213e', padding: '1rem', borderRadius: 8 }}>
-        {JSON.stringify(health, null, 2)}
-      </pre> */}
+    <>
       <Routes>
-        <Route path="/" element={<LoginPage/>}/>
-        <Route path="/dashboard" element={<InstructorDashboardPage courses={courses}/>}/>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <HomePage onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
-        {courses.map((course) => (
-          <Fragment key={course.id}>
-            <Route path={`/course/${course.id}`} element={<CoursePage courses={courses}/>}/>
-            {course.assignments.map((assignment) => (
-              <Route key={assignment.id} path={`/course/${course.id}/assignment/${assignment.id}`} element={<AssignmentPage courses={courses}/>}/>
-            ))}
-          </Fragment>
-        ))}
+        <Route path="/course/:courseId" element={<CoursePage/>}/>
+        <Route path="/course/:courseId/assignment/:assignmentId" element={<AssignmentDetailPage/>}/>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      
-    </div>
+
+      {health && (
+        <div className="fixed bottom-2 right-3 text-xs text-gray-400 select-none">
+          API: {health.status}
+        </div>
+      )}
+    </>
   )
 }
 
-export default App
+function LandingPage() {
+  return (
+    <div className="min-h-screen bg-gray-200 font-sans">
+      <div className="bg-[#3d3d5c] px-6 py-4">
+        <span className="text-white text-xl font-bold">Token Trail</span>
+      </div>
+
+      <div className="flex justify-center items-center gap-8 mt-20">
+        <a
+          href="/student-submit"
+          className="bg-[#b8a9d4] border-2 border-dashed border-[#8a7aaa] rounded-2xl p-10 w-52 text-center no-underline text-gray-900 cursor-pointer hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-bold mb-3">Student</h2>
+          <p className="text-sm text-[#3a3a5c]">Submit an Assignment</p>
+        </a>
+
+        <a
+          href="/login"
+          className="bg-[#b8a9d4] border-2 border-dashed border-[#8a7aaa] rounded-2xl p-10 w-52 text-center no-underline text-gray-900 cursor-pointer hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-bold mb-3">Teacher</h2>
+          <p className="text-sm text-[#3a3a5c]">Login as Teacher</p>
+        </a>
+      </div>
+    </div>
+  )
+}
