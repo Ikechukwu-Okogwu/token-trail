@@ -4,36 +4,35 @@ Test winnowing library: compare two files from similarCodes folder.
 Run with project venv: venv\\Scripts\\python.exe testWinowingLib.py
 """
 
+from __future__ import annotations
+
 import os
 from collections import defaultdict
+from typing import Sequence
 
 # Support both:
 # - importing as a package module (used by the backend)
 # - running this file directly as a script (original dev workflow)
 try:
-    from .winnowingCopy import winnow
+    from .fingerprint import (
+        Fingerprint,
+        MatchPoint,
+        build_match_points,
+        fingerprint_hashes,
+        fingerprint_index,
+        group_match_points,
+        winnow,
+    )
 except ImportError:  # pragma: no cover
-    from winnowingCopy import winnow
-
-
-def load_file(path):
-    """Load file content as string."""
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-
-def fingerprint_hashes(fingerprints):
-    """Extract hash values from fingerprints (set of (position, hash) tuples)."""
-    return {h for _, h in fingerprints}
-
-def fingerprint_index(fingerprints):
-    """Build hash -> [positions] index from (position, hash) fingerprints."""
-    index = defaultdict(list)
-    for pos, hs in fingerprints:
-        index[hs].append(pos)
-    for hs in index:
-        index[hs].sort()
-    return index
+    from fingerprint import (
+        Fingerprint,
+        MatchPoint,
+        build_match_points,
+        fingerprint_hashes,
+        fingerprint_index,
+        group_match_points,
+        winnow,
+    )
 
 
 def marked_line_at_offset(text: str, offset: int):
@@ -112,8 +111,8 @@ def store_compare_result(
     text_b: str,
     similarity: float,
     overlap: int,
-    groups,
-):
+    groups: Sequence[Sequence[MatchPoint]],
+) -> None:
     """
     Store grouped compare result into two files:
       - original.txt: annotated content for file A
@@ -128,10 +127,10 @@ def store_compare_result(
     intervals_a = []
     intervals_b = []
     for gid, g in enumerate(groups, start=1):
-        a_start = min(x[0] for x in g)
-        a_end = max(x[0] for x in g)
-        b_start = min(x[1] for x in g)
-        b_end = max(x[1] for x in g)
+        a_start = min(x.pos_a for x in g)
+        a_end = max(x.pos_a for x in g)
+        b_start = min(x.pos_b for x in g)
+        b_end = max(x.pos_b for x in g)
         intervals_a.append((a_start, a_end, gid))
         intervals_b.append((b_start, b_end, gid))
 
@@ -162,74 +161,6 @@ def store_compare_result(
         fb.write("\n")
 
 
-def build_match_points(index_a, index_b, common_hashes, max_pos_each=10):
-    """
-    Build match points between two files from common hashes.
-
-    Returns a list of tuples: (pos_a, pos_b, hs, delta) where delta = pos_b - pos_a.
-    To avoid combinatorial explosion, we only use up to max_pos_each positions per hash
-    on each side.
-    """
-    points = []
-    for hs in common_hashes:
-        # Debug: show hashes that are truncated (occur too many times)
-        count_a = len(index_a[hs])
-        count_b = len(index_b[hs])
-        if count_a > max_pos_each or count_b > max_pos_each:
-            print(
-                f"[CUT] hash={hs}  occurrences: A={count_a}, B={count_b}  "
-                f"(max_pos_each={max_pos_each})"
-            )
-
-        pos_a_list = index_a[hs][:max_pos_each]
-        pos_b_list = index_b[hs][:max_pos_each]
-        for pa in pos_a_list:
-            for pb in pos_b_list:
-                points.append((pa, pb, hs, pb - pa))
-    return points
-
-
-def group_match_points(points, min_group_size=4, delta_tol=5, max_gap=120):
-    """
-    Group match points into "continuous" diagonal-like segments.
-
-    Heuristic: points in the same group should
-    - have similar delta (pos_b - pos_a)
-    - be increasing in both pos_a and pos_b
-    - not jump too far between consecutive points
-    """
-    if not points:
-        return []
-
-    pts = sorted(points, key=lambda t: (t[3], t[0], t[1]))
-    groups = []
-    cur = []
-
-    for p in pts:
-        if not cur:
-            cur = [p]
-            continue
-
-        prev = cur[-1]
-        same_diag = abs(p[3] - prev[3]) <= delta_tol
-        increasing = p[0] >= prev[0] and p[1] >= prev[1]
-        close_enough = (p[0] - prev[0]) <= max_gap and (p[1] - prev[1]) <= max_gap
-
-        if same_diag and increasing and close_enough:
-            cur.append(p)
-        else:
-            if len(cur) >= min_group_size:
-                groups.append(cur)
-            cur = [p]
-
-    if len(cur) >= min_group_size:
-        groups.append(cur)
-
-    # Largest groups first, then by earliest occurrence
-    groups.sort(key=lambda g: (-len(g), min(x[0] for x in g)))
-    return groups
-
-
 def jaccard_similarity(set_a, set_b):
     """Jaccard similarity: |intersection| / |union|."""
     # Project requirement: empty file vs any file => similarity 0
@@ -247,27 +178,20 @@ def compute_similarity_from_text(text_a: str, text_b: str, *, k: int = 5) -> flo
     - No file I/O
     - Empty text vs any text => 0
     """
-    if not text_a or not text_b:
-        return 0.0
-    if not text_a.strip() or not text_b.strip():
-        return 0.0
-
-    fp_a = winnow(text_a, k=k)
-    fp_b = winnow(text_b, k=k)
-
-    hashes_a = fingerprint_hashes(fp_a)
-    hashes_b = fingerprint_hashes(fp_b)
-
-    return float(jaccard_similarity(hashes_a, hashes_b))
+    # print("new implementation")
+    result = compare_texts_with_template(text_a, text_b, "", k=k)
+    return result["similarity"]
 
 
-def compare_files(path_a, path_b):
+def compare_files(path_a: str, path_b: str) -> dict:
     """Compare two files with winnowing and print similarity."""
     name_a = os.path.basename(path_a)
     name_b = os.path.basename(path_b)
 
-    text_a = load_file(path_a)
-    text_b = load_file(path_b)
+    with open(path_a, "r", encoding="utf-8") as f:
+        text_a = f.read()
+    with open(path_b, "r", encoding="utf-8") as f:
+        text_b = f.read()
 
     fp_a = winnow(text_a, k=5)
     fp_b = winnow(text_b, k=5)
@@ -294,18 +218,90 @@ def compare_files(path_a, path_b):
     groups = group_match_points(points, min_group_size=4, delta_tol=5, max_gap=120) if points else []
 
     # Do not print group details to console; store them to files instead.
-    store_compare_result(
-        base_dir=os.path.dirname(os.path.abspath(__file__)),
-        name_a=name_a,
-        name_b=name_b,
-        text_a=text_a,
-        text_b=text_b,
-        similarity=similarity,
-        overlap=overlap,
-        groups=groups,
-    )
+    # store_compare_result(
+    #     base_dir=os.path.dirname(os.path.abspath(__file__)),
+    #     name_a=name_a,
+    #     name_b=name_b,
+    #     text_a=text_a,
+    #     text_b=text_b,
+    #     similarity=similarity,
+    #     overlap=overlap,
+    #     groups=groups,
+    # )
 
-    print("-" * 50)
+    return {
+        "base_dir": os.path.dirname(os.path.abspath(__file__)),
+        "name_a": name_a,
+        "name_b": name_b,
+        "text_a": text_a,
+        "text_b": text_b,
+        "similarity": similarity,
+        "overlap": overlap,
+        "groups": groups,
+        "points": points
+    }
+
+
+def compare_texts_with_template(
+    text_a: str, text_b: str, template: str = "", *, k: int = 5, name_a: str = "", name_b: str = ""
+) -> dict:
+    """Compare two texts with winnowing, optionally excluding template hashes from overlap and similarity.
+
+    If template is empty string, no exclusion is applied.
+    """
+    if not text_a or not text_b or not text_a.strip() or not text_b.strip():
+        return {
+            "base_dir": os.path.dirname(os.path.abspath(__file__)),
+            "name_a": name_a,
+            "name_b": name_b,
+            "text_a": text_a,
+            "text_b": text_b,
+            "similarity": 0.0,
+            "overlap": 0,
+            "groups": [],
+            "points": [],
+        }
+
+    fp_a = winnow(text_a, k=k)
+    fp_b = winnow(text_b, k=k)
+    index_a = fingerprint_index(fp_a)
+    index_b = fingerprint_index(fp_b)
+
+    hashes_a = set(index_a.keys())
+    hashes_b = set(index_b.keys())
+
+    if template and template.strip():
+        fp_template = winnow(template, k=k)
+        template_hashes = set(fingerprint_index(fp_template).keys())
+        common_hashes = (hashes_a & hashes_b) - template_hashes
+        hashes_a_filtered = hashes_a - template_hashes
+        hashes_b_filtered = hashes_b - template_hashes
+        for h in template_hashes:
+            index_a.pop(h, None)
+            index_b.pop(h, None)
+    else:
+        common_hashes = hashes_a & hashes_b
+        hashes_a_filtered = hashes_a
+        hashes_b_filtered = hashes_b
+
+    similarity = jaccard_similarity(hashes_a_filtered, hashes_b_filtered)
+    overlap = len(common_hashes)
+
+    points = build_match_points(index_a, index_b, common_hashes, max_pos_each=100) if common_hashes else []
+    groups = group_match_points(points, min_group_size=4, delta_tol=5, max_gap=20) if points else []
+
+    return {
+        "base_dir": os.path.dirname(os.path.abspath(__file__)),
+        "name_a": name_a,
+        "name_b": name_b,
+        "text_a": text_a,
+        "text_b": text_b,
+        "similarity": similarity,
+        "overlap": overlap,
+        "groups": groups,
+        "points": points,
+    }
+
 
 
 def main():
@@ -313,14 +309,68 @@ def main():
     # Reset outputs each run
     open(os.path.join(base, "original.txt"), "w", encoding="utf-8").close()
     open(os.path.join(base, "compared.txt"), "w", encoding="utf-8").close()
-    similar_codes_dir = os.path.join(base, "similarCodes")
+    similar_codes_dir = os.path.join(base, "similarCodesWithTemplate")
     path_original = os.path.join(similar_codes_dir, "original.py")
-    path_copied = os.path.join(similar_codes_dir, "copied.py")
-    path_change_var_names = os.path.join(similar_codes_dir, "changeVarNames.py")
+    path_changed = os.path.join(similar_codes_dir, "changed.py")
+    path_template = os.path.join(similar_codes_dir, "template.py")
+    # path_change_var_names = os.path.join(similar_codes_dir, "changeVarNames.py")
 
-    compare_files(path_original, path_copied)
-    print()
-    compare_files(path_original, path_change_var_names)
+    # compare_files(path_original, path_copied)
+    # print()
+    # compare_files(path_original, path_change_var_names)
+
+    # original_with_template = compare_files(path_original, path_template)
+    # changed_with_template = compare_files(path_changed, path_template)
+    # original_with_changed = compare_files(path_original, path_changed)
+
+
+    from render_result import store_compare_result_as_html
+    # r1 = compare_files(path_original, path_template)
+
+    with open(path_original, "r", encoding="utf-8") as f:
+        text_original = f.read()
+    with open(path_changed, "r", encoding="utf-8") as f:
+        text_changed = f.read()
+    with open(path_template, "r", encoding="utf-8") as f:
+        text_template = f.read()
+
+    r1 = compare_texts_with_template(
+        text_original,
+        text_changed,
+        text_template,
+        k=5,
+        name_a=os.path.basename(path_original),
+        name_b=os.path.basename(path_changed),
+    )
+
+
+    store_compare_result_as_html(
+        base_dir = r1["base_dir"],
+        name_a = r1["name_a"],
+        name_b = r1["name_b"],
+        text_a = r1["text_a"],
+        text_b = r1["text_b"],
+        similarity = r1["similarity"],
+        overlap = r1["overlap"],
+        groups = r1["groups"],
+    )
+
+    r1 = compare_files(path_original, path_changed)
+
+
+    store_compare_result_as_html(
+        base_dir = r1["base_dir"],
+        name_a = r1["name_a"],
+        name_b = r1["name_b"],
+        text_a = r1["text_a"],
+        text_b = r1["text_b"],
+        similarity = r1["similarity"],
+        overlap = r1["overlap"],
+        groups = r1["groups"],
+    )
+    # print()
+    # r2 = compare_files(path_original, path_change_var_names)
+    # store_compare_result_as_html(**r2)
 
 
 if __name__ == "__main__":
