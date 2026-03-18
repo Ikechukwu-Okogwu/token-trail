@@ -42,7 +42,6 @@ export default function Sidebar({refreshKey}) {
 
   useEffect(() => {
     if (token) {
-      setCoursesLoading(true)
       getInstructorCourses()
         .then((fetchedCourses) => {
           setCourses(fetchedCourses)
