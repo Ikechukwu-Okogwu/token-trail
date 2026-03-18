@@ -39,6 +39,30 @@ export default function Sidebar({refreshKey}) {
   const location = useLocation()
   const [courses, setCourses] = useState([])
   const token = localStorage.getItem('token')
+  const [courseAssignments, setCourseAssignments] = useState({})
+  const [loadingCourseAssignments, setLoadingCourseAssignments] = useState({})
+  const [expandedIds, setExpandedIds] = useState(new Set())
+
+  const fetchAssignments = (courseId) => {
+    if (courseAssignments[courseId] || loadingCourseAssignments[courseId]) return
+
+    setLoadingCourseAssignments((prev) => ({ ...prev, [courseId]: true }))
+
+    getCourseAssignments(courseId)
+      .then((data) => {
+        setCourseAssignments((prev) => ({
+          ...prev,
+          [courseId]: Array.isArray(data) ? data : [],
+        }))
+      })
+      .catch((err) => {
+        console.error('Failed to fetch assignments for course', courseId, err)
+        setCourseAssignments((prev) => ({ ...prev, [courseId]: [] }))
+      })
+      .finally(() => {
+        setLoadingCourseAssignments((prev) => ({ ...prev, [courseId]: false }))
+      })
+  }
 
   useEffect(() => {
     if (token) {
@@ -51,12 +75,19 @@ export default function Sidebar({refreshKey}) {
         })
     }
   }, [token, refreshKey])
-  const [expandedIds, setExpandedIds] = useState(new Set())
+  
   useEffect(() => {
     const initial = new Set()
 
     courses.forEach((course) => {
-      const assignments = course.assignments ?? []
+      const isActiveCourse = location.pathname === `/course/${course.id}`
+      const isActiveAssignment = location.pathname.startsWith(`/course/${course.id}/assignment/`)
+
+      if (isActiveCourse || isActiveAssignment) {
+        initial.add(course.id)
+      }
+
+      const assignments = courseAssignments[course.id] ?? []
       const hasActiveAssignment = assignments.some(
         (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
       )
@@ -67,30 +98,34 @@ export default function Sidebar({refreshKey}) {
     })
 
     setExpandedIds(initial)
-  }, [courses, location.pathname])
+  }, [courses, courseAssignments, location.pathname])
 
-  const [courseAssignments, setCourseAssignments] = useState({})
+  useEffect(() => {
+    const match = location.pathname.match(/^\/course\/([^\/]+)(?:\/assignment\/[^\/]+)?$/)
+    if (!match) return
 
-  const toggleCourse = async (courseId) => {
+    const courseId = match[1]
+    if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
+      fetchAssignments(courseId)
+    }
+  }, [location.pathname, courseAssignments, loadingCourseAssignments])
+
+  const toggleCourse = (courseId) => {
+    const isCurrentlyExpanded = expandedIds.has(courseId)
+
     setExpandedIds((prev) => {
       const next = new Set(prev)
       if (next.has(courseId)) {
         next.delete(courseId)
       } else {
         next.add(courseId)
-        // Fetch assignments if not already fetched
-        if (!courseAssignments[courseId]) {
-          getCourseAssignments(courseId)
-            .then((assignments) => {
-              setCourseAssignments(prev => ({ ...prev, [courseId]: assignments }))
-            })
-            .catch((err) => {
-              console.error('Failed to fetch assignments for course', courseId, err)
-            })
-        }
       }
       return next
     })
+
+    if (!isCurrentlyExpanded) {
+      fetchAssignments(courseId)
+    }
   }
 
   return (
@@ -105,7 +140,7 @@ export default function Sidebar({refreshKey}) {
               </NavLink>
             </li>
             {courses.map((course) => {
-              const assignments = courseAssignments[course.id] ?? course.assignments ?? []
+              const assignments = courseAssignments[course.id] ?? []
               const isExpanded = expandedIds.has(course.id)
               return (
               <li key={course.id}>
@@ -115,40 +150,42 @@ export default function Sidebar({refreshKey}) {
                     className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? '' : 'hover:bg-white/5'}`}
                   >
                     {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name)}
-                    
                   </NavLink>
-                  {assignments.length > 0 && (
-                    <button 
-                      onClick={() => toggleCourse(course.id)} 
-                      className="p-1.5 mr-2 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
-                      aria-expanded={isExpanded}
-                    >
-                      <span className="">
-                        {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                      </span>
-                    </button>
-                  )}
-                  
+                  <button 
+                    onClick={() => toggleCourse(course.id)} 
+                    className="p-1.5 mr-2 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
+                    aria-expanded={isExpanded}
+                  >
+                    <span className="">
+                      {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                    </span>
+                  </button>
                 </div>
                 
-                {isExpanded && assignments.length > 0 && (
+                {isExpanded && (
                   <ul className="border-l-[1.5px] border-purple-clicked ml-5">
-                    {assignments.map((a) => (
-                      <li key={a.id}>
-                        <NavLink
-                          to={`/course/${course.id}/assignment/${a.id}`}
-                          className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
-                        >
-                          {({ isActive }) => (
-                            <>
-                              <div className={`w-2 h-full ml-[-1.5px] ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
-                              <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
-                              <span className="truncate">{a.title}</span>
-                            </>
-                          )}
-                        </NavLink>
-                      </li>
-                    ))}
+                    {loadingCourseAssignments[course.id] ? (
+                      <li className="text-sm text-[#FEF7FFBF] py-2">Loading assignments…</li>
+                    ) : assignments.length > 0 ? (
+                      assignments.map((a) => (
+                        <li key={a.id}>
+                          <NavLink
+                            to={`/course/${course.id}/assignment/${a.id}`}
+                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                          >
+                            {({ isActive }) => (
+                              <>
+                                <div className={`w-2 h-full ml-[-1.5px] ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
+                                <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
+                                <span className="truncate">{a.title}</span>
+                              </>
+                            )}
+                          </NavLink>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-sm text-[#FEF7FFBF] py-2">No assignments yet</li>
+                    )}
                   </ul>
                 )}
               </li>
