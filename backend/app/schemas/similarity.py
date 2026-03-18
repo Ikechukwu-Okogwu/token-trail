@@ -8,7 +8,11 @@ class SimilarityResultListItem(BaseModel):
     runId: str
     assignmentId: str
     leftSubmissionId: str
+    leftStudentIdentifier: str
+    leftStudentName: str | None = None
     rightSubmissionId: str
+    rightStudentIdentifier: str
+    rightStudentName: str | None = None
     similarityScore: float
 
 
@@ -25,7 +29,11 @@ class SimilarityPairDetailResponse(BaseModel):
     runId: str
     assignmentId: str
     leftSubmissionId: str
+    leftStudentIdentifier: str
+    leftStudentName: str | None = None
     rightSubmissionId: str
+    rightStudentIdentifier: str
+    rightStudentName: str | None = None
     similarityScore: float
     summary: str | None = None
 
@@ -44,7 +52,11 @@ class SimilarityComparisonResponse(BaseModel):
     runId: str
     assignmentId: str
     leftSubmissionId: str
+    leftStudentIdentifier: str
+    leftStudentName: str | None = None
     rightSubmissionId: str
+    rightStudentIdentifier: str
+    rightStudentName: str | None = None
     similarityScore: float
     leftFilePath: str
     rightFilePath: str

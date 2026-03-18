@@ -85,6 +85,23 @@ async def get_ranked_similarity_results(
         key=lambda p: float(p.get("score", 0.0)),
         reverse=True,
     )
+
+    submission_ids = {
+        str(pair.get("submissionA", ""))
+        for pair in ranked_pairs
+        if str(pair.get("submissionA", ""))
+    } | {
+        str(pair.get("submissionB", ""))
+        for pair in ranked_pairs
+        if str(pair.get("submissionB", ""))
+    }
+    submission_map = {}
+    if submission_ids:
+        submission_docs = db.submissions.find(
+            {"_id": {"$in": [to_object_id(submission_id) for submission_id in submission_ids]}}
+        )
+        submission_map = {str(doc["_id"]): doc for doc in submission_docs}
+
     items = [
         SimilarityResultListItem(
             resultId=_build_result_id(
@@ -95,7 +112,23 @@ async def get_ranked_similarity_results(
             runId=str(run["_id"]),
             assignmentId=str(assignment["_id"]),
             leftSubmissionId=str(pair.get("submissionA", "")),
+            leftStudentIdentifier=str(
+                submission_map.get(str(pair.get("submissionA", "")), {}).get(
+                    "studentIdentifier", ""
+                )
+            ),
+            leftStudentName=submission_map.get(
+                str(pair.get("submissionA", "")), {}
+            ).get("studentName"),
             rightSubmissionId=str(pair.get("submissionB", "")),
+            rightStudentIdentifier=str(
+                submission_map.get(str(pair.get("submissionB", "")), {}).get(
+                    "studentIdentifier", ""
+                )
+            ),
+            rightStudentName=submission_map.get(
+                str(pair.get("submissionB", "")), {}
+            ).get("studentName"),
             similarityScore=float(pair.get("score", 0.0)),
         )
         for pair in ranked_pairs
@@ -122,12 +155,27 @@ async def get_similarity_pair_detail(
         raise HTTPException(status_code=404, detail="Similarity results not found")
     pair = _get_pair_from_result_doc(result_doc, left_submission_id, right_submission_id)
 
+    left_submission = db.submissions.find_one({"_id": to_object_id(str(pair["submissionA"]))})
+    right_submission = db.submissions.find_one({"_id": to_object_id(str(pair["submissionB"]))})
+    if not left_submission or not right_submission:
+        raise HTTPException(status_code=404, detail="Submission not found for similarity pair")
+
+    if (
+        left_submission.get("assignmentId") != str(assignment["_id"])
+        or right_submission.get("assignmentId") != str(assignment["_id"])
+    ):
+        raise HTTPException(status_code=404, detail="Submission assignment mismatch")
+
     return SimilarityPairDetailResponse(
         resultId=result_id,
         runId=str(run["_id"]),
         assignmentId=str(assignment["_id"]),
         leftSubmissionId=str(pair.get("submissionA")),
+        leftStudentIdentifier=str(left_submission.get("studentIdentifier") or ""),
+        leftStudentName=left_submission.get("studentName"),
         rightSubmissionId=str(pair.get("submissionB")),
+        rightStudentIdentifier=str(right_submission.get("studentIdentifier") or ""),
+        rightStudentName=right_submission.get("studentName"),
         similarityScore=float(pair.get("score", 0.0)),
         summary="Pair similarity computed from merged submission sources.",
     )
@@ -179,7 +227,11 @@ async def get_similarity_side_by_side_comparison(
         runId=str(run["_id"]),
         assignmentId=str(assignment["_id"]),
         leftSubmissionId=str(pair.get("submissionA")),
+        leftStudentIdentifier=str(left_submission.get("studentIdentifier") or ""),
+        leftStudentName=left_submission.get("studentName"),
         rightSubmissionId=str(pair.get("submissionB")),
+        rightStudentIdentifier=str(right_submission.get("studentIdentifier") or ""),
+        rightStudentName=right_submission.get("studentName"),
         similarityScore=float(pair.get("score", 0.0)),
         leftFilePath=left_path,
         rightFilePath=right_path,
