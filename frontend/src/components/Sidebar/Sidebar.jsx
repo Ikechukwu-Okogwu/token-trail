@@ -42,7 +42,6 @@ export default function Sidebar({refreshKey}) {
 
   useEffect(() => {
     if (token) {
-      setCoursesLoading(true)
       getInstructorCourses()
         .then((fetchedCourses) => {
           setCourses(fetchedCourses)
@@ -52,25 +51,6 @@ export default function Sidebar({refreshKey}) {
         })
     }
   }, [token, refreshKey])
-
-  useEffect(() => {
-    // TEMP: sample data for verifying routes/UI
-    setCourses([
-      {
-        id: 'course-1',
-        name: 'COSC 4P02',
-        assignments: [
-          { id: 'a1', title: 'Assignment 1' },
-          { id: 'a2', title: 'Assignment 2' },
-        ],
-      },
-      {
-        id: 'course-2',
-        name: 'COSC 4P01',
-        assignments: [{ id: 'a1', title: 'Assignment 1' }],
-      },
-    ])
-  }, [])
   const [expandedIds, setExpandedIds] = useState(new Set())
   useEffect(() => {
     const initial = new Set()
