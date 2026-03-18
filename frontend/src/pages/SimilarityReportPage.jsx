@@ -32,11 +32,11 @@ export default function SimilarityReportPage() {
           {loading && <LoadingSpinner message="Loading results…" />}
           <ErrorBanner message={error} />
 
-          {data && data.results.length === 0 && (
+          {data?.results?.length === 0 && (
             <EmptyState message="No similarity pairs found for this run." />
           )}
 
-          {data && data.results.length > 0 && (
+          {data?.results?.length > 0 && (
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-gray-500 text-xs uppercase tracking-wide">
@@ -51,8 +51,20 @@ export default function SimilarityReportPage() {
                 {data.results.map((row, i) => (
                   <tr key={row.resultId} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 pr-4 text-gray-400">{i + 1}</td>
-                    <td className="py-3 pr-4 font-mono text-gray-700">{row.leftSubmissionId.slice(-8)}</td>
-                    <td className="py-3 pr-4 font-mono text-gray-700">{row.rightSubmissionId.slice(-8)}</td>
+                    <td className="py-3 pr-4">
+                      <div className="space-y-0.5">
+                        <div className="font-mono text-gray-700">{row.leftSubmissionId.slice(-8)}</div>
+                        <div className="text-xs text-gray-500">ID: {row.leftStudentIdentifier || 'N/A'}</div>
+                        <div className="text-xs text-gray-500">Name: {row.leftStudentName || 'N/A'}</div>
+                      </div>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <div className="space-y-0.5">
+                        <div className="font-mono text-gray-700">{row.rightSubmissionId.slice(-8)}</div>
+                        <div className="text-xs text-gray-500">ID: {row.rightStudentIdentifier || 'N/A'}</div>
+                        <div className="text-xs text-gray-500">Name: {row.rightStudentName || 'N/A'}</div>
+                      </div>
+                    </td>
                     <td className="py-3 pr-4">
                       <ScoreBadge score={row.similarityScore} />
                     </td>
