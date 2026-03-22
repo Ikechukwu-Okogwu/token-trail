@@ -220,6 +220,11 @@ backend/app/analysis/**
 !backend/app/analysis/testWinowingCode/fingerprint.py
 !backend/app/analysis/testWinowingCode/testWinowingLib.py
 !backend/app/analysis/testWinowingCode/winnowingCopy.py
+!backend/app/analysis/testWinowingCode/ast_experiment.py
+!backend/app/analysis/testWinowingCode/test_ast_experiment.py
+!backend/app/analysis/testWinowingCode/render_result.py
+!backend/app/analysis/testWinowingCode/similarCodesVariableManipulation/
+!backend/app/analysis/testWinowingCode/similarCodesVariableManipulation/**
 
 # localtest: include test components and submission_files, exclude result_log, __pycache__, .pyc
 !backend/app/analysis/localtest/
