@@ -6,12 +6,41 @@ import AssignmentDetailPage from './pages/AssignmentDetailPage'
 import CoursePage from './pages/CoursePage'
 import HomePage from './pages/HomePage'
 import SimilarityReportPage from './pages/SimilarityReportPage'
+import { getInstructorCourses } from './services/api'
 import SimilarityPairDetailPage from './pages/SimilarityPairDetailPage'
 import SimilarityComparisonPage from './pages/SimilarityComparisonPage'
 
 function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('token')
-  if (!token) return <Navigate to="/login" replace />
+  const [authorized, setAuthorized] = useState(null) // null = loading
+
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+      setAuthorized(false)
+      return
+    }
+
+    getInstructorCourses()
+      .then(() => setAuthorized(true))
+      .catch((err) => {
+        if (err.status === 401) {
+          localStorage.removeItem("token")
+          setAuthorized(false)
+        } else {
+          setAuthorized(true) 
+        }
+      })
+  }, [])
+
+  if (authorized === null) {
+    return <div>Loading...</div>
+  }
+
+  if (!authorized) {
+    return <Navigate to="/login" replace />
+  }
+
   return children
 }
 
