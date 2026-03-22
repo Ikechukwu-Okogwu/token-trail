@@ -41,6 +41,7 @@ export default function Sidebar({refreshKey}) {
   const token = localStorage.getItem('token')
   const [acctMenuOpen, setAcctMenuOpen] = useState(false)
   const acctMenuRef = useRef(null)
+  const acctBtnRef = useRef(null)
 
   useEffect(() => {
     if (token) {
@@ -92,7 +93,7 @@ export default function Sidebar({refreshKey}) {
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (acctMenuRef.current && !acctMenuRef.current.contains(e.target)) {
+      if (acctMenuRef.current && !acctMenuRef.current.contains(e.target) && acctBtnRef.current && !acctBtnRef.current.contains(e.target)) {
         setAcctMenuOpen(false)
       }
     }
@@ -205,8 +206,8 @@ export default function Sidebar({refreshKey}) {
       
       <div className="h-14 border-t border-t-[#FFFFFF80] flex">
         <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5 "
-          onClick={() => setAcctMenuOpen(!acctMenuOpen)}
-          ref={acctMenuRef}
+          onClick={() => setAcctMenuOpen(prev => !prev)}
+          ref={acctBtnRef}
         >
           <img src={accountIcon} alt="Account" className='h-8'/>
         </button>
