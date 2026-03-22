@@ -29,6 +29,8 @@ def run_analysis_for_assignment(
         )
     )
 
+    print("run analysis for assignment", assignment_id, flush=True)
+
     # Deterministic ordering
     submissions.sort(key=lambda s: str(s.get("_id", "")))
 

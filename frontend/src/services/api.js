@@ -109,3 +109,17 @@ export function getInstructorCourses() {
 export function getCourseAssignments(courseId) {
   return apiFetch(`/instructor/courses/${courseId}/assignments`)
 }
+
+// --- Similarity results (instructor, login required) ---
+
+export function getSimilarityResults(runId) {
+  return apiFetch(`/instructor/analysis-runs/${runId}/similarity-results`)
+}
+
+export function getSimilarityPairDetail(resultId) {
+  return apiFetch(`/instructor/similarity-results/${resultId}`)
+}
+
+export function getSimilarityComparison(resultId) {
+  return apiFetch(`/instructor/similarity-results/${resultId}/comparison`)
+}
