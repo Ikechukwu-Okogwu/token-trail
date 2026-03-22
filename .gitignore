@@ -215,6 +215,10 @@ frontend/.env
 # analysis developing
 backend/app/analysis/**
 !backend/app/analysis/
+!backend/app/analysis/analysis.py
+!backend/app/analysis/analysis_demo.py
+!backend/app/analysis/tree_sitter_analysis/
+!backend/app/analysis/tree_sitter_analysis/**
 !backend/app/analysis/testWinowingCode/
 !backend/app/analysis/preprocess.py
 !backend/app/analysis/testWinowingCode/fingerprint.py
