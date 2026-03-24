@@ -212,6 +212,67 @@ Errors:
 
 ---
 
+### `GET /api/instructor/analysis-runs/{runId}/similarity-results`
+
+Response `200`:
+```json
+{
+  "runId": "665f...",
+  "results": [
+    {
+      "resultId": "665f...-1",
+      "assignmentId": "665f...",
+      "leftSubmissionId": "665f...",
+      "rightSubmissionId": "665f...",
+      "similarityScore": 0.81,
+      "confidence": 0.77,
+      "largestBlockSize": 14
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/instructor/similarity-results/{resultId}/comparison`
+
+Response `200`:
+```json
+{
+  "resultId": "665f...-1",
+  "leftFilePath": "uploads/.../merged.txt",
+  "rightFilePath": "uploads/.../merged.txt",
+  "matchingRegions": [
+    {
+      "leftStartLine": 24,
+      "leftEndLine": 31,
+      "rightStartLine": 22,
+      "rightEndLine": 29,
+      "score": 0.42,
+      "evidenceType": "winnowing_group",
+      "snippet": "for (int i = 0; i < n; i++) {\\n  total += arr[i];\\n}"
+    }
+  ],
+  "excludedRegions": [
+    {
+      "leftStartLine": 1,
+      "leftEndLine": 10,
+      "rightStartLine": null,
+      "rightEndLine": null,
+      "evidenceType": "non_match",
+      "reason": "No matching fingerprint group"
+    }
+  ],
+  "summary": "Detected 3 matched block(s) with similarity score 81.00%.",
+  "confidence": 0.77,
+  "snippets": [
+    "for (int i = 0; i < n; i++) {\\n  total += arr[i];\\n}"
+  ]
+}
+```
+
+---
+
 ## Public (no JWT)
 
 ### `POST /api/public/assignment-key/validate`
@@ -283,9 +344,7 @@ All endpoints below are deliberate skeleton contracts and currently return `501 
 
 ### Similarity Report Flow
 
-- `GET /api/instructor/analysis-runs/{runId}/similarity-results`
 - `GET /api/instructor/similarity-results/{resultId}`
-- `GET /api/instructor/similarity-results/{resultId}/comparison`
 
 ### Assignment Key Management
 
