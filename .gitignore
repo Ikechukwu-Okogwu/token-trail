@@ -221,6 +221,9 @@ backend/app/analysis/**
 !backend/app/analysis/tree_sitter_analysis/**
 backend/app/analysis/tree_sitter_analysis/early_access/
 backend/app/analysis/tree_sitter_analysis/todo.md
+backend/app/analysis/tree_sitter_analysis/__pycache__/
+backend/app/analysis/tree_sitter_analysis/**/__pycache__/
+backend/app/analysis/tree_sitter_analysis/**/*.pyc
 !backend/app/analysis/testWinowingCode/
 !backend/app/analysis/preprocess.py
 !backend/app/analysis/testWinowingCode/fingerprint.py
