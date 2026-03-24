@@ -44,6 +44,8 @@ Each assignment folder contains:
 
 - `submissions/*.zip` (student submissions)
 - `result.txt` (expected score + range + label per pair)
+- `result_explanation.md` (human rationale for every pair listed in `result.txt`)
+- `submission_creation.md` (how each submission ZIP was constructed and why it exists)
 - `template.zip` only when template exclusion is enabled
 
 ## What Each Fixture Tests
@@ -116,6 +118,80 @@ Pair requirements:
 - `range=<min>-<max>` with `0 <= min <= max <= 1`
 - `label=high|medium|low`
 
+## Required Markdown Documentation
+
+Every assignment fixture directory must include both files below.
+
+### `result_explanation.md`
+
+Purpose:
+- Explain **every** similarity pair declared in `result.txt`.
+
+Required coverage:
+- Every canonical pair key from `result.txt` must appear in this file using exact key text (for example, `Alice.zip,Bob.zip`).
+
+Required per-pair format:
+
+```md
+# result_explanation
+
+## Pair Alice.zip,Bob.zip
+- Pair: `Alice.zip,Bob.zip`
+- Testing: `rename_invariance`
+- Why expected label: Bob is a rename-only variant of Alice's base logic, so this pair remains high by fixture intent.
+- What engine should do: stay robust to identifier renaming and retain strong similarity.
+
+## Pair Alice.zip,Carol.zip
+- Pair: `Alice.zip,Carol.zip`
+- Testing: `false_positive_control`
+- Why expected label: Carol is intentionally unrelated to Alice for control coverage, so this pair is low.
+- What engine should do: avoid inflating similarity from superficial scaffolding overlap.
+```
+
+Accepted `Testing` labels (use one short value per pair):
+- `rename_invariance`
+- `reorder_invariance`
+- `template_exclusion`
+- `false_positive_control`
+- `family_separation`
+- `cluster_consistency`
+- `pair_anchor_high`
+- `template_vs_non_template_control`
+
+Worked example for frequent confusion:
+
+```md
+## Pair S09.zip,S10.zip
+- Pair: `S09.zip,S10.zip`
+- Testing: `false_positive_control`
+- Why expected label: both are in the distinct-control family and are intentionally treated as unrelated for fixture policy.
+- What engine should do: avoid flagging similarity from shared scaffold/shape alone.
+```
+
+### `submission_creation.md`
+
+Purpose:
+- Document how each submission ZIP was generated so future contributors do not need to reverse engineer fixtures.
+
+Required coverage:
+- Every `submissions/*.zip` filename must appear in this file (for example, `Alice.zip`).
+
+Required per-submission format:
+
+```md
+# submission_creation
+
+## Alice.zip
+- Generator: `_long_java_program("RenamedBase", "a")`
+- Role: `base`
+- Family: `rename_cluster`
+
+## Bob.zip
+- Generator: `_light_rename_variant(_long_java_program("RenamedBase", "a"))`
+- Role: `variant`
+- Family: `rename_cluster`
+```
+
 ## How To Run
 
 Run only regression fixtures:
@@ -137,3 +213,4 @@ pytest -v
 - Prefer score ranges over exact equality to absorb minor score drift while still catching regressions.
 - Do not auto-generate expectations from engine output; update ranges/labels by review and intended detection quality.
 - When changing fixture construction, update expected values to match the new known transformation intent.
+- Always include `result_explanation.md` and `submission_creation.md` with full pair/submission coverage.

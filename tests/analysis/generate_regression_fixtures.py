@@ -6,6 +6,7 @@ Run from repo root:
 
 from __future__ import annotations
 
+from itertools import combinations
 from pathlib import Path
 import shutil
 import sys
@@ -278,6 +279,35 @@ def _build_assignment(
             "# IMPORTANT: expected values must be human-curated targets, not engine-derived baselines.",
         ]
         result_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    result_explanation_path = assignment_dir / "result_explanation.md"
+    pair_lines = ["# result_explanation", ""]
+    for left, right in combinations(sorted(submissions.keys()), 2):
+        pair_lines.append(f"- `{left},{right}`: TODO explain why expected score/range/label is appropriate.")
+    pair_lines.append("")
+    result_explanation_path.write_text("\n".join(pair_lines), encoding="utf-8")
+
+    submission_creation_path = assignment_dir / "submission_creation.md"
+    submission_lines = ["# submission_creation", ""]
+    for zip_name in sorted(submissions.keys()):
+        submission_lines.extend(
+            [
+                f"## {zip_name}",
+                "- Source generator: TODO document exact constructor/function call used.",
+                "- Role: TODO describe intended fixture role (high-sim variant, template-heavy, control, etc).",
+                "",
+            ]
+        )
+    if template_text:
+        submission_lines.extend(
+            [
+                "## template.zip",
+                "- Source generator: TODO document template constructor/function used.",
+                "- Role: shared template used for exclusion when template_exclusion=true.",
+                "",
+            ]
+        )
+    submission_creation_path.write_text("\n".join(submission_lines), encoding="utf-8")
 
 
 def main() -> None:

@@ -33,6 +33,20 @@ from tests.analysis.regression_runner import (
 FIXTURES_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "regression"
 
 
+def _write_fixture_docs(
+    fixture: Path, *, result_explanation_lines: list[str], submission_creation_lines: list[str] | None
+) -> None:
+    (fixture / "result_explanation.md").write_text(
+        "# result_explanation\n\n" + "\n".join(result_explanation_lines) + "\n",
+        encoding="utf-8",
+    )
+    if submission_creation_lines is not None:
+        (fixture / "submission_creation.md").write_text(
+            "# submission_creation\n\n" + "\n".join(submission_creation_lines) + "\n",
+            encoding="utf-8",
+        )
+
+
 def test_regression_fixture_renamed_variables_passes() -> None:
     """Validation test: renamed identifiers should still score as high similarity."""
     fixture = FIXTURES_ROOT / "assignment_renamed_vars"
@@ -138,6 +152,18 @@ def test_runner_reports_missing_expected_pair_when_full_matrix_required(tmp_path
         ),
         encoding="utf-8",
     )
+    _write_fixture_docs(
+        fixture,
+        result_explanation_lines=["- `A.zip,B.zip`: intentionally the only expected pair in this malformed case."],
+        submission_creation_lines=[
+            "## A.zip",
+            "- malformed-case seed",
+            "## B.zip",
+            "- malformed-case seed",
+            "## C.zip",
+            "- extra submission used to trigger missing pair expectations",
+        ],
+    )
 
     for name in ("A.zip", "B.zip", "C.zip"):
         with zipfile.ZipFile(submissions / name, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -146,6 +172,148 @@ def test_runner_reports_missing_expected_pair_when_full_matrix_required(tmp_path
     errors = validate_fixture_assignment(fixture)
     assert errors, "Expected missing-pair validation errors but got none"
     assert "Missing expectations for pairs" in errors[0]
+
+
+def test_runner_requires_result_explanation_file(tmp_path: Path) -> None:
+    """Defect test: missing result_explanation.md should fail with explicit error."""
+    fixture = tmp_path / "missing_result_explanation"
+    submissions = fixture / "submissions"
+    submissions.mkdir(parents=True, exist_ok=True)
+    (fixture / "result.txt").write_text(
+        "\n".join(
+            [
+                "fixture=missing_result_explanation",
+                "language=java",
+                "homogeneous=true",
+                "template_exclusion=false",
+                "require_all_pairs=true",
+                "A.zip,B.zip,expected=0.90,range=0.80-1.00,label=high",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (fixture / "submission_creation.md").write_text("# submission_creation\n\n- `A.zip`\n- `B.zip`\n", encoding="utf-8")
+    for name in ("A.zip", "B.zip"):
+        with zipfile.ZipFile(submissions / name, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("Main.java", f"class Main{name[0]} {{ int v = {ord(name[0])}; }}")
+
+    with pytest.raises(FixtureValidationError, match="result_explanation\\.md"):
+        validate_fixture_assignment(fixture)
+
+
+def test_runner_requires_submission_creation_file(tmp_path: Path) -> None:
+    """Defect test: missing submission_creation.md should fail with explicit error."""
+    fixture = tmp_path / "missing_submission_creation"
+    submissions = fixture / "submissions"
+    submissions.mkdir(parents=True, exist_ok=True)
+    (fixture / "result.txt").write_text(
+        "\n".join(
+            [
+                "fixture=missing_submission_creation",
+                "language=java",
+                "homogeneous=true",
+                "template_exclusion=false",
+                "require_all_pairs=true",
+                "A.zip,B.zip,expected=0.90,range=0.80-1.00,label=high",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (fixture / "result_explanation.md").write_text(
+        "# result_explanation\n\n- `A.zip,B.zip`: same base with lightweight edits.\n",
+        encoding="utf-8",
+    )
+    for name in ("A.zip", "B.zip"):
+        with zipfile.ZipFile(submissions / name, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("Main.java", f"class Main{name[0]} {{ int v = {ord(name[0])}; }}")
+
+    with pytest.raises(FixtureValidationError, match="submission_creation\\.md"):
+        validate_fixture_assignment(fixture)
+
+
+def test_runner_requires_result_explanation_pair_coverage(tmp_path: Path) -> None:
+    """Defect test: result_explanation.md must reference every expected pair key."""
+    fixture = tmp_path / "missing_pair_coverage"
+    submissions = fixture / "submissions"
+    submissions.mkdir(parents=True, exist_ok=True)
+    (fixture / "result.txt").write_text(
+        "\n".join(
+            [
+                "fixture=missing_pair_coverage",
+                "language=java",
+                "homogeneous=true",
+                "template_exclusion=false",
+                "require_all_pairs=true",
+                "A.zip,B.zip,expected=0.90,range=0.80-1.00,label=high",
+                "A.zip,C.zip,expected=0.05,range=0.00-0.20,label=low",
+                "B.zip,C.zip,expected=0.05,range=0.00-0.20,label=low",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _write_fixture_docs(
+        fixture,
+        result_explanation_lines=[
+            "- `A.zip,B.zip`: intended high-sim pair.",
+            "- `A.zip,C.zip`: control pair.",
+        ],
+        submission_creation_lines=[
+            "## A.zip",
+            "- base variant",
+            "## B.zip",
+            "- renamed variant",
+            "## C.zip",
+            "- control variant",
+        ],
+    )
+    for name in ("A.zip", "B.zip", "C.zip"):
+        with zipfile.ZipFile(submissions / name, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("Main.java", f"class Main{name[0]} {{ int v = {ord(name[0])}; }}")
+
+    with pytest.raises(FixtureValidationError, match="missing pair keys"):
+        validate_fixture_assignment(fixture)
+
+
+def test_runner_requires_submission_creation_coverage(tmp_path: Path) -> None:
+    """Defect test: submission_creation.md must reference every submission zip name."""
+    fixture = tmp_path / "missing_submission_coverage"
+    submissions = fixture / "submissions"
+    submissions.mkdir(parents=True, exist_ok=True)
+    (fixture / "result.txt").write_text(
+        "\n".join(
+            [
+                "fixture=missing_submission_coverage",
+                "language=java",
+                "homogeneous=true",
+                "template_exclusion=false",
+                "require_all_pairs=true",
+                "A.zip,B.zip,expected=0.90,range=0.80-1.00,label=high",
+                "A.zip,C.zip,expected=0.05,range=0.00-0.20,label=low",
+                "B.zip,C.zip,expected=0.05,range=0.00-0.20,label=low",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _write_fixture_docs(
+        fixture,
+        result_explanation_lines=[
+            "- `A.zip,B.zip`: intended high-sim pair.",
+            "- `A.zip,C.zip`: control pair.",
+            "- `B.zip,C.zip`: control pair.",
+        ],
+        submission_creation_lines=[
+            "## A.zip",
+            "- base variant",
+            "## B.zip",
+            "- renamed variant",
+        ],
+    )
+    for name in ("A.zip", "B.zip", "C.zip"):
+        with zipfile.ZipFile(submissions / name, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("Main.java", f"class Main{name[0]} {{ int v = {ord(name[0])}; }}")
+
+    with pytest.raises(FixtureValidationError, match="missing submission names"):
+        validate_fixture_assignment(fixture)
 
 
 def test_runner_repeatability_is_stable() -> None:

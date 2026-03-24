@@ -204,6 +204,44 @@ def _load_template_text(assignment_dir: Path, language: str, work_dir: Path) -> 
     return ""
 
 
+def _validate_fixture_documentation(
+    assignment_dir: Path, expectations: dict[tuple[str, str], PairExpectation], submission_zip_names: list[str]
+) -> None:
+    """Validate required fixture docs and minimum coverage references."""
+    result_explanation_path = assignment_dir / "result_explanation.md"
+    submission_creation_path = assignment_dir / "submission_creation.md"
+
+    if not result_explanation_path.exists():
+        raise FixtureValidationError(
+            f"Missing required fixture documentation file: {result_explanation_path.name} in {assignment_dir}"
+        )
+    if not submission_creation_path.exists():
+        raise FixtureValidationError(
+            f"Missing required fixture documentation file: {submission_creation_path.name} in {assignment_dir}"
+        )
+
+    result_explanation = result_explanation_path.read_text(encoding="utf-8", errors="replace")
+    submission_creation = submission_creation_path.read_text(encoding="utf-8", errors="replace")
+
+    missing_pairs = [
+        f"{left},{right}" for left, right in sorted(expectations.keys()) if f"{left},{right}" not in result_explanation
+    ]
+    if missing_pairs:
+        preview = ", ".join(missing_pairs[:5])
+        suffix = " ..." if len(missing_pairs) > 5 else ""
+        raise FixtureValidationError(
+            f"result_explanation.md missing pair keys ({len(missing_pairs)}): {preview}{suffix}"
+        )
+
+    missing_submissions = [name for name in sorted(submission_zip_names) if name not in submission_creation]
+    if missing_submissions:
+        preview = ", ".join(missing_submissions[:5])
+        suffix = " ..." if len(missing_submissions) > 5 else ""
+        raise FixtureValidationError(
+            f"submission_creation.md missing submission names ({len(missing_submissions)}): {preview}{suffix}"
+        )
+
+
 def run_fixture_assignment(assignment_dir: Path) -> tuple[dict[tuple[str, str], float], dict[str, str], dict[tuple[str, str], PairExpectation]]:
     """Compute all pairwise scores for one assignment fixture directory."""
     result_path = assignment_dir / "result.txt"
@@ -217,6 +255,7 @@ def run_fixture_assignment(assignment_dir: Path) -> tuple[dict[tuple[str, str], 
     submission_zips = sorted(submissions_dir.glob("*.zip"))
     if len(submission_zips) < 2:
         raise FixtureValidationError(f"Expected at least 2 submission zips in {submissions_dir}")
+    _validate_fixture_documentation(assignment_dir, expectations, [path.name for path in submission_zips])
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
