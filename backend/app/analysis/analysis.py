@@ -27,7 +27,8 @@ def compute_javacode_similarity(
 
     Uses tree-sitter for function pairing and variable normalization,
     then Winnowing for fingerprint-based similarity per pair.
-    Returns the mean of pairwise similarities; 0.0 if no pairs.
+    Returns the mean of per-class similarities. Raises ``ValueError`` when
+    class pairing fails or no classes remain to compare (invalid inputs).
 
     Java only. For other languages, use testWinowingLib.compare_texts_with_template.
     """
@@ -35,4 +36,5 @@ def compute_javacode_similarity(
     if str(_backend) not in sys.path:
         sys.path.insert(0, str(_backend))
     from app.analysis.tree_sitter_analysis import compute_similarity_javacode
-    return compute_similarity_javacode(text_a, text_b)
+
+    return compute_similarity_javacode(text_a, text_b, template)

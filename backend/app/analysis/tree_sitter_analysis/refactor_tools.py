@@ -3,6 +3,7 @@
 from difflib import SequenceMatcher
 from tree_sitter import Parser, Node, Language
 import tree_sitter_java as tslang
+import warnings
 
 _lang = Language(tslang.language())
 _parser = Parser()
@@ -97,6 +98,24 @@ def node_to_source(node: Node, source: bytes) -> str:
     return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
+def get_class_source(code: str | bytes, class_name: str) -> str:
+    """
+    Return the source text of the top-level class_declaration named ``class_name``.
+
+    Raises:
+        ValueError: if no such class exists in ``code``.
+    """
+    if isinstance(code, str):
+        code_bytes = code.encode("utf-8")
+    else:
+        code_bytes = code
+    tree = _parser.parse(code_bytes)
+    class_node = _find_class_declaration(tree.root_node, class_name, code_bytes)
+    if class_node is None:
+        raise ValueError(f"get_class_source: class {class_name!r} not found in source")
+    return node_to_source(class_node, code_bytes)
+
+
 def label_literal_similarity(label_a: str, label_b: str) -> float:
     if not label_a and not label_b:
         return 1.0
@@ -106,6 +125,8 @@ def label_literal_similarity(label_a: str, label_b: str) -> float:
 
 
 def match_labels(labels_a: list[str], labels_b: list[str]) -> list[tuple[str, str]]:
+    if len(labels_a) != len(labels_b):
+        warnings.warn(f"match_labels: unequal label counts: {len(labels_a)} vs {len(labels_b)}")
     if not labels_a or not labels_b:
         return []
     candidates: list[tuple[float, str, str]] = []
