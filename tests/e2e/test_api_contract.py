@@ -23,6 +23,89 @@ import requests
 def _future_iso(days_ahead: int) -> str:
     """Return a UTC ISO timestamp in the future for time-stable tests."""
     return (datetime.now(timezone.utc) + timedelta(days=days_ahead)).isoformat()
+def _wait_for_run_terminal_status(
+    base_url: str,
+    headers: dict,
+    run_id: str,
+    *,
+    max_wait: int = 60,
+    interval: int = 2,
+) -> str:
+    """Poll an analysis run until it reaches completed/failed."""
+    deadline = time.time() + max_wait
+    last_status = ""
+    while time.time() < deadline:
+        r = requests.get(
+            f"{base_url}/api/instructor/analysis-runs/{run_id}",
+            headers=headers,
+            timeout=10,
+        )
+        r.raise_for_status()
+        last_status = r.json().get("status", "")
+        if last_status in ("completed", "failed"):
+            return last_status
+        time.sleep(interval)
+    return last_status
+
+
+def _create_two_submission_run(
+    base_url: str,
+    auth_headers: dict,
+    test_zip,
+) -> tuple[str, str, dict]:
+    """Create assignment with 2 submissions and queue one run."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Similarity E2E", "term": "F26"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": course_id,
+            "title": "Similarity HW",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    assignment = ra.json()
+    assignment_id = assignment["id"]
+    assignment_key = assignment["assignmentKey"]
+
+    for student in ("student-a@test.edu", "student-b@test.edu"):
+        with open(test_zip, "rb") as f:
+            ru = requests.post(
+                f"{base_url}/api/public/submissions",
+                data={
+                    "assignmentKey": assignment_key,
+                    "studentIdentifier": student,
+                    "studentName": student.split("@")[0],
+                },
+                files={"zipFile": ("sub.zip", f, "application/zip")},
+                timeout=30,
+            )
+        ru.raise_for_status()
+
+    rr = requests.post(
+        f"{base_url}/api/instructor/assignments/{assignment_id}/analysis-runs",
+        headers=auth_headers,
+        timeout=10,
+    )
+    rr.raise_for_status()
+    run_id = rr.json()["runId"]
+    return assignment_id, run_id, auth_headers
 
 
 # --- Smoke ---
@@ -560,6 +643,13 @@ def test_similarity_results_for_wrong_instructor_return_403(
     )
     signup.raise_for_status()
     headers = {"Authorization": f"Bearer {signup.json()['accessToken']}"}
+def test_similarity_results_list_includes_confidence_and_largest_block(
+    base_url: str, auth_headers: dict, test_zip
+) -> None:
+    """Guards: Ranked similarity list includes metadata fields for table ranking context."""
+    _assignment_id, run_id, headers = _create_two_submission_run(base_url, auth_headers, test_zip)
+    final_status = _wait_for_run_terminal_status(base_url, headers, run_id)
+    assert final_status == "completed", f"Run did not complete, last status: {final_status}"
 
     r = requests.get(
         f"{base_url}/api/instructor/analysis-runs/{run_id}/similarity-results",
@@ -585,6 +675,63 @@ def test_similarity_result_id_bad_format_returns_400(
     payload = r.json()
     assert "detail" in payload
     assert "Invalid resultId format" in str(payload["detail"])
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("runId") == run_id
+    assert isinstance(data.get("results"), list)
+    assert len(data["results"]) >= 1
+
+    row = data["results"][0]
+    assert "resultId" in row
+    assert "confidence" in row
+    assert "largestBlockSize" in row
+    assert isinstance(row["confidence"], (float, int))
+    assert 0 <= row["confidence"] <= 1
+    assert isinstance(row["largestBlockSize"], int)
+    assert row["largestBlockSize"] >= 0
+
+
+def test_similarity_comparison_returns_regions_and_snippets(
+    base_url: str, auth_headers: dict, test_zip
+) -> None:
+    """Guards: Comparison endpoint returns populated region arrays and tooltip snippets."""
+    _assignment_id, run_id, headers = _create_two_submission_run(base_url, auth_headers, test_zip)
+    final_status = _wait_for_run_terminal_status(base_url, headers, run_id)
+    assert final_status == "completed", f"Run did not complete, last status: {final_status}"
+
+    ranked = requests.get(
+        f"{base_url}/api/instructor/analysis-runs/{run_id}/similarity-results",
+        headers=headers,
+        timeout=10,
+    )
+    ranked.raise_for_status()
+    ranked_data = ranked.json()
+    assert ranked_data.get("results"), "Expected at least one similarity pair"
+    result_id = ranked_data["results"][0]["resultId"]
+
+    comparison = requests.get(
+        f"{base_url}/api/instructor/similarity-results/{result_id}/comparison",
+        headers=headers,
+        timeout=10,
+    )
+    assert comparison.status_code == 200
+    payload = comparison.json()
+    assert payload["resultId"] == result_id
+    assert isinstance(payload.get("matchingRegions"), list)
+    assert isinstance(payload.get("excludedRegions"), list)
+    assert isinstance(payload.get("summary"), str)
+    assert isinstance(payload.get("confidence"), (float, int))
+    assert isinstance(payload.get("snippets"), list)
+    if payload["matchingRegions"]:
+        first_region = payload["matchingRegions"][0]
+        assert "leftStartLine" in first_region and "leftEndLine" in first_region
+        assert "rightStartLine" in first_region and "rightEndLine" in first_region
+        assert "score" in first_region
+        assert "evidenceType" in first_region
+        assert "snippet" in first_region
+    if payload["snippets"]:
+        assert isinstance(payload["snippets"][0], str)
+        assert payload["snippets"][0].strip() != ""
 
 
 # --- Edge / defect ---
