@@ -89,6 +89,16 @@ def _get_authorized_run_and_assignment(db, run_id: str, instructor_id: str) -> t
 
 def _find_pair_by_result_id(db, result_id: str) -> tuple[str, dict, int]:
     """Find a pair by its stored resultId, with fallback to index format."""
+    # Validate: must contain "__" (new format) or end with "-<digits>" (old fallback)
+    has_double_underscore = "__" in result_id
+    maybe_run_id, sep, maybe_idx = result_id.rpartition("-")
+    has_index_format = sep and maybe_idx.isdigit()
+    if not has_double_underscore and not has_index_format:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid resultId format. Expected runId__leftSubmissionId__rightSubmissionId",
+        )
+
     doc = db.similarity_results.find_one({"pairs.resultId": result_id}, {"runId": 1, "pairs": 1})
     if doc:
         for idx, pair in enumerate(doc.get("pairs", []), start=1):
@@ -96,8 +106,7 @@ def _find_pair_by_result_id(db, result_id: str) -> tuple[str, dict, int]:
                 return doc["runId"], pair, idx
 
     # Fallback: parse "<runId>-<pairIndex>" format
-    maybe_run_id, sep, maybe_idx = result_id.rpartition("-")
-    if sep and maybe_idx.isdigit():
+    if has_index_format:
         fallback_doc = db.similarity_results.find_one(
             {"runId": maybe_run_id},
             {"runId": 1, "pairs": 1},
@@ -191,7 +200,7 @@ async def get_similarity_pair_detail(
 ):
     """Return pair-level details for one similarity result."""
     db = get_db()
-    run_id, pair, _idx = _find_pair_by_result_id(db, result_id)
+    run_id, pair, _ = _find_pair_by_result_id(db, result_id)
     run, assignment = _get_authorized_run_and_assignment(db, run_id, current["id"])
 
     left_submission = db.submissions.find_one({"_id": to_object_id(str(pair["submissionA"]))})

@@ -643,6 +643,17 @@ def test_similarity_results_for_wrong_instructor_return_403(
     )
     signup.raise_for_status()
     headers = {"Authorization": f"Bearer {signup.json()['accessToken']}"}
+    r = requests.get(
+        f"{base_url}/api/instructor/analysis-runs/{run_id}/similarity-results",
+        headers=headers,
+        timeout=10,
+    )
+    assert r.status_code == 403
+    data = r.json()
+    assert "detail" in data
+    assert "Not your analysis run" in str(data["detail"])
+
+
 def test_similarity_results_list_includes_confidence_and_largest_block(
     base_url: str, auth_headers: dict, test_zip
 ) -> None:
@@ -656,10 +667,20 @@ def test_similarity_results_list_includes_confidence_and_largest_block(
         headers=headers,
         timeout=10,
     )
-    assert r.status_code == 403
+    assert r.status_code == 200
     data = r.json()
-    assert "detail" in data
-    assert "Not your analysis run" in str(data["detail"])
+    assert data.get("runId") == run_id
+    assert isinstance(data.get("results"), list)
+    assert len(data["results"]) >= 1
+
+    row = data["results"][0]
+    assert "resultId" in row
+    assert "confidence" in row
+    assert "largestBlockSize" in row
+    assert isinstance(row["confidence"], (float, int))
+    assert 0 <= row["confidence"] <= 1
+    assert isinstance(row["largestBlockSize"], int)
+    assert row["largestBlockSize"] >= 0
 
 
 def test_similarity_result_id_bad_format_returns_400(
@@ -675,20 +696,6 @@ def test_similarity_result_id_bad_format_returns_400(
     payload = r.json()
     assert "detail" in payload
     assert "Invalid resultId format" in str(payload["detail"])
-    assert r.status_code == 200
-    data = r.json()
-    assert data.get("runId") == run_id
-    assert isinstance(data.get("results"), list)
-    assert len(data["results"]) >= 1
-
-    row = data["results"][0]
-    assert "resultId" in row
-    assert "confidence" in row
-    assert "largestBlockSize" in row
-    assert isinstance(row["confidence"], (float, int))
-    assert 0 <= row["confidence"] <= 1
-    assert isinstance(row["largestBlockSize"], int)
-    assert row["largestBlockSize"] >= 0
 
 
 def test_similarity_comparison_returns_regions_and_snippets(

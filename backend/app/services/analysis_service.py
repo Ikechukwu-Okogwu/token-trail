@@ -247,7 +247,7 @@ def run_analysis_for_assignment(
         metrics = build_similarity_metrics(a["text"], b["text"], k=5)
         pairs.append(
             {
-                "resultId": f"{run_id}-{pair_index}",
+                "resultId": f"{run_id}__{a['submissionId']}__{b['submissionId']}",
                 "submissionA": a["submissionId"],
                 "submissionB": b["submissionId"],
                 "score": metrics["similarity"],
