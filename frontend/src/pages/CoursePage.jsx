@@ -17,23 +17,20 @@ function formatDueDate(value) {
  */
 export default function CoursePage({ onAssignmentCreated }) {
   const { courseId } = useParams()
-  const [tab, setTab] = useState('assignments')        // 'assignments' | 'settings'
   const [assignments, setAssignments] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [search, setSearch] = useState('')
-  const [viewMode, setViewMode] = useState('grid')
-  const [showCreate, setShowCreate] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [courseName, setCourseName] = useState('')
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState(null)
+  const [search, setSearch]           = useState('')
+  const [viewMode, setViewMode]       = useState('grid')
+  const [showCreate, setShowCreate]   = useState(false)
+  const [refreshKey, setRefreshKey]   = useState(0)
   const navigate = useNavigate()
 
-  useEffect(() => {
+useEffect(() => {
     if (!courseId) return
     setLoading(true)
     setError(null)
     apiFetch(`/instructor/courses/${courseId}/assignments`)
-      // API returns array of { id, title, dueDate, language, isOpen, submissionCount, analysisProgress }
       .then((data) => setAssignments(Array.isArray(data) ? data : []))
       .catch((err) => setError(err.message || 'Failed to load assignments.'))
       .finally(() => setLoading(false))
@@ -57,143 +54,106 @@ export default function CoursePage({ onAssignmentCreated }) {
         <div className="p-6 min-h-full">
           <div className="bg-white rounded-2xl shadow-sm min-h-full">
 
-            {/* Tab bar */}
-            <div className="flex items-center gap-2 px-6 pt-5 pb-0 border-b border-gray-100">
-              <button
-                onClick={() => setTab('assignments')}
-                className={`px-5 py-2 rounded-t-lg text-sm font-semibold transition-colors border-b-2 -mb-px ${
-                  tab === 'assignments'
-                    ? 'bg-[#3b3660] text-white border-[#3b3660]'
-                    : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
+            {/* Single Assignments tab header */}
+            <div className="flex items-center px-6 pt-5 pb-0 border-b border-gray-100">
+              <div className="px-5 py-2 rounded-t-lg text-sm font-semibold bg-[#3b3660] text-white border-b-2 border-[#3b3660] -mb-px">
                 Assignments
-              </button>
-              <button
-                onClick={() => setTab('settings')}
-                className={`px-5 py-2 rounded-t-lg text-sm font-semibold transition-colors border-b-2 -mb-px ${
-                  tab === 'settings'
-                    ? 'bg-[#3b3660] text-white border-[#3b3660]'
-                    : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Course Settings
-              </button>
+              </div>
             </div>
 
             <div className="p-6">
-              {tab === 'assignments' && (
-                <>
-                  {/* Toolbar */}
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-4 py-2.5">
-                      <svg style={{ display: 'block', width: 16, height: 16, flexShrink: 0 }}
-                        className="text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7"/>
-                      </svg>
-                      <input
-                        type="text"
-                        placeholder="Search assignments…"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="flex-1 bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none"
-                      />
-                      <svg style={{ display: 'block', width: 16, height: 16, flexShrink: 0 }}
-                        className="text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                      </svg>
-                    </div>
+              {/* Toolbar */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-4 py-2.5">
+                  <svg style={{ display: 'block', width: 16, height: 16, flexShrink: 0 }}
+                    className="text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7"/>
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search assignments…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="flex-1 bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none"
+                  />
+                  <svg style={{ display: 'block', width: 16, height: 16, flexShrink: 0 }}
+                    className="text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
+                </div>
 
-                    {/* View toggle */}
-                    <div className="flex items-center bg-gray-100 rounded-xl p-1">
-                      <button
-                        onClick={() => setViewMode('list')}
-                        className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}
-                      >
-                        <svg style={{ display: 'block', width: 16, height: 16 }}
-                          fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setViewMode('grid')}
-                        className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}
-                      >
-                        <svg style={{ display: 'block', width: 16, height: 16 }}
-                          fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <rect x="3" y="3" width="7" height="7" rx="1"/>
-                          <rect x="14" y="3" width="7" height="7" rx="1"/>
-                          <rect x="3" y="14" width="7" height="7" rx="1"/>
-                          <rect x="14" y="14" width="7" height="7" rx="1"/>
-                        </svg>
-                      </button>
-                    </div>
+                <div className="flex items-center bg-gray-100 rounded-xl p-1">
+                  <button onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <svg style={{ display: 'block', width: 16, height: 16 }}
+                      fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                  </button>
+                  <button onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <svg style={{ display: 'block', width: 16, height: 16 }}
+                      fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <rect x="3" y="3" width="7" height="7" rx="1"/>
+                      <rect x="14" y="3" width="7" height="7" rx="1"/>
+                      <rect x="3" y="14" width="7" height="7" rx="1"/>
+                      <rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                  </button>
+                </div>
 
-                    <div className="w-px h-8 bg-gray-200"/>
+                <div className="w-px h-8 bg-gray-200"/>
 
-                    <button
-                      onClick={() => setShowCreate(true)}
-                      className="flex items-center gap-2 bg-[#3b3660] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2d2b4a] transition-colors shadow-sm"
-                    >
-                      <svg style={{ display: 'block', width: 16, height: 16 }}
-                        fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
-                      </svg>
-                      New
-                    </button>
-                  </div>
+                <button onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-2 bg-[#3b3660] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2d2b4a] transition-colors shadow-sm">
+                  <svg style={{ display: 'block', width: 16, height: 16 }}
+                    fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  New
+                </button>
+              </div>
 
-                  {/* Error */}
-                  {error && (
-                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-6 text-sm">
-                      <svg style={{ display: 'block', width: 18, height: 18, flexShrink: 0 }}
-                        fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                          d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                      </svg>
-                      <span>{error}</span>
-                      <button
-                        onClick={() => setRefreshKey((k) => k + 1)}
-                        className="ml-auto underline text-red-600 hover:text-red-800 font-medium"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Loading */}
-                  {loading && (
-                    <div className="flex items-center justify-center gap-2 text-gray-400 text-sm py-16">
-                      <svg className="animate-spin" style={{ width: 18, height: 18 }}
-                        fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                      </svg>
-                      Loading assignments…
-                    </div>
-                  )}
-
-                  {/* Empty */}
-                  {!loading && !error && filtered.length === 0 && (
-                    <div className="text-gray-400 text-sm text-center py-16">
-                      {search ? `No assignments match "${search}"` : 'No assignments yet — click + New to create one.'}
-                    </div>
-                  )}
-
-                  {/* Assignment cards */}
-                  {!loading && !error && filtered.length > 0 && (
-                    <div className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4' : 'flex flex-col gap-3'}>
-                      {filtered.map((a) => (
-                        <AssignmentCard key={a.id} assignment={a} />
-                      ))}
-                    </div>
-                  )}
-                </>
+              {/* Error */}
+              {error && (
+                <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-6 text-sm">
+                  <svg style={{ display: 'block', width: 18, height: 18, flexShrink: 0 }}
+                    fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  </svg>
+                  <span>{error}</span>
+                  <button onClick={() => setRefreshKey((k) => k + 1)}
+                    className="ml-auto underline text-red-600 hover:text-red-800 font-medium">Retry</button>
+                </div>
               )}
 
-              {tab === 'settings' && (
-                <CourseSettingsTab courseId={courseId} courseName={courseName} />
+              {/* Loading */}
+              {loading && (
+                <div className="flex items-center justify-center gap-2 text-gray-400 text-sm py-16">
+                  <svg className="animate-spin" style={{ width: 18, height: 18 }} fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  Loading assignments…
+                </div>
+              )}
+
+              {/* Empty */}
+              {!loading && !error && filtered.length === 0 && (
+                <div className="text-gray-400 text-sm text-center py-16">
+                  {search ? `No assignments match "${search}"` : 'No assignments yet — click + New to create one.'}
+                </div>
+              )}
+
+              {/* Cards */}
+              {!loading && !error && filtered.length > 0 && (
+                <div className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4' : 'flex flex-col gap-3'}>
+                  {filtered.map((a) => (
+                    <AssignmentCard key={a.id} assignment={a} courseId={courseId} />
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -216,13 +176,12 @@ export default function CoursePage({ onAssignmentCreated }) {
   )
 }
 
-/* Assignment card */
-function AssignmentCard({ assignment }) {
+function AssignmentCard({ assignment, courseId }) {
   const isOpen = assignment.isOpen
   return (
     <Link
-      to={`assignment/${assignment.id}`}
-      className="relative bg-white border border-gray-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:border-gray-300 transition-all group"
+      to={`/course/${courseId}/assignment/${assignment.id}`}
+      className="relative bg-white border border-gray-200 rounded-2xl p-5 block hover:shadow-md hover:border-gray-300 transition-all group no-underline"
     >
       <div className={`absolute top-3 left-5 text-xs font-semibold ${isOpen ? 'text-green-500' : 'text-red-400'}`}>
         {isOpen ? 'Open' : 'Closed'}
@@ -255,18 +214,5 @@ function AssignmentCard({ assignment }) {
         </div>
       )}
     </Link>
-  )
-}
-
-function CourseSettingsTab({ courseId, courseName }) {
-  return (
-    <div className="py-8 text-center text-gray-400 text-sm">
-      <svg className="w-10 h-10 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round"
-          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-      </svg>
-      Course settings for <strong className="text-gray-600">{courseName}</strong> coming soon.
-    </div>
   )
 }
