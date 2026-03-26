@@ -3,10 +3,18 @@ import { apiFetch } from '../services/api'
 
 const LANGUAGES = ['java', 'c', 'cpp']
 
+function toIsoDueDate(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString()
+}
+
 export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) {
   const [title, setTitle] = useState('')
   const [language, setLanguage] = useState('java')
   const [isOpen, setIsOpen] = useState(true)
+  const [dueDateLocal, setDueDateLocal] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -17,7 +25,13 @@ export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) 
     try {
       const assignment = await apiFetch('/instructor/assignments', {
         method: 'POST',
-        body: JSON.stringify({ courseId, title, language, isOpen }),
+        body: JSON.stringify({
+          courseId,
+          title,
+          language,
+          isOpen,
+          dueDate: toIsoDueDate(dueDateLocal),
+        }),
       })
       onCreated(assignment)
     } catch (err) {
@@ -31,19 +45,30 @@ export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) 
     <form onSubmit={handleSubmit}>
       <h3 className="text-lg font-bold text-gray-900 mb-4">New Assignment</h3>
       <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+        <label htmlFor="assignment-title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
         <input
+          id="assignment-title"
           type="text" value={title} onChange={(e) => setTitle(e.target.value)} required
           placeholder="e.g. Assignment 1"
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
         />
       </div>
       <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-        <select value={language} onChange={(e) => setLanguage(e.target.value)}
+        <label htmlFor="assignment-language" className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+        <select id="assignment-language" value={language} onChange={(e) => setLanguage(e.target.value)}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]">
           {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
         </select>
+      </div>
+      <div className="mb-4">
+        <label htmlFor="assignment-due-date" className="block text-sm font-medium text-gray-700 mb-1">Due date (optional)</label>
+        <input
+          id="assignment-due-date"
+          type="datetime-local"
+          value={dueDateLocal}
+          onChange={(e) => setDueDateLocal(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
+        />
       </div>
       <div className="mb-4">
         <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">

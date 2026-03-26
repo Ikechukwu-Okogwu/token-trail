@@ -9,6 +9,13 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import ErrorBanner from '../components/ui/ErrorBanner'
 
+function formatDueDate(value) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+}
+
 export default function StudentSubmitPage() {
 
   // "step" tracks which screen to show: 'key', 'upload', or 'done'
@@ -48,6 +55,13 @@ export default function StudentSubmitPage() {
       if (!data.assignment.isOpen) {
         setKeyError('This assignment is closed and not accepting submissions.')
         return
+      }
+      if (data.assignment.dueDate && !data.assignment.allowLate) {
+        const dueDate = new Date(data.assignment.dueDate)
+        if (!Number.isNaN(dueDate.getTime()) && dueDate < new Date()) {
+          setKeyError('This assignment is past the due date and no longer accepting submissions.')
+          return
+        }
       }
 
       setAssignment(data.assignment)
@@ -96,7 +110,11 @@ export default function StudentSubmitPage() {
       if (err.status === 404) {
         setUploadError('Assignment key is no longer valid!')
       } else if (err.status === 400) {
-        setUploadError(err.message || 'Something is wrong with your ZIP file.')
+        if ((err.message || '').toLowerCase().includes('due date')) {
+          setUploadError('This assignment is past the due date and no longer accepting submissions.')
+        } else {
+          setUploadError(err.message || 'Something is wrong with your ZIP file.')
+        }
       } else {
         setUploadError('Upload failed. Please try again.')
       }
@@ -160,6 +178,11 @@ export default function StudentSubmitPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-2xl p-8">
             <h2 className="text-xl font-bold text-gray-900 mb-1">Upload Your Assignment</h2>
             <p className="text-sm text-gray-500 mb-6">Key: <span className="font-mono">{key.trim()}</span></p>
+            {assignment.dueDate && (
+              <p className="text-xs text-gray-500 mb-4">
+                Due: <span className="font-medium text-gray-700">{formatDueDate(assignment.dueDate)}</span>
+              </p>
+            )}
 
             <form onSubmit={handleUpload} className="flex flex-col gap-5">
               <ErrorBanner message={uploadError} />

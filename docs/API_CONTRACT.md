@@ -318,7 +318,13 @@ Response `200`:
 ```json
 {
   "valid": true,
-  "assignment": { "id": "665f...", "language": "java", "isOpen": true }
+  "assignment": {
+    "id": "665f...",
+    "language": "java",
+    "isOpen": true,
+    "dueDate": "2025-06-08T23:59:59+00:00",
+    "allowLate": false
+  }
 }
 ```
 
@@ -357,6 +363,10 @@ Response `201`:
 4. Filter valid source files by assignment language.
 5. Merge files deterministically (sorted by relative path, with `//// FILE:` headers).
 6. Store Submission document (`status: "processed"`).
+
+Submission validation errors:
+- `400` assignment is closed (`isOpen=false`)
+- `400` assignment due date has passed and `allowLate=false`
 
 ---
 

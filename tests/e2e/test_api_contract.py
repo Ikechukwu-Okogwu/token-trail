@@ -11,12 +11,18 @@ Test Plan:
 - Failure modes: API unreachable (connection refused), auth failures (401/403),
   validation failures (400/404), placeholder-only 501 admin endpoints
 """
+from datetime import datetime, timedelta, timezone
 import time
 import zipfile
 from uuid import uuid4
 
 import pytest
 import requests
+
+
+def _future_iso(days_ahead: int) -> str:
+    """Return a UTC ISO timestamp in the future for time-stable tests."""
+    return (datetime.now(timezone.utc) + timedelta(days=days_ahead)).isoformat()
 
 
 # --- Smoke ---
@@ -87,6 +93,8 @@ def test_happy_path_create_assignment(base_url: str, auth_headers: dict) -> None
     rc.raise_for_status()
     course_id = rc.json()["id"]
 
+    due_date = _future_iso(30)
+    key_expiry = _future_iso(31)
     r = requests.post(
         f"{base_url}/api/instructor/assignments",
         headers=auth_headers,
@@ -95,8 +103,8 @@ def test_happy_path_create_assignment(base_url: str, auth_headers: dict) -> None
             "title": "HW1",
             "language": "java",
             "isOpen": True,
-            "dueDate": "2025-06-08T23:59:59+00:00",
-            "keyExpiry": "2025-06-09T00:00:00+00:00",
+            "dueDate": due_date,
+            "keyExpiry": key_expiry,
             "autoAnalysis": False,
             "allowLate": False,
             "exclusionCode": None,
@@ -109,6 +117,9 @@ def test_happy_path_create_assignment(base_url: str, auth_headers: dict) -> None
     assert "assignmentKey" in data
     assert len(data["assignmentKey"]) == 10
     assert data["assignmentKey"].isdigit()
+    assert data["dueDate"] == due_date
+    assert data["keyExpiry"] == key_expiry
+    assert data["allowLate"] is False
 
 
 def test_happy_path_validate_key(base_url: str, auth_headers: dict) -> None:
@@ -724,6 +735,54 @@ def test_closed_assignment_rejects_submission_returns_400(
     data = r.json()
     assert "detail" in data
     assert "closed" in str(data["detail"]).lower()
+
+
+def test_past_due_assignment_rejects_submission_returns_400(
+    base_url: str, auth_headers: dict, test_zip
+) -> None:
+    """Guards: Past-due assignment rejects submission when late work is disallowed."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "C", "term": "T"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    cid = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": cid,
+            "title": "A",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": "2000-01-01T00:00:00+00:00",
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    key = ra.json()["assignmentKey"]
+
+    with open(test_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": key,
+                "studentIdentifier": "s@test.edu",
+                "studentName": "S",
+            },
+            files={"zipFile": ("sub.zip", f, "application/zip")},
+            timeout=10,
+        )
+    assert r.status_code == 400
+    data = r.json()
+    assert "detail" in data
+    assert "due date" in str(data["detail"]).lower()
 
 
 # --- Boundary / partition ---

@@ -4,6 +4,13 @@ import { apiFetch } from '../services/api'
 import CreateAssignmentForm from '../components/CreateAssignmentForm'
 import Sidebar from '../components/Sidebar/Sidebar'
 
+function formatDueDate(value) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+}
+
 /**
  * CoursePage — shown when an instructor selects a course.
  * Has two tabs: Assignments (grid of cards) and Course Settings.
@@ -242,7 +249,9 @@ function AssignmentCard({ assignment }) {
       </div>
       {(assignment.dueDate || assignment.language) && (
         <div className="text-xs text-gray-400 text-center pt-2 border-t border-gray-100">
-          {assignment.dueDate ? `Due: ${assignment.dueDate}` : assignment.language?.toUpperCase()}
+          {assignment.dueDate
+            ? `Due: ${formatDueDate(assignment.dueDate)}`
+            : assignment.language?.toUpperCase()}
         </div>
       )}
     </Link>
