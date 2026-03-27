@@ -19,7 +19,10 @@ from app.analysis.tree_sitter_analysis.refactor_tools import (
 )
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
-original_file_path = _SCRIPT_DIR / "assignment_renamed_vars/submissions/Alice/Main.java"
+# original_file_path = _SCRIPT_DIR / "assignment_renamed_vars/submissions/Alice/Main.java"
+original_file_path = _SCRIPT_DIR / "regression/assignment_stage3_rankset/submissions/S09/Main.java"
+compared_file_path = _SCRIPT_DIR / "regression/assignment_stage3_rankset/submissions/S10/Main.java"
+
 
 
 def demo_get_var_def_order():
@@ -95,8 +98,8 @@ def demo_rename_variable_by_defining_order():
 
 
 if __name__ == "__main__":
-    demo_get_var_def_order()
-    print()
+    # demo_get_var_def_order()
+    # print()
     demo_rename_variable()
-    print()
-    demo_rename_variable_by_defining_order()
+    # print()
+    # demo_rename_variable_by_defining_order()

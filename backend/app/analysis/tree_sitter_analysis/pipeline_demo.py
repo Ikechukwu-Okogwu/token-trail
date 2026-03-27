@@ -1,7 +1,13 @@
 """Demo: function_pairing_for_single_class, regression harness, similarity helpers."""
 
+from __future__ import annotations
+
 import sys
+from collections.abc import Callable
 from pathlib import Path
+
+# (code_a, code_b, template) -> similarity in [0, 1]; template may be "".
+JavaSimilarityFn = Callable[[str, str, str], float]
 
 _backend = Path(__file__).resolve().parents[3]
 if str(_backend) not in sys.path:
@@ -116,15 +122,20 @@ def demo_test_single_pair(
     return sim
 
 
-def demo_test_on_regression(rel_path: Path) -> tuple[int, int]:
+def demo_test_on_regression(
+    rel_path: Path,
+    *,
+    similarity_fn: JavaSimilarityFn | None = None,
+) -> tuple[int, int]:
     """
     Load a regression fixture under ``_SCRIPT_DIR / rel_path``.
 
     Reads ``result.txt`` header:
       - ``template_exclusion=true|false`` — if true, loads template Java source from
         ``template_file`` (default ``template/Template.java`` relative to fixture root)
-        and passes it to ``compute_similarity_javacode``.
-    For each submission pair, runs ``compute_similarity_javacode`` and checks the range.
+        and passes ``template`` text as the third argument to ``similarity_fn``.
+    For each submission pair, runs ``similarity_fn(code_a, code_b, template)`` and
+    checks the range. Default ``similarity_fn`` is ``compute_similarity_javacode``.
 
     ``ValueError`` from pairing / empty class set counts as FAIL (invalid pair).
 
@@ -133,6 +144,7 @@ def demo_test_on_regression(rel_path: Path) -> tuple[int, int]:
         ``Main.java`` present (SKIPs are excluded). Fixture load failure returns
         ``(0, 0)``.
     """
+    sim_fn: JavaSimilarityFn = similarity_fn or compute_similarity_javacode
     base = _SCRIPT_DIR / rel_path
     result_file = base / "result.txt"
     submissions_dir = base / "submissions"
@@ -196,22 +208,22 @@ def demo_test_on_regression(rel_path: Path) -> tuple[int, int]:
         code_a = path_a.read_text(encoding="utf-8")
         code_b = path_b.read_text(encoding="utf-8")
         try:
-            sim = compute_similarity_javacode(code_a, code_b, template)
+            score = sim_fn(code_a, code_b, template)
         except ValueError as e:
             print(f"  FAIL {name_a} vs {name_b}: ValueError: {e}")
             continue
-        ok = low <= sim <= high
+        ok = low <= score <= high
         status = "PASS" if ok else "FAIL"
         if ok:
             pass_count += 1
         print(
-            f"  {status} {name_a} vs {name_b}: sim={sim:.2%} "
+            f"  {status} {name_a} vs {name_b}: sim={score:.2%} "
             f"(expected ~{expected:.2%}, range [{low:.2%},{high:.2%}])"
         )
 
     return (pass_count, total)
 
-def demo_test_all():
+def demo_test_all(*, similarity_fn: JavaSimilarityFn | None = None) -> bool:
     overall_ok = True
     sum_pass = 0
     sum_total = 0
@@ -219,7 +231,7 @@ def demo_test_all():
     for rel in REGRESSION_FIXTURES:
         title = str(rel).replace("\\", "/")
         print(f"\n--- Regression: {title} ---\n")
-        passed, total = demo_test_on_regression(rel)
+        passed, total = demo_test_on_regression(rel, similarity_fn=similarity_fn)
         sum_pass += passed
         sum_total += total
         fixture_ok = total > 0 and passed == total
