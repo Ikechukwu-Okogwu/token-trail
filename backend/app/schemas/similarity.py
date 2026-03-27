@@ -1,10 +1,11 @@
-"""Schemas for instructor similarity-report placeholders."""
+"""Schemas for instructor similarity-result endpoints."""
 from pydantic import BaseModel
 
 
 class SimilarityResultListItem(BaseModel):
-    """Skeleton ranked-list row."""
+    """One ranked similarity pair for a run."""
     resultId: str
+    runId: str
     assignmentId: str
     leftSubmissionId: str
     rightSubmissionId: str
@@ -12,14 +13,16 @@ class SimilarityResultListItem(BaseModel):
 
 
 class SimilarityResultsResponse(BaseModel):
-    """Skeleton ranked-results response."""
+    """Ranked similarity results for one analysis run."""
     runId: str
+    assignmentId: str
     results: list[SimilarityResultListItem]
 
 
 class SimilarityPairDetailResponse(BaseModel):
-    """Skeleton pair-detail response."""
+    """Detailed similarity-pair payload."""
     resultId: str
+    runId: str
     assignmentId: str
     leftSubmissionId: str
     rightSubmissionId: str
@@ -28,7 +31,7 @@ class SimilarityPairDetailResponse(BaseModel):
 
 
 class MatchingRegion(BaseModel):
-    """Skeleton highlighted match segment."""
+    """Matched line-region metadata for side-by-side UI."""
     leftStartLine: int
     leftEndLine: int
     rightStartLine: int
@@ -36,8 +39,15 @@ class MatchingRegion(BaseModel):
 
 
 class SimilarityComparisonResponse(BaseModel):
-    """Skeleton side-by-side comparison response."""
+    """Side-by-side payload for one pair."""
     resultId: str
+    runId: str
+    assignmentId: str
+    leftSubmissionId: str
+    rightSubmissionId: str
+    similarityScore: float
     leftFilePath: str
     rightFilePath: str
+    leftCode: str
+    rightCode: str
     matchingRegions: list[MatchingRegion]
