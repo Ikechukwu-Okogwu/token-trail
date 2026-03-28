@@ -222,8 +222,8 @@ backend/app/analysis/**
 backend/app/analysis/tree_sitter_analysis/early_access/
 backend/app/analysis/tree_sitter_analysis/early_access_2/
 backend/app/analysis/tree_sitter_analysis/early_access_3/
-backend/app/analysis/tree_sitter_analysis/early_access_token/
-backend/app/analysis/tree_sitter_analysis/tokenize_demo.py
+# early_access_token/: tracked — leaf-token pipeline (type_mapping.csv, group_filtering_config.json, …)
+# tokenize_demo.py: tracked — same pipeline demos
 backend/app/analysis/tree_sitter_analysis/todo.md
 backend/app/analysis/tree_sitter_analysis/__pycache__/
 backend/app/analysis/tree_sitter_analysis/**/__pycache__/

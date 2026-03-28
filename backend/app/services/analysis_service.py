@@ -11,7 +11,9 @@ from pathlib import Path
 
 from pymongo.database import Database
 
-from app.analysis.testWinowingCode.testWinowingLib import compute_similarity_from_text
+from app.analysis.tree_sitter_analysis.tokenize_pipeline import (
+    run_tokenize_similarity_pipeline,
+)
 
 
 def run_analysis_for_assignment(
@@ -20,7 +22,11 @@ def run_analysis_for_assignment(
     """Run the similarity-analysis pipeline for one assignment.
 
     Writes one document to the similarity_results collection:
-    {runId, assignmentId, createdAt, pairs:[{submissionA, submissionB, score}]}
+    {runId, assignmentId, createdAt, pairs:[{submissionA, submissionB, score, matchingRegions}]}
+
+    Score and ``matchingRegions`` come from ``run_tokenize_similarity_pipeline`` (dye
+    coverage + per-kept-group line spans). On pipeline error (empty/unparseable Java),
+    score is 0.0 and regions are empty.
     """
     submissions = list(
         db["submissions"].find(
@@ -50,12 +56,19 @@ def run_analysis_for_assignment(
 
     pairs: list[dict[str, object]] = []
     for a, b in combinations(prepared, 2):
-        score = compute_similarity_from_text(a["text"], b["text"], k=5)
+        try:
+            result = run_tokenize_similarity_pipeline(a["text"], b["text"])
+            score = result.similarity
+            regions = result.matching_regions_as_dicts()
+        except (ValueError, FileNotFoundError, OSError):
+            score = 0.0
+            regions = []
         pairs.append(
             {
                 "submissionA": a["submissionId"],
                 "submissionB": b["submissionId"],
                 "score": score,
+                "matchingRegions": regions,
             }
         )
 

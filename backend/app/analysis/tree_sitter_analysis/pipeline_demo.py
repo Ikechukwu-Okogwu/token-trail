@@ -247,8 +247,147 @@ def demo_test_all(*, similarity_fn: JavaSimilarityFn | None = None) -> bool:
     )
     return overall_ok
 
+
+def _fingerprint_pairs_for_two_java_codes(
+    code_a: str,
+    code_b: str,
+    *,
+    strategy,
+    winnow_window: int = 4,
+    max_pos_each: int = 100,
+):
+    """
+    Orchestrate strategy (tokens + k-grams) -> Winnow -> ``pairing_list_from_winnow_fingerprint_sequences``.
+
+    ``strategy`` must implement ``JavaKgramStrategy`` (``tokens_for_kgram``,
+    ``compute_kgram_fingerprints``).
+    """
+    from app.analysis.tree_sitter_analysis.early_access_token.fingerprint_pairing import (
+        pairing_list_from_winnow_fingerprint_sequences,
+        winnow_fingerprint_sequence,
+    )
+
+    if not code_a.strip() or not code_b.strip():
+        return []
+    tokens_a = strategy.tokens_for_kgram(code_a)
+    tokens_b = strategy.tokens_for_kgram(code_b)
+    raw_a = strategy.compute_kgram_fingerprints(tokens_a)
+    raw_b = strategy.compute_kgram_fingerprints(tokens_b)
+    win_a = winnow_fingerprint_sequence(raw_a, winnow_window)
+    win_b = winnow_fingerprint_sequence(raw_b, winnow_window)
+    return pairing_list_from_winnow_fingerprint_sequences(
+        win_a,
+        win_b,
+        max_pos_each=max_pos_each,
+    )
+
+
+def demo_alice_bob_fingerprint_pair_list() -> None:
+    """Print Winnow fingerprint pairing list (early_access_token) for Alice vs Bob."""
+    from app.analysis.tree_sitter_analysis.early_access_token.json_kgram_strategy import (
+        JsonLeafKgramStrategy,
+    )
+
+    root = _SCRIPT_DIR / "regression/assignment_renamed_vars/submissions"
+    path_a = root / "Alice" / "Main.java"
+    path_b = root / "Bob" / "Main.java"
+    if not path_a.is_file() or not path_b.is_file():
+        print("\n[skip] Alice/Bob regression sources not found under tree_sitter_analysis.\n")
+        return
+    code_a = path_a.read_text(encoding="utf-8")
+    code_b = path_b.read_text(encoding="utf-8")
+    strategy = JsonLeafKgramStrategy(k=5)
+    pairs = _fingerprint_pairs_for_two_java_codes(
+        code_a,
+        code_b,
+        strategy=strategy,
+        winnow_window=4,
+        max_pos_each=100,
+    )
+    print("\n--- Alice vs Bob: fingerprint pairing list (early_access_token) ---\n")
+    print(f"total pairs: {len(pairs)}\n")
+    show = pairs[:80]
+    for i, p in enumerate(show):
+        print(
+            f"  [{i}] hash={p.hash_value}  pos_a={p.pos_a}  pos_b={p.pos_b}  delta={p.delta}"
+        )
+    if len(pairs) > len(show):
+        print(f"  ... ({len(pairs) - len(show)} more)\n")
+
+
+def demo_alice_bob_fingerprint_grouping() -> None:
+    """Alice/Bob: pairing (fingerprint_pairing) + grouping (grouping_fingerprint_pairs), orchestrated here."""
+    from app.analysis.tree_sitter_analysis.early_access_token.grouping_fingerprint_pairs import (
+        grouping_fingerprint_pairs,
+    )
+    from app.analysis.tree_sitter_analysis.early_access_token.json_kgram_strategy import (
+        JsonLeafKgramStrategy,
+    )
+
+    root = _SCRIPT_DIR / "regression/assignment_renamed_vars/submissions"
+    path_a = root / "Alice" / "Main.java"
+    path_b = root / "Bob" / "Main.java"
+    if not path_a.is_file() or not path_b.is_file():
+        print("\n[skip] Alice/Bob regression sources not found under tree_sitter_analysis.\n")
+        return
+    code_a = path_a.read_text(encoding="utf-8")
+    code_b = path_b.read_text(encoding="utf-8")
+    strategy = JsonLeafKgramStrategy(k=5)
+    pairs = _fingerprint_pairs_for_two_java_codes(
+        code_a,
+        code_b,
+        strategy=strategy,
+        winnow_window=4,
+        max_pos_each=100,
+    )
+    groups = grouping_fingerprint_pairs(
+        pairs,
+        min_group_size=4,
+        delta_tol=5,
+        max_gap=120,
+    )
+    tokens_a = list(strategy.tokens_for_kgram(code_a))
+    tokens_b = list(strategy.tokens_for_kgram(code_b))
+    k = strategy.k
+
+    from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import (
+        slice_text,
+    )
+
+    print("\n--- Alice vs Bob: FingerprintPairGroup list (grouping_fingerprint_pairs) ---\n")
+    print(f"pair count: {len(pairs)}")
+    print(f"group count: {len(groups)} (min_group_size=4, delta_tol=5, max_gap=120)\n")
+    print("Interactive: Enter = next group, q = quit.\n")
+
+    for i, g in enumerate(groups):
+        ps = g.pairs
+        print(
+            f"  group[{i}] size={len(ps)}  pos_a:[{g.pos_a_start}..{g.pos_a_end}]  "
+            f"pos_b:[{g.pos_b_start}..{g.pos_b_end}]  first_hash={ps[0].hash_value}"
+        )
+        if tokens_a and tokens_b:
+            ia0 = min(g.pos_a_start, len(tokens_a) - 1)
+            ia1 = min(max(g.pos_a_end + k - 1, ia0), len(tokens_a) - 1)
+            ib0 = min(g.pos_b_start, len(tokens_b) - 1)
+            ib1 = min(max(g.pos_b_end + k - 1, ib0), len(tokens_b) - 1)
+            span_a = slice_text(tokens_a[ia0], tokens_a[ia1], code_a)
+            span_b = slice_text(tokens_b[ib0], tokens_b[ib1], code_b)
+            preview_limit = 2000
+            pa = span_a if len(span_a) <= preview_limit else span_a[:preview_limit] + "\n... [truncated]"
+            pb = span_b if len(span_b) <= preview_limit else span_b[:preview_limit] + "\n... [truncated]"
+            print("  --- span A (bytes via k-gram token range) ---")
+            print(pa)
+            print("  --- span B ---")
+            print(pb)
+        line = input("  [Enter next | q quit] > ")
+        if line.strip().lower() == "q":
+            break
+
+
 if __name__ == "__main__":
-    demo_test_all()
+    # demo_test_all()
+    demo_alice_bob_fingerprint_pair_list()
+    # demo_alice_bob_fingerprint_grouping()
 
     
     #stage3 S09 & S10
