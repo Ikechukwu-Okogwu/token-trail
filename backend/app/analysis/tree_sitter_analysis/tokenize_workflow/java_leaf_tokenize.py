@@ -1,9 +1,7 @@
 """
-early_access_token: minimal Tree-sitter Java "tokenize" hello-world.
+Tree-sitter Java leaf tokenizer: one syntactic leaf = one token (left-to-right).
 
-We treat each AST leaf node (no children) as one token, in left-to-right order.
-That is not identical to a standalone lexer, but matches the PDF sketch:
-(type, text, byte range, line range) per unit before any Winnowing.
+We treat each AST leaf node (no children) as one token before any Winnowing.
 """
 
 from __future__ import annotations
@@ -15,7 +13,7 @@ from tree_sitter import Language, Node, Parser
 import tree_sitter_java as tslang
 
 try:
-    from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
         Token,
         byte_span_to_one_based_lines,
     )

@@ -10,28 +10,28 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.analysis.tree_sitter_analysis.early_access_token.group_analysis import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import (
     filter_groups,
     load_group_filter_config,
     load_type_mapping_csv,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.group_interpretation import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.group_interpretation import (
     DyeResult,
     dye_tokens,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.grouping_fingerprint_pairs import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.grouping_fingerprint_pairs import (
     FingerprintPairGroup,
     grouping_fingerprint_pairs,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.json_kgram_strategy import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy import (
     JsonLeafKgramStrategy,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import Token
+from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import Token
 
 
-_EARLY_ACCESS_DIR = Path(__file__).resolve().parent / "early_access_token"
-DEFAULT_TYPE_MAPPING_PATH = _EARLY_ACCESS_DIR / "type_mapping.csv"
-DEFAULT_GROUP_FILTER_CONFIG_PATH = _EARLY_ACCESS_DIR / "group_filtering_config.json"
+_TOKENIZE_WORKFLOW_DIR = Path(__file__).resolve().parent / "tokenize_workflow"
+DEFAULT_TYPE_MAPPING_PATH = _TOKENIZE_WORKFLOW_DIR / "type_mapping.csv"
+DEFAULT_GROUP_FILTER_CONFIG_PATH = _TOKENIZE_WORKFLOW_DIR / "group_filtering_config.json"
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,7 @@ class TokenizePipelineResult:
         Keys match API / Mongo: ``leftStartLine``, ``leftEndLine``,
         ``rightStartLine``, ``rightEndLine``.
         """
-        from app.analysis.tree_sitter_analysis.early_access_token.group_analysis import (
+        from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import (
             group_token_span_bounds,
         )
 
@@ -89,7 +89,7 @@ def _fingerprint_pairs_for_two_java_codes(
     winnow_window: int,
     max_pos_each: int,
 ):
-    from app.analysis.tree_sitter_analysis.early_access_token.fingerprint_pairing import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.fingerprint_pairing import (
         pairing_list_from_winnow_fingerprint_sequences,
         winnow_fingerprint_sequence,
     )

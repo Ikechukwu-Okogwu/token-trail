@@ -18,10 +18,10 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from app.analysis.tree_sitter_analysis.early_access_token.grouping_fingerprint_pairs import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.grouping_fingerprint_pairs import (
     FingerprintPairGroup,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
     Token,
     align_mapped_type_truth_tables,
     mapped_type_truth_table,

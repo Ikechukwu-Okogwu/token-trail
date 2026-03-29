@@ -1,5 +1,5 @@
 """
-Turn kept fingerprint groups into token-level “dye” coverage and a file-pair score.
+Turn kept fingerprint groups into token-level dye coverage and a file-pair score.
 
 ``similarity`` = (marked tokens on A + marked tokens on B) / (|A| + |B|), using the
 same inclusive span bounds as :func:`group_analysis.group_token_span_bounds`.
@@ -10,10 +10,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from app.analysis.tree_sitter_analysis.early_access_token.group_analysis import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import (
     group_token_span_bounds,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.grouping_fingerprint_pairs import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.grouping_fingerprint_pairs import (
     FingerprintPairGroup,
 )
 

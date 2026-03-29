@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from app.analysis.tree_sitter_analysis.early_access_token.fingerprint_pairing import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.fingerprint_pairing import (
     FingerprintPair,
 )
 

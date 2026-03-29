@@ -11,11 +11,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 try:
-    from app.analysis.tree_sitter_analysis.early_access_token.compare_javacode import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.compare_javacode import (
         UnimplementedJavaKgramStrategy,
         compare_java_code,
     )
-    from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
         Fingerprint,
         Token,
     )

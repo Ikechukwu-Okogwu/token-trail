@@ -15,10 +15,10 @@ _backend = Path(__file__).resolve().parents[3]
 if str(_backend) not in sys.path:
     sys.path.insert(0, str(_backend))
 
-from app.analysis.tree_sitter_analysis.early_access_token.compare_javacode import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.compare_javacode import (
     compare_java_code,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.json_kgram_strategy import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy import (
     JsonLeafKgramStrategy,
 )
 from app.analysis.tree_sitter_analysis.pipeline_demo import (

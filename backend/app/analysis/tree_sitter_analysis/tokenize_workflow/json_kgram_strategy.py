@@ -17,13 +17,13 @@ _backend = Path(__file__).resolve().parents[4]
 if str(_backend) not in sys.path:
     sys.path.insert(0, str(_backend))
 
-from app.analysis.tree_sitter_analysis.early_access_token.compare_javacode import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.compare_javacode import (
     compare_java_code,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.early_access_token import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.java_leaf_tokenize import (
     tokenize_java,
 )
-from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
     Fingerprint,
     Token,
 )
@@ -57,7 +57,7 @@ def _tokens_to_json_bytes(chunk: Sequence[Token]) -> bytes:
 
 
 class JsonLeafKgramStrategy:
-    """Leaf tokenize (early_access_token) + JSON serialization per k-gram window."""
+    """Leaf tokenize (``java_leaf_tokenize``) + JSON serialization per k-gram window."""
 
     def __init__(self, k: int = 5) -> None:
         if k < 1:

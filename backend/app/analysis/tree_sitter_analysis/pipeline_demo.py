@@ -262,7 +262,7 @@ def _fingerprint_pairs_for_two_java_codes(
     ``strategy`` must implement ``JavaKgramStrategy`` (``tokens_for_kgram``,
     ``compute_kgram_fingerprints``).
     """
-    from app.analysis.tree_sitter_analysis.early_access_token.fingerprint_pairing import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.fingerprint_pairing import (
         pairing_list_from_winnow_fingerprint_sequences,
         winnow_fingerprint_sequence,
     )
@@ -283,8 +283,8 @@ def _fingerprint_pairs_for_two_java_codes(
 
 
 def demo_alice_bob_fingerprint_pair_list() -> None:
-    """Print Winnow fingerprint pairing list (early_access_token) for Alice vs Bob."""
-    from app.analysis.tree_sitter_analysis.early_access_token.json_kgram_strategy import (
+    """Print Winnow fingerprint pairing list (tokenize_workflow) for Alice vs Bob."""
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy import (
         JsonLeafKgramStrategy,
     )
 
@@ -304,7 +304,7 @@ def demo_alice_bob_fingerprint_pair_list() -> None:
         winnow_window=4,
         max_pos_each=100,
     )
-    print("\n--- Alice vs Bob: fingerprint pairing list (early_access_token) ---\n")
+    print("\n--- Alice vs Bob: fingerprint pairing list (tokenize_workflow) ---\n")
     print(f"total pairs: {len(pairs)}\n")
     show = pairs[:80]
     for i, p in enumerate(show):
@@ -317,10 +317,10 @@ def demo_alice_bob_fingerprint_pair_list() -> None:
 
 def demo_alice_bob_fingerprint_grouping() -> None:
     """Alice/Bob: pairing (fingerprint_pairing) + grouping (grouping_fingerprint_pairs), orchestrated here."""
-    from app.analysis.tree_sitter_analysis.early_access_token.grouping_fingerprint_pairs import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.grouping_fingerprint_pairs import (
         grouping_fingerprint_pairs,
     )
-    from app.analysis.tree_sitter_analysis.early_access_token.json_kgram_strategy import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy import (
         JsonLeafKgramStrategy,
     )
 
@@ -350,7 +350,7 @@ def demo_alice_bob_fingerprint_grouping() -> None:
     tokens_b = list(strategy.tokens_for_kgram(code_b))
     k = strategy.k
 
-    from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import (
+    from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
         slice_text,
     )
 

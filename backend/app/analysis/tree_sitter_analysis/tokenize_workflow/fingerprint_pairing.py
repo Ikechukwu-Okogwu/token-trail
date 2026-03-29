@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from app.analysis.tree_sitter_analysis.early_access_token.token_fingerprint import (
+from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
     Fingerprint,
 )
 
