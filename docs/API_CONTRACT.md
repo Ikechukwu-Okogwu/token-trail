@@ -237,6 +237,15 @@ Response `200`:
       "leftSubmissionId": "665f...",
       "rightSubmissionId": "665f...",
       "similarityScore": 0.87
+  "results": [
+    {
+      "resultId": "665f...-1",
+      "assignmentId": "665f...",
+      "leftSubmissionId": "665f...",
+      "rightSubmissionId": "665f...",
+      "similarityScore": 0.81,
+      "confidence": 0.77,
+      "largestBlockSize": 14
     }
   ]
 }
@@ -303,6 +312,38 @@ Errors:
 - `403` analysis run belongs to another instructor
 - `404` run, assignment, similarity result, or backing submissions not found
 
+  "resultId": "665f...-1",
+  "leftFilePath": "uploads/.../merged.txt",
+  "rightFilePath": "uploads/.../merged.txt",
+  "matchingRegions": [
+    {
+      "leftStartLine": 24,
+      "leftEndLine": 31,
+      "rightStartLine": 22,
+      "rightEndLine": 29,
+      "score": 0.42,
+      "evidenceType": "winnowing_group",
+      "snippet": "for (int i = 0; i < n; i++) {\\n  total += arr[i];\\n}"
+    }
+  ],
+  "excludedRegions": [
+    {
+      "leftStartLine": 1,
+      "leftEndLine": 10,
+      "rightStartLine": null,
+      "rightEndLine": null,
+      "evidenceType": "non_match",
+      "reason": "No matching fingerprint group"
+    }
+  ],
+  "summary": "Detected 3 matched block(s) with similarity score 81.00%.",
+  "confidence": 0.77,
+  "snippets": [
+    "for (int i = 0; i < n; i++) {\\n  total += arr[i];\\n}"
+  ]
+}
+```
+
 ---
 
 ## Public (no JWT)
@@ -318,7 +359,13 @@ Response `200`:
 ```json
 {
   "valid": true,
-  "assignment": { "id": "665f...", "language": "java", "isOpen": true }
+  "assignment": {
+    "id": "665f...",
+    "language": "java",
+    "isOpen": true,
+    "dueDate": "2025-06-08T23:59:59+00:00",
+    "allowLate": false
+  }
 }
 ```
 
@@ -358,6 +405,10 @@ Response `201`:
 5. Merge files deterministically (sorted by relative path, with `//// FILE:` headers).
 6. Store Submission document (`status: "processed"`).
 
+Submission validation errors:
+- `400` assignment is closed (`isOpen=false`)
+- `400` assignment due date has passed and `allowLate=false`
+
 ---
 
 ## Running Outside Docker
@@ -373,6 +424,10 @@ MONGO_URI=mongodb://localhost:27017
 ## Instructor Placeholder Endpoints (`501`)
 
 All endpoints below are deliberate skeleton contracts and currently return `501 Not Implemented`.
+
+### Similarity Report Flow
+
+- `GET /api/instructor/similarity-results/{resultId}`
 
 ### Assignment Key Management
 

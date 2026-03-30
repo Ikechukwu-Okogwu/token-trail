@@ -1,4 +1,5 @@
 """Public router: key-gated student routes (no JWT required)."""
+from datetime import datetime, timezone
 from pathlib import Path
 
 from bson import ObjectId
@@ -19,6 +20,20 @@ from app.services.zip_service import list_valid_source_files, safe_extract_zip
 router = APIRouter(prefix="/public", tags=["public"])
 
 
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    """Parse an ISO datetime string into a timezone-aware datetime."""
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
 @router.post("/assignment-key/validate", response_model=ValidateKeyResponse)
 async def validate_assignment_key(body: ValidateKeyRequest):
     """Check whether a 10-digit assignment key is valid."""
@@ -34,6 +49,8 @@ async def validate_assignment_key(body: ValidateKeyRequest):
             id=str(assignment["_id"]),
             language=assignment["language"],
             isOpen=assignment.get("isOpen", True),
+            dueDate=assignment.get("dueDate"),
+            allowLate=assignment.get("allowLate", False),
         ),
     )
 
@@ -58,6 +75,10 @@ async def submit(
         raise HTTPException(status_code=404, detail="Invalid assignment key")
     if not assignment.get("isOpen", False):
         raise HTTPException(status_code=400, detail="Assignment is closed for submissions")
+    if not assignment.get("allowLate", False):
+        due_date = _parse_iso_datetime(assignment.get("dueDate"))
+        if due_date and datetime.now(timezone.utc) > due_date:
+            raise HTTPException(status_code=400, detail="Assignment due date has passed")
 
     assignment_id = str(assignment["_id"])
     language = assignment["language"]

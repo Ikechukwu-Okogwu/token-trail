@@ -1,4 +1,5 @@
 """E2E test fixtures for Token Trail API contract tests."""
+from datetime import datetime, timedelta, timezone
 import os
 import zipfile
 from pathlib import Path
@@ -6,6 +7,11 @@ from uuid import uuid4
 
 import pytest
 import requests
+
+
+def _future_iso(days_ahead: int) -> str:
+    """Return a UTC ISO timestamp in the future for time-stable tests."""
+    return (datetime.now(timezone.utc) + timedelta(days=days_ahead)).isoformat()
 
 
 def _get_base_url() -> str:
@@ -72,6 +78,8 @@ def happy_path_setup(base_url: str, auth_headers: dict, test_zip: Path) -> dict:
     course_id = course["id"]
 
     # Create assignment
+    due_date = _future_iso(30)
+    key_expiry = _future_iso(31)
     r = requests.post(
         f"{base_url}/api/instructor/assignments",
         headers=auth_headers,
@@ -80,8 +88,8 @@ def happy_path_setup(base_url: str, auth_headers: dict, test_zip: Path) -> dict:
             "title": "HW1",
             "language": "java",
             "isOpen": True,
-            "dueDate": "2025-06-08T23:59:59+00:00",
-            "keyExpiry": "2025-06-09T00:00:00+00:00",
+            "dueDate": due_date,
+            "keyExpiry": key_expiry,
             "autoAnalysis": False,
             "allowLate": False,
             "exclusionCode": None,

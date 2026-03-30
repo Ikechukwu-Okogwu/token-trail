@@ -12,6 +12,8 @@ class ValidateKeyAssignmentInfo(BaseModel):
     id: str
     language: str
     isOpen: bool
+    dueDate: str | None = None
+    allowLate: bool = False
 
 
 class ValidateKeyResponse(BaseModel):

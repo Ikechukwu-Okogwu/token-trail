@@ -41,7 +41,11 @@ export default function SimilarityPairDetailPage() {
                 <ScoreBadge score={data.similarityScore} />
               </Row>
               <Row label="Submission A"><code className="text-sm font-mono text-gray-700">{data.leftSubmissionId}</code></Row>
+              <Row label="Student ID A"><code className="text-sm font-mono text-gray-700">{data.leftStudentIdentifier || 'N/A'}</code></Row>
+              <Row label="Student Name A"><span className="text-sm text-gray-700">{data.leftStudentName || 'N/A'}</span></Row>
               <Row label="Submission B"><code className="text-sm font-mono text-gray-700">{data.rightSubmissionId}</code></Row>
+              <Row label="Student ID B"><code className="text-sm font-mono text-gray-700">{data.rightStudentIdentifier || 'N/A'}</code></Row>
+              <Row label="Student Name B"><span className="text-sm text-gray-700">{data.rightStudentName || 'N/A'}</span></Row>
               <Row label="Run ID"><code className="text-sm font-mono text-gray-500">{data.runId}</code></Row>
               {data.summary && <Row label="Note"><span className="text-sm text-gray-500">{data.summary}</span></Row>}
 
