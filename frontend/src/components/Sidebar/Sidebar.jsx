@@ -44,8 +44,11 @@ export default function Sidebar({refreshKey}) {
   const [courses, setCourses] = useState([])
   const token = localStorage.getItem('token')
   const [acctMenuOpen, setAcctMenuOpen] = useState(false)
+  const [notiMenuOpen, setNotiMenuOpen] = useState(false)
   const acctMenuRef = useRef(null)
   const acctBtnRef = useRef(null)
+  const notiMenuRef = useRef(null)
+  const notiBtnRef = useRef(null)
   const [courseAssignments, setCourseAssignments] = useState({})
   const [loadingCourseAssignments, setLoadingCourseAssignments] = useState({})
   const [expandedIds, setExpandedIds] = useState(new Set())
@@ -150,6 +153,9 @@ export default function Sidebar({refreshKey}) {
     function handleClickOutside(e) {
       if (acctMenuRef.current && !acctMenuRef.current.contains(e.target) && acctBtnRef.current && !acctBtnRef.current.contains(e.target)) {
         setAcctMenuOpen(false)
+      }
+      if (notiMenuRef.current && !notiMenuRef.current.contains(e.target) && notiBtnRef.current && !notiBtnRef.current.contains(e.target)) {
+        setNotiMenuOpen(false)
       }
     }
 
@@ -256,6 +262,17 @@ export default function Sidebar({refreshKey}) {
           </button>
         </div>
       )}
+      {notiMenuOpen && (
+        <div className='flex flex-col h-16 w-28 bg-brand-pink z-50 absolute bottom-15 right-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-hidden' ref={notiMenuRef}>
+          {/* <button className='flex-1 hover:bg-bg-gray text-left px-1.5'>
+            Settings
+          </button>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red' onClick={() => logout()}>
+            Sign Out
+          </button> */}
+          noti
+        </div>
+      )}
       
       <div className="h-14 border-t border-t-[#FFFFFF80] flex">
         <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5 "
@@ -264,7 +281,10 @@ export default function Sidebar({refreshKey}) {
         >
           <img src={accountIcon} alt="Account" className='h-8'/>
         </button>
-        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5">
+        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5"
+          onClick={() => setNotiMenuOpen(prev => !prev)}
+          ref={notiBtnRef}
+        >
           <img src={notificationsIcon} alt="Notifications" className='h-7'/>
         </button>
       </div>
