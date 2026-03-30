@@ -16,6 +16,12 @@ from pymongo.database import Database
 
 from app.analysis.testWinowingCode.testWinowingLib import compare_texts_with_template
 
+try:
+    from app.analysis.analysis import compute_javacode_similarity as _compute_java
+    _JAVA_TOKENIZE_AVAILABLE = True
+except Exception:
+    _JAVA_TOKENIZE_AVAILABLE = False
+
 
 def _read_text(path_str: str | None) -> str:
     """Read text from a merged submission file path."""
@@ -113,10 +119,22 @@ def build_similarity_metrics(
     *,
     template_text: str = "",
     k: int = 5,
+    language: str = "",
 ) -> dict[str, object]:
     """Compute score + block-level data used by ranked and comparison endpoints."""
     result = compare_texts_with_template(text_a, text_b, template_text, k=k)
+
+    # For Java with no template, replace the character-based score with the
+    # token-level score (rename-robust). When template_text is present we keep
+    # the character-based score because the Java tokenize pipeline does not yet
+    # support template exclusion. Fall back silently if tree-sitter is unavailable
+    # or the input is unparseable. Groups/regions always come from character winnowing.
     similarity = float(result.get("similarity", 0.0))
+    if language == "java" and _JAVA_TOKENIZE_AVAILABLE and text_a.strip() and text_b.strip() and not template_text.strip():
+        try:
+            similarity = float(_compute_java(text_a, text_b, template_text))
+        except Exception:
+            pass
     groups = result.get("groups", [])
 
     starts_a = _line_starts(text_a)
@@ -219,14 +237,20 @@ def run_analysis_for_assignment(
     db: Database, assignment_id: str, run_id: str
 ) -> None:
     """Run the similarity-analysis pipeline for one assignment."""
+    # Fetch assignment to get optional template exclusion code and language
+    assignment = db["assignments"].find_one(
+        {"_id": ObjectId(assignment_id)},
+        {"exclusionCode": 1, "language": 1},
+    )
+    template_text: str = (assignment or {}).get("exclusionCode") or ""
+    language: str = ((assignment or {}).get("language") or "").lower()
+
     submissions = list(
         db["submissions"].find(
             {"assignmentId": assignment_id, "status": "processed"},
             {"_id": 1, "mergedStoragePath": 1},
         )
     )
-
-    print("run analysis for assignment", assignment_id, flush=True)
 
     submissions.sort(key=lambda s: str(s.get("_id", "")))
 
@@ -244,7 +268,7 @@ def run_analysis_for_assignment(
 
     pairs: list[dict[str, object]] = []
     for pair_index, (a, b) in enumerate(combinations(prepared, 2), start=1):
-        metrics = build_similarity_metrics(a["text"], b["text"], k=5)
+        metrics = build_similarity_metrics(a["text"], b["text"], template_text=template_text, k=5, language=language)
         pairs.append(
             {
                 "resultId": f"{run_id}__{a['submissionId']}__{b['submissionId']}",
