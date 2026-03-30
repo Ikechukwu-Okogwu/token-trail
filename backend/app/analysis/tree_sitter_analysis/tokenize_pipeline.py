@@ -8,12 +8,14 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 
-from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import (
-    filter_groups,
-    load_group_filter_config,
-    load_type_mapping_csv,
+from app.analysis.config.pipeline_config import (
+    TokenizePipelineConfig,
+    build_kgram_strategy,
+)
+from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import filter_groups
+from app.analysis.tree_sitter_analysis.tokenize_workflow.group_deduplicate import (
+    dedupe_subsumed_groups,
 )
 from app.analysis.tree_sitter_analysis.tokenize_workflow.group_interpretation import (
     DyeResult,
@@ -27,11 +29,10 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy imp
     JsonLeafKgramStrategy,
 )
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import Token
-
-
-_TOKENIZE_WORKFLOW_DIR = Path(__file__).resolve().parent / "tokenize_workflow"
-DEFAULT_TYPE_MAPPING_PATH = _TOKENIZE_WORKFLOW_DIR / "type_mapping.csv"
-DEFAULT_GROUP_FILTER_CONFIG_PATH = _TOKENIZE_WORKFLOW_DIR / "group_filtering_config.json"
+from app.analysis.tree_sitter_analysis.template_exclusion import strip_template_classes
+from app.analysis.tree_sitter_analysis.tokenize_workflow.token_preprocess import (
+    leaf_tokens_and_truth_for_filter,
+)
 
 
 @dataclass(frozen=True)
@@ -81,9 +82,9 @@ class TokenizePipelineResult:
         return regions
 
 
-def _fingerprint_pairs_for_two_java_codes(
-    code_a: str,
-    code_b: str,
+def _fingerprint_pairs_from_tokens(
+    tokens_a: Sequence[Token],
+    tokens_b: Sequence[Token],
     *,
     strategy: JsonLeafKgramStrategy,
     winnow_window: int,
@@ -94,8 +95,6 @@ def _fingerprint_pairs_for_two_java_codes(
         winnow_fingerprint_sequence,
     )
 
-    tokens_a = strategy.tokens_for_kgram(code_a)
-    tokens_b = strategy.tokens_for_kgram(code_b)
     raw_a = strategy.compute_kgram_fingerprints(tokens_a)
     raw_b = strategy.compute_kgram_fingerprints(tokens_b)
     win_a = winnow_fingerprint_sequence(raw_a, winnow_window)
@@ -111,24 +110,22 @@ def run_tokenize_similarity_pipeline(
     code_a: str,
     code_b: str,
     *,
-    strategy: JsonLeafKgramStrategy | None = None,
-    type_mapping_path: str | Path | None = None,
-    group_filter_config_path: str | Path | None = None,
-    winnow_window: int = 4,
-    max_pos_each: int = 100,
-    min_group_size: int = 4,
-    delta_tol: int = 5,
-    max_gap: int = 120,
-    default_categories: Sequence[str] = ("unmapped",),
+    config: TokenizePipelineConfig,
+    template: str = "",
 ) -> TokenizePipelineResult:
     """
-    1. Tokenize both sides (strategy), Winnow k-grams, pair, group.
-    2. Load type mapping + filter config; ``filter_groups`` on raw groups.
-    3. ``dye_tokens`` on kept groups → coverage ``similarity`` = (marked_a + marked_b) / (n_a + n_b).
+    1. If ``template`` is non-blank, strip each top-level class from ``template`` out
+       of both ``code_a`` and ``code_b`` (see :mod:`template_exclusion`).
+    2. Build per-side leaf tokens and truth tables using ``config.type_mapping`` and
+       ``config.default_categories`` (full table, then ``to_drop``).
+    3. Winnow k-grams, pair, group (parameters from ``config``).
+    4. ``filter_groups`` with ``config.group_filter_config`` and pre-built truth tables.
+    5. ``dedupe_subsumed_groups``, then ``dye_tokens`` → ``similarity``.
 
     Raises:
-        ValueError: if either source is empty/whitespace-only, or either side has no
-            tokens after tokenization (treated as unusable for this pipeline).
+        ValueError: if either source is empty/whitespace-only before exclusion, if
+            either side is empty after template exclusion, or if either side has no
+            leaf tokens after ``to_drop`` (treated as unusable for this pipeline).
     """
     if not (code_a or "").strip() or not (code_b or "").strip():
         raise ValueError(
@@ -136,38 +133,50 @@ def run_tokenize_similarity_pipeline(
             "(non-whitespace)"
         )
 
-    strategy = strategy or JsonLeafKgramStrategy(k=5)
-    map_path = Path(type_mapping_path or DEFAULT_TYPE_MAPPING_PATH)
-    filt_path = Path(group_filter_config_path or DEFAULT_GROUP_FILTER_CONFIG_PATH)
-    if not map_path.is_file():
-        raise FileNotFoundError(f"type mapping not found: {map_path}")
-    if not filt_path.is_file():
-        raise FileNotFoundError(f"group filter config not found: {filt_path}")
+    if (template or "").strip():
+        code_a = strip_template_classes(code_a, template)
+        code_b = strip_template_classes(code_b, template)
+    if not (code_a or "").strip() or not (code_b or "").strip():
+        raise ValueError(
+            "run_tokenize_similarity_pipeline: after template exclusion, code_a and "
+            "code_b must both be non-empty (non-whitespace)"
+        )
 
-    tokens_a = strategy.tokens_for_kgram(code_a)
-    tokens_b = strategy.tokens_for_kgram(code_b)
+    strategy = build_kgram_strategy(config)
+    type_mapping = config.type_mapping
+    filter_cfg = config.group_filter_config
+    default_categories = config.default_categories
+
+    tokens_a, truth_a = leaf_tokens_and_truth_for_filter(
+        code_a,
+        type_mapping,
+        default_categories=default_categories,
+    )
+    tokens_b, truth_b = leaf_tokens_and_truth_for_filter(
+        code_b,
+        type_mapping,
+        default_categories=default_categories,
+    )
     if not tokens_a or not tokens_b:
         raise ValueError(
             "run_tokenize_similarity_pipeline: both sides need at least one leaf token "
-            f"(got len(tokens_a)={len(tokens_a)}, len(tokens_b)={len(tokens_b)})"
+            f"(after to_drop filter: len(tokens_a)={len(tokens_a)}, "
+            f"len(tokens_b)={len(tokens_b)})"
         )
 
-    pairs = _fingerprint_pairs_for_two_java_codes(
-        code_a,
-        code_b,
+    pairs = _fingerprint_pairs_from_tokens(
+        tokens_a,
+        tokens_b,
         strategy=strategy,
-        winnow_window=winnow_window,
-        max_pos_each=max_pos_each,
+        winnow_window=config.winnow_window,
+        max_pos_each=config.max_pos_each,
     )
     raw_groups = grouping_fingerprint_pairs(
         pairs,
-        min_group_size=min_group_size,
-        delta_tol=delta_tol,
-        max_gap=max_gap,
+        min_group_size=config.min_group_size,
+        delta_tol=config.delta_tol,
+        max_gap=config.max_gap,
     )
-
-    type_mapping = load_type_mapping_csv(map_path)
-    filter_config = load_group_filter_config(filt_path)
 
     k = strategy.k
     kept = filter_groups(
@@ -176,8 +185,17 @@ def run_tokenize_similarity_pipeline(
         tokens_b=tokens_b,
         k=k,
         type_mapping=type_mapping,
-        config=filter_config,
+        config=filter_cfg,
         default_categories=default_categories,
+        truth_a=truth_a,
+        truth_b=truth_b,
+    )
+
+    kept = dedupe_subsumed_groups(
+        kept,
+        k=k,
+        n_tokens_a=len(tokens_a),
+        n_tokens_b=len(tokens_b),
     )
 
     dye = dye_tokens(

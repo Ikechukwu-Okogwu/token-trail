@@ -215,8 +215,20 @@ frontend/.env
 # analysis developing
 backend/app/analysis/**
 !backend/app/analysis/
+!backend/app/analysis/__init__.py
 !backend/app/analysis/analysis.py
 !backend/app/analysis/analysis_demo.py
+# Config bundles (meta.json, CSV, currently_using_meta) + pipeline helpers — required for production
+!backend/app/analysis/config/
+!backend/app/analysis/config/**
+backend/app/analysis/config/**/__pycache__/
+backend/app/analysis/config/**/*.pyc
+# Optimization (GA / fitness / mutation); genes/ is local experiment output only
+!backend/app/analysis/optimization/
+!backend/app/analysis/optimization/**
+backend/app/analysis/optimization/**/__pycache__/
+backend/app/analysis/optimization/**/*.pyc
+backend/app/analysis/optimization/genes/
 !backend/app/analysis/tree_sitter_analysis/
 !backend/app/analysis/tree_sitter_analysis/**
 backend/app/analysis/tree_sitter_analysis/early_access/

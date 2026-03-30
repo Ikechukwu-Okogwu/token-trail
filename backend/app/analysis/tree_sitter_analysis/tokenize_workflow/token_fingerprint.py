@@ -7,8 +7,11 @@ Fingerprint: one k-gram hash + source span + token index range + line span.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
+
+_RAW_TYPES_MISSING_FROM_MAPPING_WARNED: set[str] = set()
 
 
 def byte_span_to_one_based_lines(
@@ -63,6 +66,14 @@ def _categories_for_raw_type(
         cats = frozenset(type_mapping[raw_type])
         if cats:
             return cats
+    if raw_type not in _RAW_TYPES_MISSING_FROM_MAPPING_WARNED:
+        _RAW_TYPES_MISSING_FROM_MAPPING_WARNED.add(raw_type)
+        warnings.warn(
+            f"raw type {raw_type!r} not defined in the token type mapping table "
+            f"(missing key or empty mapped set); using default_categories={tuple(default_categories)!r}",
+            UserWarning,
+            stacklevel=2,
+        )
     return frozenset(default_categories)
 
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
-import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -20,34 +19,30 @@ if str(_backend) not in sys.path:
 from app.analysis.tree_sitter_analysis.tokenize_workflow.compare_javacode import (
     compare_java_code,
 )
-from app.analysis.tree_sitter_analysis.tokenize_workflow.java_leaf_tokenize import (
-    tokenize_java,
-)
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
     Fingerprint,
     Token,
 )
 
-# Tree-sitter Java leaf types to omit from k-grams (noise / non-behavioral).
-_TOKEN_TYPES_DROP: frozenset[str] = frozenset({"line_comment", "block_comment"})
+_default_type_mapping_for_kgram: dict[str, frozenset[str]] | None = None
+
+
+def _get_default_type_mapping() -> dict[str, frozenset[str]]:
+    """Load ``type_mapping.csv`` once; ``to_drop`` rows control comment/noise stripping."""
+    global _default_type_mapping_for_kgram
+    if _default_type_mapping_for_kgram is None:
+        from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import (
+            load_type_mapping_csv,
+        )
+
+        path = Path(__file__).resolve().parent / "type_mapping.csv"
+        _default_type_mapping_for_kgram = load_type_mapping_csv(path)
+    return _default_type_mapping_for_kgram
 
 
 def _default_hash_bytes(blob: bytes) -> int:
     hs = hashlib.sha1(blob).hexdigest()[-8:]
     return int(hs, 16)
-
-
-def _filter_tokens_for_kgram(tokens: list[Token]) -> list[Token]:
-    """Drop comments; warn once if ERROR leaves appear (parse-quality signal)."""
-    if any(t.type == "ERROR" for t in tokens):
-        n_err = sum(1 for t in tokens if t.type == "ERROR")
-        warnings.warn(
-            f"Java parse produced {n_err} ERROR leaf token(s); "
-            "k-gram fingerprint may be unreliable until handled.",
-            UserWarning,
-            stacklevel=2,
-        )
-    return [t for t in tokens if t.type not in _TOKEN_TYPES_DROP]
 
 
 def _tokens_to_json_bytes(chunk: Sequence[Token]) -> bytes:
@@ -65,10 +60,22 @@ class JsonLeafKgramStrategy:
         self.k = k
 
     def tokens_for_kgram(self, code: str) -> list[Token]:
-        """Same filtered leaf stream used by ``compute_kgram_fingerprints``."""
+        """
+        Leaf stream after ``to_drop`` mapping (see ``type_mapping.csv``), same as the
+        tokenize similarity pipeline.
+        """
         if not code.strip():
             return []
-        return _filter_tokens_for_kgram(tokenize_java(code))
+        from app.analysis.tree_sitter_analysis.tokenize_workflow.token_preprocess import (
+            leaf_tokens_and_truth_for_filter,
+        )
+
+        tokens, _ = leaf_tokens_and_truth_for_filter(
+            code,
+            _get_default_type_mapping(),
+            default_categories=("unmapped",),
+        )
+        return tokens
 
     def compute_kgram_fingerprints(self, tokens: Sequence[Token]) -> list[Fingerprint]:
         if not tokens:

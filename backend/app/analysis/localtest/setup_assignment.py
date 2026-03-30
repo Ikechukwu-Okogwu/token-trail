@@ -149,13 +149,13 @@ users_config: list[dict[str, str]] = [
         "name": "John Doe",
         "email": "aa11aa@brocku.ca",
         "password": "admin",
-        "submission_path": "submission_files/original.zip"
+        "submission_path": "submission_files/Alice.zip"
     },
     {
         "name": "Extra Spice",
         "email": "bb22bb@brocku.ca",
         "password": "admin",
-        "submission_path": "submission_files/copied.zip"
+        "submission_path": "submission_files/Bob.zip"
     },
     {
         "name": "Coke Zero",
@@ -242,9 +242,10 @@ return assignment key
 """
 
 def test_setup_and_run_while_loop_vs_for_loop() -> None:
-    path = "D:\work\4P02\Project\token-trail\backend\app\analysis\localtest\datasets\use_while_loop_instead_of_for_loop_JAVA.zip"
-    setup_dataset(path)
+    # path = "D:\work\4P02\Project\token-trail\backend\app\analysis\localtest\datasets\use_while_loop_instead_of_for_loop_JAVA.zip"
+    # setup_dataset(path)
+    pass
 
 if __name__ == "__main__":
-    # run()
-    test_setup_and_run_while_loop_vs_for_loop()
+    run()
+    # test_setup_and_run_while_loop_vs_for_loop()

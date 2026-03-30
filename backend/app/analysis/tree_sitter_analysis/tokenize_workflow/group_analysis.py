@@ -23,6 +23,7 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.grouping_fingerprint_pa
 )
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
     Token,
+    _categories_for_raw_type,
     align_mapped_type_truth_tables,
     mapped_type_truth_table,
 )
@@ -234,12 +235,9 @@ def _categories_for_token(
     *,
     default_categories: Collection[str],
 ) -> frozenset[str]:
-    raw = token.type
-    if raw in type_mapping:
-        cats = frozenset(type_mapping[raw])
-        if cats:
-            return cats
-    return frozenset(default_categories)
+    return _categories_for_raw_type(
+        token.type, type_mapping, default_categories=default_categories
+    )
 
 
 def _mass_counts_for_span(
