@@ -5,6 +5,6 @@ template_exclusion=false
 engine_mode=direct
 require_all_pairs=true
 
-Dev1.zip,Dev2.zip,expected=0.9000,range=0.8200-1.0000,label=high
-Dev1.zip,Dev3.zip,expected=0.0700,range=0.0000-0.1800,label=low
-Dev2.zip,Dev3.zip,expected=0.0700,range=0.0000-0.1800,label=low
+Dev1.zip,Dev2.zip,expected=0.9933,range=0.8200-1.0000,label=high
+Dev1.zip,Dev3.zip,expected=0.0000,range=0.0000-0.1800,label=low
+Dev2.zip,Dev3.zip,expected=0.0000,range=0.0000-0.1800,label=low

@@ -23,6 +23,12 @@ from app.analysis.testWinowingCode.testWinowingLib import compare_texts_with_tem
 from app.services.merge_service import merge_source_files
 from app.services.zip_service import LANGUAGE_EXTENSIONS, list_valid_source_files, safe_extract_zip
 
+try:
+    from app.analysis.analysis import compute_javacode_similarity as _compute_java
+    _JAVA_TOKENIZE_AVAILABLE = True
+except Exception:
+    _JAVA_TOKENIZE_AVAILABLE = False
+
 
 LABEL_BOUNDS = {
     "high": (0.80, 1.00),
@@ -270,12 +276,20 @@ def run_fixture_assignment(assignment_dir: Path) -> tuple[dict[tuple[str, str], 
                 work_dir=tmp_dir / "submissions",
             )
 
+        use_java_tokenize = _JAVA_TOKENIZE_AVAILABLE and language == "java" and not use_template
+
         scores: dict[tuple[str, str], float] = {}
         for left_name, right_name in combinations(sorted(merged_text_by_zip.keys()), 2):
             key = canonical_pair_key(left_name, right_name)
             left_text = merged_text_by_zip[left_name]
             right_text = merged_text_by_zip[right_name]
             template = template_text if use_template else ""
+            if use_java_tokenize:
+                try:
+                    scores[key] = float(_compute_java(left_text, right_text, template))
+                    continue
+                except Exception:
+                    pass
             result = compare_texts_with_template(left_text, right_text, template, k=5, name_a=left_name, name_b=right_name)
             scores[key] = float(result["similarity"])
 
