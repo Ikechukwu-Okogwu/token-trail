@@ -155,6 +155,17 @@ docker compose ps
 
 All four services should show `Up` (or `running`).
 
+### Automated E2E verification
+
+For scrum leads and quick regression: run the pytest E2E suite after `docker compose up -d`:
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/e2e/ -v
+```
+
+This exercises smoke, happy path, edge cases, and boundary tests. See [tests/e2e/README.md](../tests/e2e/README.md) for details.
+
 ---
 
 ## 3) Full End-to-End Happy Path (Do This Once)
@@ -356,9 +367,54 @@ Expected `200` (after a few seconds):
 }
 ```
 
-The worker polls MongoDB every 5 seconds. It atomically claims one `queued` job, sets it to `running`, calls the analysis stub, then marks it `completed` (or `failed` with an `errorMessage`).
+The worker polls MongoDB every 5 seconds. It atomically claims one `queued` job, sets it to `running`, executes the analysis pipeline, then marks it `completed` (or `failed` with an `errorMessage`).
 
-Right now the analysis engine is a stub (no-op), so the run completes instantly. The real tokenisation + winnowing pipeline will be added later.
+### Step 10 — Fetch ranked similarity results and one side-by-side comparison
+
+After step 9 reaches `completed`, call:
+
+**`GET /api/instructor/analysis-runs/<runId>/similarity-results`**
+
+Expected `200`:
+
+```json
+{
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "results": [
+    {
+      "resultId": "runId__leftSubmissionId__rightSubmissionId",
+      "runId": "665f...",
+      "assignmentId": "665f...",
+      "leftSubmissionId": "665f...",
+      "rightSubmissionId": "665f...",
+      "similarityScore": 0.87
+    }
+  ]
+}
+```
+
+Copy one `resultId` from `results`, then call:
+
+**`GET /api/instructor/similarity-results/<resultId>/comparison`**
+
+Expected `200`:
+
+```json
+{
+  "resultId": "runId__leftSubmissionId__rightSubmissionId",
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "leftSubmissionId": "665f...",
+  "rightSubmissionId": "665f...",
+  "similarityScore": 0.87,
+  "leftFilePath": "uploads/.../merged/merged.txt",
+  "rightFilePath": "uploads/.../merged/merged.txt",
+  "leftCode": "//// FILE: ...",
+  "rightCode": "//// FILE: ...",
+  "matchingRegions": []
+}
+```
 
 ### Common failure responses (expected)
 
@@ -392,7 +448,7 @@ backend/
     │   ├── auth.py                    POST /signup, POST /login, GET /me
     │   ├── public.py                  POST /assignment-key/validate, POST /submissions
     │   ├── instructor.py              Courses, assignments, submissions list, analysis runs
-    │   ├── instructor_similarity.py   Stub routes for ranked results, pair detail, side-by-side compare
+    │   ├── instructor_similarity.py   Ranked results, pair detail, side-by-side compare
     │   └── instructor_admin.py        Stub routes for key mgmt/admin actions (returns 501)
     ├── schemas/                       Pydantic models defining request/response shapes
     │   ├── auth.py                    SignupRequest, LoginRequest, AuthResponse, MeResponse
@@ -400,14 +456,14 @@ backend/
     │   ├── assignment.py              AssignmentCreate/Update/Response (+ dueDate/keyExpiry/autoAnalysis/allowLate/exclusionCode)
     │   ├── public.py                  ValidateKeyRequest/Response, SubmissionResponse
     │   ├── analysis.py                CreateRunResponse, RunStatusResponse
-    │   ├── similarity.py              Stub response shapes for similarity-report flow
+    │   ├── similarity.py              Similarity list/detail/comparison response shapes
     │   ├── exclusion.py               Stub request/response shapes for exclusion-code CRUD
     │   └── class_list.py              Stub request/response shapes for class-list management
     ├── services/
     │   ├── zip_service.py             safe_extract_zip, list_valid_source_files, is_binary_file
     │   ├── merge_service.py           merge_source_files (deterministic, sorted, with headers)
     │   ├── submission_service.py      create_submission helper (inserts Mongo doc)
-    │   ├── analysis_service.py        Stub (no-op) — will hold the winnowing pipeline
+    │   ├── analysis_service.py        Baseline pairwise similarity analysis + result persistence
     │   ├── retention_service.py       Stub — future 30-day cleanup/purge flow
     │   ├── anonymization_service.py   Stub — future student pseudonymization/hashing flow
     │   └── notification_service.py    Stub — future submission confirmation/replacement emails
@@ -562,7 +618,10 @@ GET  /api/instructor/analysis-runs/{runId}
 GET  /api/instructor/analysis-runs/{runId}/similarity-results
 GET  /api/instructor/similarity-results/{resultId}
 GET  /api/instructor/similarity-results/{resultId}/comparison
-  → currently placeholder routes returning 501 (skeleton contract only)
+  → real similarity list/detail/comparison payloads
+
+GET  /api/instructor/courses/{courseId}/assignments
+  → list all assignments for one instructor-owned course
 
 POST /api/instructor/assignments/{id}/regenerate-key
 POST /api/instructor/assignments/{id}/expire-key
@@ -608,7 +667,7 @@ This merged file is the input the analysis engine will later read when computing
 - **No Redis / no Celery.** The worker is a simple Python loop that polls the `analysis_runs` MongoDB collection every 5 seconds. It uses `find_one_and_update` to atomically claim one `queued` job, which prevents two workers from processing the same run.
 - **JWT auth** uses HS256 via `python-jose`. Tokens expire after `JWT_EXPIRES_MINUTES` (default 60). The `get_current_instructor` dependency in `core/deps.py` validates the token and loads the instructor from MongoDB.
 - **Uploads persist** via the Docker Compose volume mount `./uploads:/app/uploads`. Files survive container restarts. They are git-ignored (only `uploads/.gitkeep` is tracked).
-- **SRS placeholders** for admin actions, key management, similarity-report APIs, retention/privacy, notifications, and rate-limits are intentionally scaffold-only right now. New placeholder endpoints return HTTP `501`.
+- **SRS placeholders** for admin actions, key management, retention/privacy, notifications, and rate-limits are intentionally scaffold-only right now. New placeholder endpoints return HTTP `501`.
 
 ---
 

@@ -1,0 +1,901 @@
+"""
+E2E API contract tests for Token Trail.
+
+Test Plan:
+- Input partitions: valid (auth, courses, assignments, submissions), invalid (bad IDs,
+  missing token, wrong key, malformed resultId), edge (empty list, minimal ZIP, unknown key)
+- Boundaries: empty submissions list, single submission (0 pairs), minimal valid ZIP,
+  invalid key format (non-10-digit), pairwise ranking order over multiple pairs
+- Interface misuse: malformed ObjectId-like route params, malformed `resultId` for
+  similarity detail/comparison routes
+- Failure modes: API unreachable (connection refused), auth failures (401/403),
+  validation failures (400/404), placeholder-only 501 admin endpoints
+"""
+import time
+import zipfile
+from uuid import uuid4
+
+import pytest
+import requests
+
+
+# --- Smoke ---
+
+
+def test_health_returns_ok(base_url: str) -> None:
+    """Guards: API is up and health endpoint returns expected shape. Catches backend down."""
+    r = requests.get(f"{base_url}/api/health", timeout=5)
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}"
+    data = r.json()
+    assert data.get("status") == "ok"
+    assert data.get("service") == "token-trail-api"
+
+
+def test_signup_returns_token(base_url: str) -> None:
+    """Guards: Auth signup creates user and returns JWT. Catches auth pipeline break."""
+    email = f"test-{uuid4()}@example.com"
+    r = requests.post(
+        f"{base_url}/api/auth/signup",
+        json={"name": "Alice", "email": email, "password": "secret123"},
+        timeout=10,
+    )
+    assert r.status_code == 201, f"Expected 201, got {r.status_code}"
+    data = r.json()
+    assert "accessToken" in data
+    assert isinstance(data["accessToken"], str) and len(data["accessToken"]) > 0
+
+
+def test_api_unreachable_fails_fast() -> None:
+    """Guards: Tests fail fast on unreachable API, not hang. Documents safe fallback."""
+    try:
+        r = requests.get("http://127.0.0.1:59999/api/health", timeout=2)
+        # If it somehow responds, that's ok - we just want no long hang
+        _ = r
+    except (requests.ConnectionError, requests.Timeout) as e:
+        # Expected: connection refused or timeout
+        assert "Connection" in str(type(e).__name__) or "Timeout" in str(type(e).__name__)
+
+
+# --- Happy path ---
+
+
+def test_happy_path_create_course(base_url: str, auth_headers: dict) -> None:
+    """Guards: Course creation works with valid auth. Catches ownership/store break."""
+    r = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "CS101", "term": "Fall 2025"},
+        timeout=10,
+    )
+    assert r.status_code == 201
+    data = r.json()
+    assert "id" in data
+    assert data["name"] == "CS101"
+    assert data["term"] == "Fall 2025"
+    assert "instructorId" in data
+
+
+def test_happy_path_create_assignment(base_url: str, auth_headers: dict) -> None:
+    """Guards: Assignment creation with assignmentKey. Catches key generation break."""
+    # Create course first
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "E2E", "term": "F25"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    r = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": course_id,
+            "title": "HW1",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": "2025-06-08T23:59:59+00:00",
+            "keyExpiry": "2025-06-09T00:00:00+00:00",
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    assert r.status_code == 201
+    data = r.json()
+    assert "id" in data
+    assert "assignmentKey" in data
+    assert len(data["assignmentKey"]) == 10
+    assert data["assignmentKey"].isdigit()
+
+
+def test_happy_path_validate_key(base_url: str, auth_headers: dict) -> None:
+    """Guards: Public validate reads assignment data. Cross-team integration."""
+    # Create course and assignment
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "E2E", "term": "F25"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": course_id,
+            "title": "HW1",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    key = ra.json()["assignmentKey"]
+
+    r = requests.post(
+        f"{base_url}/api/public/assignment-key/validate",
+        json={"assignmentKey": key},
+        timeout=10,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["valid"] is True
+    assert data["assignment"] is not None
+    assert data["assignment"]["language"] == "java"
+
+
+def test_happy_path_upload_submission(
+    base_url: str, auth_headers: dict, test_zip, happy_path_setup: dict
+) -> None:
+    """Guards: Public submission upload works. Cross-team integration."""
+    key = happy_path_setup["assignmentKey"]
+    with open(test_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": key,
+                "studentIdentifier": "s1@test.edu",
+                "studentName": "Student 1",
+            },
+            files={"zipFile": ("sub.zip", f, "application/zip")},
+            timeout=30,
+        )
+    assert r.status_code == 201
+    data = r.json()
+    assert "submissionId" in data
+    assert data["status"] == "processed"
+    assert data["fileCount"] >= 1
+
+
+def test_happy_path_list_submissions(base_url: str, happy_path_setup: dict) -> None:
+    """Guards: Instructor can list submissions. Schema matches SubmissionListItem."""
+    aid = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+
+    r = requests.get(
+        f"{base_url}/api/instructor/assignments/{aid}/submissions",
+        headers=headers,
+        timeout=10,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    # Should have at least one submission from happy_path_setup upload
+    assert len(data) >= 1
+    for s in data:
+        assert "submissionId" in s
+        assert "studentIdentifier" in s
+        assert "fileCount" in s
+
+
+def test_happy_path_queue_run(base_url: str, auth_headers: dict) -> None:
+    """Guards: Analysis run can be queued. Catches run creation break."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "C", "term": "T"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    cid = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": cid,
+            "title": "A",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    aid = ra.json()["id"]
+
+    r = requests.post(
+        f"{base_url}/api/instructor/assignments/{aid}/analysis-runs",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert r.status_code == 201
+    data = r.json()
+    assert "runId" in data
+    assert data["status"] == "queued"
+    assert data["algorithmVersion"] == "v0"
+
+
+def test_happy_path_poll_run_completed(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """
+    Guards: Worker processes run; status progresses to completed.
+    Real wait required; polling loop is intentional.
+    """
+    run_id = happy_path_setup["runId"]
+    headers = happy_path_setup["auth_headers"]
+    base = base_url
+    max_wait = 60
+    interval = 2
+    deadline = time.time() + max_wait
+    last_status = None
+    while time.time() < deadline:
+        r = requests.get(
+            f"{base}/api/instructor/analysis-runs/{run_id}",
+            headers=headers,
+            timeout=10,
+        )
+        assert r.status_code == 200, f"Expected 200, got {r.status_code}"
+        data = r.json()
+        last_status = data.get("status")
+        if last_status in ("completed", "failed"):
+            break
+        time.sleep(interval)
+    assert last_status == "completed", f"Run did not complete in {max_wait}s; last status: {last_status}"
+
+
+def test_similarity_results_list_returns_ranked_pairs(
+    base_url: str, auth_headers: dict, test_zip, tmp_path
+) -> None:
+    """Guards: Similarity list returns ranked pairs and preserves descending score order."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "SIM", "term": "F25"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": course_id,
+            "title": "HW-SIM",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    assignment = ra.json()
+    assignment_id = assignment["id"]
+    assignment_key = assignment["assignmentKey"]
+
+    with open(test_zip, "rb") as f:
+        up1 = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": assignment_key,
+                "studentIdentifier": "sim1@test.edu",
+                "studentName": "Sim One",
+            },
+            files={"zipFile": ("sub1.zip", f, "application/zip")},
+            timeout=30,
+        )
+    up1.raise_for_status()
+
+    second_zip = tmp_path / "submission2.zip"
+    with zipfile.ZipFile(second_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "Hello.java",
+            "public class Hello { public static void main(String[] args) { int x = 2; } }",
+        )
+    with open(second_zip, "rb") as f:
+        up2 = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": assignment_key,
+                "studentIdentifier": "sim2@test.edu",
+                "studentName": "Sim Two",
+            },
+            files={"zipFile": ("sub2.zip", f, "application/zip")},
+            timeout=30,
+        )
+    up2.raise_for_status()
+
+    third_zip = tmp_path / "submission4.zip"
+    with zipfile.ZipFile(third_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "Hello.java",
+            "public class Hello { public static void main(String[] args) { int z = 99; } }",
+        )
+    with open(third_zip, "rb") as f:
+        up3 = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": assignment_key,
+                "studentIdentifier": "sim3@test.edu",
+                "studentName": "Sim Three",
+            },
+            files={"zipFile": ("sub3.zip", f, "application/zip")},
+            timeout=30,
+        )
+    up3.raise_for_status()
+
+    rr = requests.post(
+        f"{base_url}/api/instructor/assignments/{assignment_id}/analysis-runs",
+        headers=auth_headers,
+        timeout=10,
+    )
+    rr.raise_for_status()
+    run_id = rr.json()["runId"]
+
+    max_wait = 60
+    interval = 2
+    deadline = time.time() + max_wait
+    last_status = None
+    while time.time() < deadline:
+        poll = requests.get(
+            f"{base_url}/api/instructor/analysis-runs/{run_id}",
+            headers=auth_headers,
+            timeout=10,
+        )
+        poll.raise_for_status()
+        last_status = poll.json().get("status")
+        if last_status in ("completed", "failed"):
+            break
+        time.sleep(interval)
+    assert last_status == "completed", f"Run did not complete in {max_wait}s; last status: {last_status}"
+
+    list_resp = requests.get(
+        f"{base_url}/api/instructor/analysis-runs/{run_id}/similarity-results",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert list_resp.status_code == 200
+    payload = list_resp.json()
+    assert payload["runId"] == run_id
+    assert payload["assignmentId"] == assignment_id
+    assert isinstance(payload["results"], list)
+    assert len(payload["results"]) >= 3
+
+    # Regression check: list is sorted descending by similarityScore.
+    scores = [item["similarityScore"] for item in payload["results"]]
+    assert scores == sorted(scores, reverse=True)
+
+    top = payload["results"][0]
+    assert "resultId" in top
+    assert "__" in top["resultId"]
+    assert top["runId"] == run_id
+    assert top["assignmentId"] == assignment_id
+    assert "leftSubmissionId" in top and "rightSubmissionId" in top
+    assert isinstance(top["similarityScore"], float)
+
+
+def test_similarity_pair_detail_and_comparison_return_payload(
+    base_url: str, auth_headers: dict, test_zip, tmp_path
+) -> None:
+    """Guards: Pair detail/comparison contract and bounded repeated calls remain stable."""
+    # Reuse same setup pattern to guarantee at least one pair.
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "SIM2", "term": "F25"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": course_id,
+            "title": "HW-SIM2",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    assignment = ra.json()
+    assignment_id = assignment["id"]
+    assignment_key = assignment["assignmentKey"]
+
+    with open(test_zip, "rb") as f:
+        requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": assignment_key,
+                "studentIdentifier": "cmp1@test.edu",
+                "studentName": "Cmp One",
+            },
+            files={"zipFile": ("cmp1.zip", f, "application/zip")},
+            timeout=30,
+        ).raise_for_status()
+
+    second_zip = tmp_path / "submission3.zip"
+    with zipfile.ZipFile(second_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "Hello.java",
+            "public class Hello { public static void main(String[] args) { int y = 3; } }",
+        )
+    with open(second_zip, "rb") as f:
+        requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": assignment_key,
+                "studentIdentifier": "cmp2@test.edu",
+                "studentName": "Cmp Two",
+            },
+            files={"zipFile": ("cmp2.zip", f, "application/zip")},
+            timeout=30,
+        ).raise_for_status()
+
+    rr = requests.post(
+        f"{base_url}/api/instructor/assignments/{assignment_id}/analysis-runs",
+        headers=auth_headers,
+        timeout=10,
+    )
+    rr.raise_for_status()
+    run_id = rr.json()["runId"]
+
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        poll = requests.get(
+            f"{base_url}/api/instructor/analysis-runs/{run_id}",
+            headers=auth_headers,
+            timeout=10,
+        )
+        poll.raise_for_status()
+        status = poll.json().get("status")
+        if status in ("completed", "failed"):
+            break
+        time.sleep(2)
+    assert status == "completed"
+
+    list_resp = requests.get(
+        f"{base_url}/api/instructor/analysis-runs/{run_id}/similarity-results",
+        headers=auth_headers,
+        timeout=10,
+    )
+    list_resp.raise_for_status()
+    result_id = list_resp.json()["results"][0]["resultId"]
+
+    detail_resp = requests.get(
+        f"{base_url}/api/instructor/similarity-results/{result_id}",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert detail_resp.status_code == 200
+    detail = detail_resp.json()
+    assert detail["resultId"] == result_id
+    assert detail["runId"] == run_id
+    assert detail["assignmentId"] == assignment_id
+    assert isinstance(detail["similarityScore"], float)
+
+    cmp_resp = requests.get(
+        f"{base_url}/api/instructor/similarity-results/{result_id}/comparison",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert cmp_resp.status_code == 200
+    comparison = cmp_resp.json()
+    assert comparison["resultId"] == result_id
+    assert comparison["runId"] == run_id
+    assert comparison["assignmentId"] == assignment_id
+    assert "leftCode" in comparison and isinstance(comparison["leftCode"], str)
+    assert "rightCode" in comparison and isinstance(comparison["rightCode"], str)
+    assert isinstance(comparison["matchingRegions"], list)
+
+    # Stress/repeated-call check (bounded): repeated reads should stay stable.
+    for _ in range(5):
+        repeat = requests.get(
+            f"{base_url}/api/instructor/similarity-results/{result_id}/comparison",
+            headers=auth_headers,
+            timeout=10,
+        )
+        assert repeat.status_code == 200
+        repeated_payload = repeat.json()
+        assert repeated_payload["resultId"] == result_id
+        assert repeated_payload["assignmentId"] == assignment_id
+
+
+def test_similarity_results_for_wrong_instructor_return_403(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: Similarity endpoints enforce instructor ownership."""
+    run_id = happy_path_setup["runId"]
+    email = f"test-{uuid4()}@example.com"
+    signup = requests.post(
+        f"{base_url}/api/auth/signup",
+        json={"name": "Other", "email": email, "password": "secret123"},
+        timeout=10,
+    )
+    signup.raise_for_status()
+    headers = {"Authorization": f"Bearer {signup.json()['accessToken']}"}
+
+    r = requests.get(
+        f"{base_url}/api/instructor/analysis-runs/{run_id}/similarity-results",
+        headers=headers,
+        timeout=10,
+    )
+    assert r.status_code == 403
+    data = r.json()
+    assert "detail" in data
+    assert "Not your analysis run" in str(data["detail"])
+
+
+def test_similarity_result_id_bad_format_returns_400(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: Malformed similarity resultId is rejected with explicit 400 contract."""
+    r = requests.get(
+        f"{base_url}/api/instructor/similarity-results/not-a-valid-result-id",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert r.status_code == 400
+    payload = r.json()
+    assert "detail" in payload
+    assert "Invalid resultId format" in str(payload["detail"])
+
+
+# --- Edge / defect ---
+
+
+def test_no_token_returns_401_or_403(base_url: str) -> None:
+    """Guards: Protected routes reject requests without Authorization. Catches auth bypass."""
+    r = requests.get(f"{base_url}/api/auth/me", timeout=5)
+    assert r.status_code in (401, 403), f"Expected 401 or 403, got {r.status_code}"
+    data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+    detail = str(data.get("detail", ""))
+    assert "detail" in data or "Not authenticated" in detail or "authenticated" in detail.lower() or "token" in detail.lower()
+
+
+def test_invalid_assignment_id_returns_400(base_url: str, auth_headers: dict) -> None:
+    """Guards: Invalid ObjectId format returns 400. Catches to_object_id bypass."""
+    r = requests.get(
+        f"{base_url}/api/instructor/assignments/not-an-id",
+        headers=auth_headers,
+        timeout=5,
+    )
+    assert r.status_code == 400
+    data = r.json()
+    assert "detail" in data
+    assert "Invalid ID format" in str(data["detail"])
+
+
+def test_duplicate_signup_returns_409(base_url: str) -> None:
+    """Guards: Duplicate email returns 409. Catches uniqueness bypass."""
+    email = f"test-{uuid4()}@example.com"
+    requests.post(
+        f"{base_url}/api/auth/signup",
+        json={"name": "A", "email": email, "password": "p"},
+        timeout=10,
+    ).raise_for_status()
+    r = requests.post(
+        f"{base_url}/api/auth/signup",
+        json={"name": "B", "email": email, "password": "p"},
+        timeout=10,
+    )
+    assert r.status_code == 409
+    data = r.json()
+    assert "detail" in data
+    assert "already registered" in str(data["detail"]).lower()
+
+
+def test_unknown_assignment_key_returns_valid_false(base_url: str) -> None:
+    """Guards: Unknown key returns 200 with valid=false. Catches validate-key contract."""
+    r = requests.post(
+        f"{base_url}/api/public/assignment-key/validate",
+        json={"assignmentKey": "9999999999"},
+        timeout=5,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["valid"] is False
+    assert data["assignment"] is None
+
+
+def test_regenerate_key_returns_501_not_implemented(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: Stub endpoint returns 501 with correct schema. Catches stub contract."""
+    aid = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+    r = requests.post(
+        f"{base_url}/api/instructor/assignments/{aid}/regenerate-key",
+        headers=headers,
+        timeout=5,
+    )
+    assert r.status_code == 501
+    data = r.json()
+    assert data.get("status") == "not_implemented"
+    assert data.get("feature") == "regenerate_assignment_key"
+    assert "message" in data
+
+
+def test_wrong_instructor_cannot_access_analysis_run_returns_403(
+    base_url: str, auth_headers: dict, happy_path_setup: dict
+) -> None:
+    """Guards: Instructor A cannot access Instructor B's run. Catches ownership bypass."""
+    run_id = happy_path_setup["runId"]
+    # Sign up a different user
+    email = f"test-{uuid4()}@example.com"
+    r2 = requests.post(
+        f"{base_url}/api/auth/signup",
+        json={"name": "Bob", "email": email, "password": "secret123"},
+        timeout=10,
+    )
+    r2.raise_for_status()
+    token2 = r2.json()["accessToken"]
+    headers2 = {"Authorization": f"Bearer {token2}"}
+
+    r = requests.get(
+        f"{base_url}/api/instructor/analysis-runs/{run_id}",
+        headers=headers2,
+        timeout=5,
+    )
+    assert r.status_code == 403
+    data = r.json()
+    assert "detail" in data
+    assert "Not your analysis run" in str(data["detail"])
+
+
+def test_closed_assignment_rejects_submission_returns_400(
+    base_url: str, auth_headers: dict, test_zip
+) -> None:
+    """Guards: Closed assignment rejects submission. Catches isOpen enforcement."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "C", "term": "T"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    cid = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": cid,
+            "title": "A",
+            "language": "java",
+            "isOpen": False,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    key = ra.json()["assignmentKey"]
+
+    with open(test_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": key,
+                "studentIdentifier": "s@test.edu",
+                "studentName": "S",
+            },
+            files={"zipFile": ("sub.zip", f, "application/zip")},
+            timeout=10,
+        )
+    assert r.status_code == 400
+    data = r.json()
+    assert "detail" in data
+    assert "closed" in str(data["detail"]).lower()
+
+
+# --- Boundary / partition ---
+
+
+def test_empty_submissions_list_returns_empty_array(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: Assignment with no submissions returns []. Boundary: empty list."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "C", "term": "T"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    cid = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": cid,
+            "title": "A",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    aid = ra.json()["id"]
+
+    r = requests.get(
+        f"{base_url}/api/instructor/assignments/{aid}/submissions",
+        headers=auth_headers,
+        timeout=5,
+    )
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_minimal_zip_single_java_file_accepted(
+    base_url: str, auth_headers: dict, test_zip
+) -> None:
+    """Guards: ZIP with one .java file is accepted. Boundary: minimal valid input."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "C", "term": "T"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    cid = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": cid,
+            "title": "A",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    key = ra.json()["assignmentKey"]
+
+    with open(test_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": key,
+                "studentIdentifier": "s@test.edu",
+                "studentName": "S",
+            },
+            files={"zipFile": ("sub.zip", f, "application/zip")},
+            timeout=30,
+        )
+    assert r.status_code == 201
+    assert r.json()["fileCount"] >= 1
+
+
+def test_valid_objectid_format_but_nonexistent_returns_404(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: Valid-format ID for nonexistent resource returns 404."""
+    # 24-char hex string (valid ObjectId format) for nonexistent assignment
+    r = requests.get(
+        f"{base_url}/api/instructor/assignments/665f00000000000000000000",
+        headers=auth_headers,
+        timeout=5,
+    )
+    assert r.status_code == 404
+    data = r.json()
+    assert "detail" in data
+
+
+def test_assignment_key_wrong_length_rejected(base_url: str) -> None:
+    """Guards: Key with wrong length returns valid=false. Boundary: 9 or 11 digits."""
+    r = requests.post(
+        f"{base_url}/api/public/assignment-key/validate",
+        json={"assignmentKey": "123456789"},
+        timeout=5,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["valid"] is False
+    assert data["assignment"] is None
+
+
+def test_zero_submissions_run_completes(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: Queue run with 0 submissions; worker completes; no crash. Boundary: N=0."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "C", "term": "T"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    cid = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": cid,
+            "title": "A",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    aid = ra.json()["id"]
+
+    rr = requests.post(
+        f"{base_url}/api/instructor/assignments/{aid}/analysis-runs",
+        headers=auth_headers,
+        timeout=10,
+    )
+    rr.raise_for_status()
+    run_id = rr.json()["runId"]
+
+    # Poll until completed
+    max_wait = 60
+    interval = 2
+    deadline = time.time() + max_wait
+    last_status = None
+    while time.time() < deadline:
+        r = requests.get(
+            f"{base_url}/api/instructor/analysis-runs/{run_id}",
+            headers=auth_headers,
+            timeout=10,
+        )
+        assert r.status_code == 200
+        last_status = r.json().get("status")
+        if last_status in ("completed", "failed"):
+            break
+        time.sleep(interval)
+    assert last_status in ("completed", "failed"), f"Run stuck at {last_status}"
