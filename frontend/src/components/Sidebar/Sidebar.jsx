@@ -11,11 +11,15 @@ import { getCourseAssignments, getInstructorCourses, getAnalysisRunStatus, logou
 const navLinkClass = ({ isActive }) =>
   `flex items-center flex-1 gap-2 h-11 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`
 
-const navLinkContent = (isActive, icon, label) => (
+const navLinkContent = (isActive, icon, label, term) => (
   <>
     <div className={`w-2 h-full ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
     <img src={icon} alt="" />
-    <span className='truncate'>{label}</span>
+    <div className="flex flex-col">
+      <span className='truncate'>{label}</span>
+      <span className="text-[0.7rem]">{term}</span>
+    </div>
+    
   </>
 )
 
@@ -195,8 +199,10 @@ export default function Sidebar({refreshKey}) {
                     to={`/course/${course.id}`}
                     className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? '' : 'hover:bg-white/5'}`}
                   >
-                    {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name)}
+                    {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name, course.term)}
+                    
                   </NavLink>
+                  
                   <button 
                     onClick={() => toggleCourse(course.id)} 
                     className="p-1.5 mr-2 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
