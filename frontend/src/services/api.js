@@ -61,11 +61,12 @@ export function validateAssignmentKey(assignmentKey) {
   })
 }
 
-export function submitAssignment({ assignmentKey, studentIdentifier, studentName, zipFile }) {
+export function submitAssignment({ assignmentKey, studentIdentifier, studentName, studentEmail, zipFile }) {
   const form = new FormData()
   form.append('assignmentKey', assignmentKey)
   form.append('studentIdentifier', studentIdentifier)
   if (studentName) form.append('studentName', studentName)
+  if (studentEmail) form.append('studentEmail', studentEmail)
   form.append('zipFile', zipFile)
 
   return apiFetch('/public/submissions', {

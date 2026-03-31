@@ -204,10 +204,33 @@ export default function StudentSubmitPage() {
                 />
               </div>
 
+              <Input
+                label="Email Address (optional)"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="e.g. jane.doe@university.edu"
+                disabled={uploadLoading}
+              />
+
               {/* Drop zone */}
-              <div
-                className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-[#3b3660] transition-colors"
+              <button
+                type="button"
+                className={`w-full border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
+                  isDragging ? 'border-[#3b3660] bg-purple-50' : 'border-gray-300 hover:border-[#3b3660]'
+                }`}
                 onClick={() => fileRef.current.click()}
+                onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={e => {
+                  e.preventDefault()
+                  setIsDragging(false)
+                  const file = e.dataTransfer.files[0]
+                  if (!file) return
+                  if (!file.name.endsWith('.zip')) { setUploadError('Please drop a .zip file.'); return }
+                  setZipFile(file)
+                  setUploadError('')
+                }}
               >
                 <input
                   ref={fileRef}
@@ -234,11 +257,15 @@ export default function StudentSubmitPage() {
                 >
                   {zipFile ? 'Change File' : 'Choose File'}
                 </Button>
-              </div>
+              </button>
 
               <Button type="submit" fullWidth disabled={uploadLoading} size="lg">
                 {uploadLoading ? 'Uploading…' : 'Submit Assignment'}
               </Button>
+
+              <p className="text-xs text-gray-400 text-center">
+                Submitted files are retained for up to 30 days for academic integrity review and then permanently deleted.
+              </p>
             </form>
           </div>
         </div>
