@@ -439,19 +439,10 @@ def test_matching_regions_line_numbers_valid(
 
 
 # ---------------------------------------------------------------------------
-# Tests — known bug: template exclusion not wired (xfail)
+# Tests — template exclusion
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "KNOWN BUG: assignment.exclusionCode is never read by run_analysis_for_assignment. "
-        "Template exclusion is built and tested in regression_runner but never wired "
-        "into the production worker path. Fix: fetch exclusionCode in analysis_service.py "
-        "and pass it as template_text to build_similarity_metrics."
-    ),
-)
 def test_template_exclusion_reduces_similarity_when_exclusion_code_set(
     base_url: str, auth_headers: dict
 ) -> None:
@@ -459,9 +450,8 @@ def test_template_exclusion_reduces_similarity_when_exclusion_code_set(
     When exclusionCode is set on an assignment and submissions share only template
     code, the similarity score AFTER exclusion should be near 0.
 
-    This test documents the known production bug where exclusionCode is ignored.
-    It is marked xfail(strict=True) — it MUST fail until the bug is fixed.
-    Once fixed, remove the xfail marker.
+    Previously marked xfail — fixed by PR #37 (hybrid AST engine wires exclusionCode
+    through run_analysis_for_assignment -> build_similarity_metrics).
     """
     fixture = _FIXTURE_ROOT / "assignment_template_heavy"
     template_zip = fixture / "template.zip"
@@ -503,10 +493,7 @@ def test_template_exclusion_reduces_similarity_when_exclusion_code_set(
 
     score_with_exclusion = results[0]["similarityScore"]
     # After template exclusion, TemplateA vs TemplateB should score near 0
-    # (they are identical except for template boilerplate)
-    # In production today, exclusionCode is ignored and the score is HIGH (~0.9+)
-    # so this assertion FAILS — which is the expected xfail behavior.
+    # (they share only template boilerplate; unique logic is different)
     assert score_with_exclusion < 0.2, (
-        f"Expected near-zero score after template exclusion, got {score_with_exclusion:.3f}. "
-        f"This confirms exclusionCode is not being applied in production."
+        f"Expected near-zero score after template exclusion, got {score_with_exclusion:.3f}."
     )
