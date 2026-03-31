@@ -49,7 +49,7 @@ docker compose up --build
 This builds and starts:
 - **mongodb** on port 27017
 - **backend** (FastAPI) on port 8000
-- **worker** (analysis placeholder)
+- **worker** (analysis + retention purge loop)
 - **frontend** (Vite dev server) on port 5173
 
 ---
@@ -138,8 +138,8 @@ docker compose down -v
 
 ---
 
-## Skeleton Placeholder Notes
+## Runtime Feature Notes
 
-- Some SRS coverage endpoints are intentionally scaffold-only and currently return `501 Not Implemented` (see `docs/API_CONTRACT.md`).
-- `.env.example` includes optional placeholder settings for future retention, anonymization, notifications, and rate-limiting modules.
-- These placeholders provide implementation locations only; they do not change the current happy-path behavior.
+- Admin endpoints for key management, exclusion-code, and submission cleanup are implemented (see `docs/API_CONTRACT.md`).
+- `.env.example` includes configuration switches for retention, anonymization, notifications, and rate-limiting.
+- Rate limits are disabled by default (`0`) and can be enabled per scope.

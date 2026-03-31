@@ -449,7 +449,7 @@ backend/
     │   ├── public.py                  POST /assignment-key/validate, POST /submissions
     │   ├── instructor.py              Courses, assignments, submissions list, analysis runs
     │   ├── instructor_similarity.py   Ranked results, pair detail, side-by-side compare
-    │   └── instructor_admin.py        Stub routes for key mgmt/admin actions (returns 501)
+    │   └── instructor_admin.py        Key management/admin routes (download/delete/exclusion)
     ├── schemas/                       Pydantic models defining request/response shapes
     │   ├── auth.py                    SignupRequest, LoginRequest, AuthResponse, MeResponse
     │   ├── course.py                  CourseCreateRequest, CourseResponse
@@ -457,8 +457,7 @@ backend/
     │   ├── public.py                  ValidateKeyRequest/Response, SubmissionResponse
     │   ├── analysis.py                CreateRunResponse, RunStatusResponse
     │   ├── similarity.py              Similarity list/detail/comparison response shapes
-    │   ├── exclusion.py               Stub request/response shapes for exclusion-code CRUD
-    │   └── class_list.py              Stub request/response shapes for class-list management
+    │   └── exclusion.py               Request/response shapes for exclusion-code CRUD
     ├── services/
     │   ├── zip_service.py             safe_extract_zip, list_valid_source_files, is_binary_file
     │   ├── merge_service.py           merge_source_files (deterministic, sorted, with headers)
@@ -629,8 +628,7 @@ GET  /api/instructor/assignments/{id}/submissions/download
 DELETE /api/instructor/assignments/{id}/submissions
 DELETE /api/instructor/assignments/{id}
 GET/PUT/DELETE /api/instructor/assignments/{id}/exclusion-code
-GET/PUT/POST /api/instructor/courses/{id}/class-list
-  → currently placeholder routes returning 501 (skeleton contract only)
+  → implemented admin route surface (see docs/API_CONTRACT.md)
 ```
 
 **Enums (use these exact strings):**
@@ -667,7 +665,7 @@ This merged file is the input the analysis engine will later read when computing
 - **No Redis / no Celery.** The worker is a simple Python loop that polls the `analysis_runs` MongoDB collection every 5 seconds. It uses `find_one_and_update` to atomically claim one `queued` job, which prevents two workers from processing the same run.
 - **JWT auth** uses HS256 via `python-jose`. Tokens expire after `JWT_EXPIRES_MINUTES` (default 60). The `get_current_instructor` dependency in `core/deps.py` validates the token and loads the instructor from MongoDB.
 - **Uploads persist** via the Docker Compose volume mount `./uploads:/app/uploads`. Files survive container restarts. They are git-ignored (only `uploads/.gitkeep` is tracked).
-- **SRS placeholders** for admin actions, key management, retention/privacy, notifications, and rate-limits are intentionally scaffold-only right now. New placeholder endpoints return HTTP `501`.
+- Retention/privacy/notification/rate-limit modules are config-driven and may be disabled by env settings; see `.env.example` and `docs/API_CONTRACT.md`.
 
 ---
 
