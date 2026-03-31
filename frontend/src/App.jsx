@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
 import AssignmentDetailPage from './pages/AssignmentDetailPage'
@@ -11,11 +11,12 @@ import SimilarityPairDetailPage from './pages/SimilarityPairDetailPage'
 import SimilarityComparisonPage from './pages/SimilarityComparisonPage'
 
 function ProtectedRoute({ children }) {
-  const [authorized, setAuthorized] = useState(null) // null = loading
+  const [authorized, setAuthorized] = useState(null)
+  
+  const pageLocation = useLocation()
 
   useEffect(() => {
     const token = localStorage.getItem("token")
-
     if (!token) {
       setAuthorized(false)
       return
@@ -31,17 +32,17 @@ function ProtectedRoute({ children }) {
           setAuthorized(true) 
         }
       })
-  }, [])
+  }, [pageLocation])
 
   if (authorized === null) {
-    return <div>Loading...</div>
-  }
+      return <div>Loading...</div>
+    }
 
-  if (!authorized) {
-    return <Navigate to="/login" replace />
-  }
+    if (!authorized) {
+      return <Navigate to="/login" replace />
+    }
 
-  return children
+    return children
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
@@ -75,8 +76,8 @@ export default function App() {
           }
         />
         <Route path="/student-submit" element={<StudentSubmitPage/>}/>
-        <Route path="/course/:courseId" element={<CoursePage/>}/>
-        <Route path="/course/:courseId/assignment/:assignmentId" element={<AssignmentDetailPage/>}/>
+        <Route path="/course/:courseId" element={<ProtectedRoute><CoursePage/></ProtectedRoute>}/>
+        <Route path="/course/:courseId/assignment/:assignmentId" element={<ProtectedRoute><AssignmentDetailPage/></ProtectedRoute>}/>
         <Route path="/similarity/:runId" element={<ProtectedRoute><SimilarityReportPage /></ProtectedRoute>}/>
         <Route path="/similarity/:runId/pair/:resultId" element={<ProtectedRoute><SimilarityPairDetailPage /></ProtectedRoute>}/>
         <Route path="/similarity/:runId/pair/:resultId/compare" element={<ProtectedRoute><SimilarityComparisonPage /></ProtectedRoute>}/>

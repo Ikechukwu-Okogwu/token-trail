@@ -5,6 +5,7 @@ import homeIcon from '../../assets/icons/home.svg'
 import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
+import notificationsUnread from '../../assets/icons/notifications_unread.svg'
 import assignmentIcon from '../../assets/icons/assignment.svg'
 import { getCourseAssignments, getInstructorCourses, getAnalysisRunStatus, logout } from '../../services/api'
 
@@ -42,6 +43,7 @@ function ChevronUp({ className = 'w-4 h-4' }) {
 export default function Sidebar({refreshKey}) {
   const location = useLocation()
   const [courses, setCourses] = useState([])
+  const [coursesLoading, setCoursesLoading] = useState(false)
   const token = localStorage.getItem('token')
   const [acctMenuOpen, setAcctMenuOpen] = useState(false)
   const [notiMenuOpen, setNotiMenuOpen] = useState(false)
@@ -53,7 +55,9 @@ export default function Sidebar({refreshKey}) {
   const [loadingCourseAssignments, setLoadingCourseAssignments] = useState({})
   const [expandedIds, setExpandedIds] = useState(new Set())
   const {runId} = useParams()
-  const [selectedAssign, setSelectedAssign] = useState('')
+  const [runStatus, setRunStatus] = useState(null)
+  const [notifications, setNotifications] = useState([])
+  const [hasUnread, setUnread] = useState(false)
 
   const fetchAssignments = (courseId) => {
     if (courseAssignments[courseId] || loadingCourseAssignments[courseId]) return
@@ -76,6 +80,25 @@ export default function Sidebar({refreshKey}) {
       })
   }
 
+  const handleNotiOpened = () => {
+    setUnread(false)
+    setNotiMenuOpen(prev => !prev)
+    //TODO: clear notifications from db
+  }
+
+  useEffect(() => {
+    if (token) {
+      //TODO: fetch notifications
+      setNotifications(["analysis donhjkDGKJsdhgjl zsve khevnsjthnslkjhjsetmmhskje",{message:"b",href:"hjgm"},"c","c","c","c","c","c","c","c","c","c","c"])
+
+      setUnread(notifications.length > 0)
+    }
+  }, [token])
+
+  useEffect(() => {
+    setUnread(notifications.length > 0)
+  }, [notifications])
+
   useEffect(() => {
     if (token) {
       getInstructorCourses()
@@ -87,48 +110,50 @@ export default function Sidebar({refreshKey}) {
         })
     }
   }, [token, refreshKey])
-  
-  useEffect(() => { //open dropdown automatically if on course
+
+  useEffect(() => {
     if (runId) {
-      getAnalysisRunStatus(runId).then((status) => {
-        setSelectedAssign(status.assignmentId)
-        setExpandedIds((prevExpanded) => {
-          const nextExpanded = new Set(prevExpanded)
-          
-          courses.forEach((course) => {
-            const isActiveCourse = course.id === status.courseId
-
-            if (isActiveCourse) {
-              nextExpanded.add(course.id)
-            }
-
-          })
-
-          return nextExpanded
-        })
-      })
-      .catch((err) => {
-        console.error('Failed to fetch run status:', err)
-      })
+      getAnalysisRunStatus(runId)
+        .then(setRunStatus)
+        .catch(console.error)
     }
+  }, [runId])
 
-    else {
-      setExpandedIds((prevExpanded) => {
-        const nextExpanded = new Set(prevExpanded)
-        
-        courses.forEach((course) => {
-          const isActiveCourse = location.pathname.startsWith(`/course/${course.id}`)
+  useEffect(() => {
+    if (!runStatus || courses.length === 0) return
 
-          if (isActiveCourse) {
-            nextExpanded.add(course.id)
-          }
-        })
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      next.add(runStatus.courseId)
+      return next
+    })
+  }, [runStatus, courses])
 
-        return nextExpanded
+  useEffect(() => {
+    if (runStatus) return // don't override run logic
+
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+
+      courses.forEach(course => {
+        if (location.pathname.startsWith(`/course/${course.id}`)) {
+          next.add(course.id)
+        }
       })
+
+      return next
+    })
+  }, [courses, location.pathname, runStatus])
+
+  useEffect(() => {
+    if (!runStatus || courses.length === 0) return
+
+    const courseId = runStatus.courseId
+
+    if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
+      fetchAssignments(courseId)
     }
-    
-  }, [courses, courseAssignments, location.pathname, runId])
+  }, [runStatus, courses, courseAssignments, loadingCourseAssignments])
 
   useEffect(() => { //fetches assignments automatically if on page where dropdown starts open
     const match = location.pathname.match(/^\/course\/([^\/]+)(?:\/assignment\/[^\/]+)?$/)
@@ -138,16 +163,8 @@ export default function Sidebar({refreshKey}) {
         fetchAssignments(courseId)
       }
     }
-    else if (runId) {
-      getAnalysisRunStatus(runId).then((status) => {
-        const courseId = status.courseId
-        if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
-          fetchAssignments(courseId)
-        }
-      })
-    }
     
-  }, [location.pathname, courseAssignments, loadingCourseAssignments, runId])
+  }, [location.pathname, courseAssignments, loadingCourseAssignments])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -181,8 +198,8 @@ export default function Sidebar({refreshKey}) {
     if (!isCurrentlyExpanded) {
           fetchAssignments(courseId)
     }
-
   }
+
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-55 bg-brand-purple text-brand-pink shadow-right-sidebar shrink-0 flex flex-col">
@@ -191,7 +208,7 @@ export default function Sidebar({refreshKey}) {
         <nav>
           <ul>
             <li>
-              <NavLink to="/dashboard" className={navLinkClass}>
+              <NavLink to="/dashboard" className={navLinkClass} title="Home">
                 {({ isActive }) => navLinkContent(isActive, homeIcon, 'Home')}
               </NavLink>
             </li>
@@ -204,6 +221,7 @@ export default function Sidebar({refreshKey}) {
                   <NavLink
                     to={`/course/${course.id}`}
                     className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? '' : 'hover:bg-white/5'}`}
+                    title={course.name}
                   >
                     {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name, course.term)}
                     
@@ -229,11 +247,12 @@ export default function Sidebar({refreshKey}) {
                         <li key={a.id}>
                           <NavLink
                             to={`/course/${course.id}/assignment/${a.id}`}
-                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive || a.id===selectedAssign ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive || a.id===runStatus?.assignmentId ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                            title={a.title}
                           >
                             {({ isActive }) => (
                               <>
-                                <div className={`w-2 h-full ml-[-1.5px] ${isActive || a.id===selectedAssign ? 'bg-[#FEF7FFBF]' : ''}`} />
+                                <div className={`w-2 h-full ml-[-1.5px] ${isActive || a.id===runStatus?.assignmentId ? 'bg-[#FEF7FFBF]' : ''}`} />
                                 <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
                                 <span className="truncate">{a.title}</span>
                               </>
@@ -254,23 +273,45 @@ export default function Sidebar({refreshKey}) {
       </div>
       {acctMenuOpen && (
         <div className='flex flex-col h-16 w-28 bg-brand-pink z-50 absolute bottom-15 left-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-hidden' ref={acctMenuRef}>
-          <button className='flex-1 hover:bg-bg-gray text-left px-1.5'>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 cursor-pointer'>
             Settings
           </button>
-          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red' onClick={() => logout()}>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red cursor-pointer' onClick={() => logout()}>
             Sign Out
           </button>
         </div>
       )}
       {notiMenuOpen && (
-        <div className='flex flex-col h-16 w-28 bg-brand-pink z-50 absolute bottom-15 right-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-hidden' ref={notiMenuRef}>
-          {/* <button className='flex-1 hover:bg-bg-gray text-left px-1.5'>
-            Settings
-          </button>
-          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red' onClick={() => logout()}>
-            Sign Out
-          </button> */}
-          noti
+        <div className='flex flex-col max-h-64 w-44 bg-brand-pink z-50 absolute bottom-15 right-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-y-auto divide-y divide-bg-gray' ref={notiMenuRef}>
+          {notifications.length === 0 ? (
+            <div className='flex items-center justify-center min-h-16 text-sm text-[#4D4D4D] p-2'>
+              No notifications
+            </div>
+          ) : (
+            notifications.map((notification, index) => {
+              const message = typeof notification === 'string' ? notification : notification.message || 'Notification'
+              const href = typeof notification === 'object' && typeof notification.href === 'string' ? notification.href.trim() : ''
+              const hasLink = href !== ''
+
+              return hasLink ? (
+                <NavLink
+                  title={message}
+                  to={href}
+                  className='flex items-center text-left px-3 py-2 hover:bg-bg-gray text-sm cursor-pointer'
+                >
+                  <span className="truncate">{message}</span>
+                </NavLink>
+              ) : (
+                <button
+                  title={message}
+                  type='button'
+                  className='flex items-center text-left w-full px-3 py-2 text-sm'
+                >
+                  <span className="truncate">{message}</span>
+                </button>
+              )
+            })
+          )}
         </div>
       )}
       
@@ -282,10 +323,10 @@ export default function Sidebar({refreshKey}) {
           <img src={accountIcon} alt="Account" className='h-8'/>
         </button>
         <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5"
-          onClick={() => setNotiMenuOpen(prev => !prev)}
+          onClick={() => handleNotiOpened()}
           ref={notiBtnRef}
         >
-          <img src={notificationsIcon} alt="Notifications" className='h-7'/>
+          <img src={hasUnread ? notificationsUnread : notificationsIcon} alt="Notifications" className='h-7'/>
         </button>
       </div>
     </aside>
