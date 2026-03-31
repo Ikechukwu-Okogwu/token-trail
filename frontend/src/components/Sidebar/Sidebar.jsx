@@ -51,7 +51,7 @@ export default function Sidebar({refreshKey}) {
   const [loadingCourseAssignments, setLoadingCourseAssignments] = useState({})
   const [expandedIds, setExpandedIds] = useState(new Set())
   const {runId} = useParams()
-  const [selectedAssign, setSelectedAssign] = useState('')
+  const [runStatus, setRunStatus] = useState(null)
 
   const fetchAssignments = (courseId) => {
     if (courseAssignments[courseId] || loadingCourseAssignments[courseId]) return
@@ -85,48 +85,50 @@ export default function Sidebar({refreshKey}) {
         })
     }
   }, [token, refreshKey])
-  
-  useEffect(() => { //open dropdown automatically if on course
+
+  useEffect(() => {
     if (runId) {
-      getAnalysisRunStatus(runId).then((status) => {
-        setSelectedAssign(status.assignmentId)
-        setExpandedIds((prevExpanded) => {
-          const nextExpanded = new Set(prevExpanded)
-          
-          courses.forEach((course) => {
-            const isActiveCourse = course.id === status.courseId
-
-            if (isActiveCourse) {
-              nextExpanded.add(course.id)
-            }
-
-          })
-
-          return nextExpanded
-        })
-      })
-      .catch((err) => {
-        console.error('Failed to fetch run status:', err)
-      })
+      getAnalysisRunStatus(runId)
+        .then(setRunStatus)
+        .catch(console.error)
     }
+  }, [runId])
 
-    else {
-      setExpandedIds((prevExpanded) => {
-        const nextExpanded = new Set(prevExpanded)
-        
-        courses.forEach((course) => {
-          const isActiveCourse = location.pathname.startsWith(`/course/${course.id}`)
+  useEffect(() => {
+    if (!runStatus || courses.length === 0) return
 
-          if (isActiveCourse) {
-            nextExpanded.add(course.id)
-          }
-        })
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      next.add(runStatus.courseId)
+      return next
+    })
+  }, [runStatus, courses])
 
-        return nextExpanded
+  useEffect(() => {
+    if (runStatus) return // don't override run logic
+
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+
+      courses.forEach(course => {
+        if (location.pathname.startsWith(`/course/${course.id}`)) {
+          next.add(course.id)
+        }
       })
+
+      return next
+    })
+  }, [courses, location.pathname, runStatus])
+
+  useEffect(() => {
+    if (!runStatus || courses.length === 0) return
+
+    const courseId = runStatus.courseId
+
+    if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
+      fetchAssignments(courseId)
     }
-    
-  }, [courses, courseAssignments, location.pathname, runId])
+  }, [runStatus, courses, courseAssignments, loadingCourseAssignments])
 
   useEffect(() => { //fetches assignments automatically if on page where dropdown starts open
     const match = location.pathname.match(/^\/course\/([^\/]+)(?:\/assignment\/[^\/]+)?$/)
@@ -136,16 +138,8 @@ export default function Sidebar({refreshKey}) {
         fetchAssignments(courseId)
       }
     }
-    else if (runId) {
-      getAnalysisRunStatus(runId).then((status) => {
-        const courseId = status.courseId
-        if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
-          fetchAssignments(courseId)
-        }
-      })
-    }
     
-  }, [location.pathname, courseAssignments, loadingCourseAssignments, runId])
+  }, [location.pathname, courseAssignments, loadingCourseAssignments])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -224,11 +218,11 @@ export default function Sidebar({refreshKey}) {
                         <li key={a.id}>
                           <NavLink
                             to={`/course/${course.id}/assignment/${a.id}`}
-                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive || a.id===selectedAssign ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive || a.id===runStatus?.assignmentId ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
                           >
                             {({ isActive }) => (
                               <>
-                                <div className={`w-2 h-full ml-[-1.5px] ${isActive || a.id===selectedAssign ? 'bg-[#FEF7FFBF]' : ''}`} />
+                                <div className={`w-2 h-full ml-[-1.5px] ${isActive || a.id===runStatus?.assignmentId ? 'bg-[#FEF7FFBF]' : ''}`} />
                                 <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
                                 <span className="truncate">{a.title}</span>
                               </>
