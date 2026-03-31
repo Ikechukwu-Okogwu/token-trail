@@ -35,6 +35,11 @@ ANONYMIZATION_SALT: str = _get_env("ANONYMIZATION_SALT", "")
 # Notification/email placeholders
 EMAIL_PROVIDER: str = _get_env("EMAIL_PROVIDER", "none")
 EMAIL_FROM: str = _get_env("EMAIL_FROM", "")
+SMTP_HOST: str = _get_env("SMTP_HOST", "")
+SMTP_PORT: int = int(_get_env("SMTP_PORT", "587"))
+SMTP_USERNAME: str = _get_env("SMTP_USERNAME", "")
+SMTP_PASSWORD: str = _get_env("SMTP_PASSWORD", "")
+SMTP_USE_TLS: bool = _get_env("SMTP_USE_TLS", "1") == "1"
 
 # Rate-limit placeholders
 RATE_LIMIT_AUTH_ATTEMPTS_PER_HOUR: int = int(
