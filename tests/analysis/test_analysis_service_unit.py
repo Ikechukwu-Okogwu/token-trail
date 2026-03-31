@@ -493,3 +493,102 @@ def test_non_java_with_template_behavior_unchanged() -> None:
     assert result["similarity"] == pytest.approx(1.0, abs=0.01), (
         f"Identical C++ texts should score ~1.0, got {result['similarity']:.4f}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase B: AST/token adapter contract tests
+# ---------------------------------------------------------------------------
+
+def test_java_with_template_uses_ast_exclusion() -> None:
+    """
+    Phase B guard: Java submissions must go through the AST/token path.
+
+    The AST path stamps evidenceType='tokenize_group' on every matching region.
+    The character-winnowing path stamps evidenceType='winnowing_group'.
+
+    We use the renamed-copy pair WITHOUT a template because after template
+    exclusion both sides are reduced to small independent student classes that
+    produce no matching groups (correct engine behaviour, not a failure).
+    The no-template variant retains the full code and produces high-similarity
+    matching regions, letting us verify the evidenceType marker unambiguously.
+    """
+    result = build_similarity_metrics(
+        _JAVA_STUDENT_A, _JAVA_STUDENT_A_RENAMED,
+        language="java",
+    )
+    regions = result["matchingRegions"]
+    assert len(regions) > 0, (
+        "Expected matching regions for a renamed-copy Java pair (no template). "
+        "test_java_no_template_still_uses_tokenize_path already guards the score "
+        ">= 0.85, so regions must be non-empty."
+    )
+    for r in regions:
+        assert r["evidenceType"] == "tokenize_group", (
+            f"Expected evidenceType='tokenize_group' (AST path) but got "
+            f"'{r['evidenceType']}'. Java may be falling back to character winnowing."
+        )
+
+
+def test_java_tokenize_adapter_all_fields_present() -> None:
+    """
+    Phase B contract: build_similarity_metrics with language='java' must return
+    all 7 required fields with correct types, whether or not a template is used.
+    """
+    for label, kwargs in [
+        ("no template", {"language": "java"}),
+        ("with template", {"language": "java", "template_text": _JAVA_TEMPLATE}),
+    ]:
+        result = build_similarity_metrics(_JAVA_STUDENT_A, _JAVA_STUDENT_B, **kwargs)
+
+        assert isinstance(result["similarity"], float), f"[{label}] similarity must be float"
+        assert 0.0 <= result["similarity"] <= 1.0, f"[{label}] similarity out of range"
+
+        assert isinstance(result["matchingRegions"], list), f"[{label}] matchingRegions must be list"
+        for r in result["matchingRegions"]:
+            assert "leftStartLine" in r and "leftEndLine" in r, f"[{label}] region missing line keys"
+            assert "score" in r, f"[{label}] region missing 'score'"
+            assert "evidenceType" in r, f"[{label}] region missing 'evidenceType'"
+            assert "snippet" in r, f"[{label}] region missing 'snippet'"
+            assert isinstance(r["score"], float), f"[{label}] region score must be float"
+
+        assert isinstance(result["excludedRegions"], list), f"[{label}] excludedRegions must be list"
+        assert isinstance(result["confidence"], float), f"[{label}] confidence must be float"
+        assert 0.0 <= result["confidence"] <= 1.0, f"[{label}] confidence out of range"
+        assert isinstance(result["snippets"], list), f"[{label}] snippets must be list"
+        assert isinstance(result["largestBlockSize"], int), f"[{label}] largestBlockSize must be int"
+        assert result["largestBlockSize"] >= 0, f"[{label}] largestBlockSize must be >= 0"
+        assert isinstance(result["summary"], str), f"[{label}] summary must be str"
+        assert result["summary"], f"[{label}] summary must not be empty"
+
+
+# ---------------------------------------------------------------------------
+# Phase D: dependency guard + C/C++ dispatch isolation
+# ---------------------------------------------------------------------------
+
+def test_requirements_include_tokenize_runtime_dependencies() -> None:
+    """
+    Guard: backend/requirements.txt must list pandas and numpy.
+    Without them the Java tokenize pipeline fails to import at container
+    startup and silently falls back to character winnowing.
+    """
+    req_path = Path(__file__).resolve().parents[2] / "backend" / "requirements.txt"
+    assert req_path.is_file(), f"requirements.txt not found at {req_path}"
+    contents = req_path.read_text(encoding="utf-8").lower()
+    assert "pandas" in contents, "pandas missing from requirements.txt"
+    assert "numpy" in contents, "numpy missing from requirements.txt"
+
+
+def test_c_cpp_dispatch_uses_winnowing_path() -> None:
+    """
+    C and C++ must always use the character-winnowing path, never the Java
+    tokenize pipeline. Verify via evidenceType on matching regions.
+    """
+    for lang, label in [("c", "C"), ("c++", "C++")]:
+        result = build_similarity_metrics(
+            _CPP_A, _CPP_B_IDENTICAL, language=lang,
+        )
+        for r in result["matchingRegions"]:
+            assert r["evidenceType"] == "winnowing_group", (
+                f"[{label}] Expected evidenceType='winnowing_group' but got "
+                f"'{r['evidenceType']}'. {label} should never route to Java tokenize."
+            )

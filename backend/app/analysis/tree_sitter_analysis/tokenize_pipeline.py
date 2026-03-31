@@ -27,6 +27,7 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy imp
     JsonLeafKgramStrategy,
 )
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import Token
+from app.analysis.tree_sitter_analysis.template_exclusion import strip_template_classes
 
 
 _TOKENIZE_WORKFLOW_DIR = Path(__file__).resolve().parent / "tokenize_workflow"
@@ -111,6 +112,7 @@ def run_tokenize_similarity_pipeline(
     code_a: str,
     code_b: str,
     *,
+    template: str = "",
     strategy: JsonLeafKgramStrategy | None = None,
     type_mapping_path: str | Path | None = None,
     group_filter_config_path: str | Path | None = None,
@@ -122,19 +124,30 @@ def run_tokenize_similarity_pipeline(
     default_categories: Sequence[str] = ("unmapped",),
 ) -> TokenizePipelineResult:
     """
-    1. Tokenize both sides (strategy), Winnow k-grams, pair, group.
-    2. Load type mapping + filter config; ``filter_groups`` on raw groups.
-    3. ``dye_tokens`` on kept groups → coverage ``similarity`` = (marked_a + marked_b) / (n_a + n_b).
+    1. If ``template`` is non-blank, strip top-level template classes from both
+       ``code_a`` and ``code_b`` via AST byte-span removal before tokenization.
+    2. Tokenize both sides (strategy), Winnow k-grams, pair, group.
+    3. Load type mapping + filter config; ``filter_groups`` on raw groups.
+    4. ``dye_tokens`` on kept groups → coverage ``similarity`` = (marked_a + marked_b) / (n_a + n_b).
 
     Raises:
-        ValueError: if either source is empty/whitespace-only, or either side has no
-            tokens after tokenization (treated as unusable for this pipeline).
+        ValueError: if either source is empty/whitespace-only (before or after template
+            exclusion), or either side has no tokens after tokenization.
     """
     if not (code_a or "").strip() or not (code_b or "").strip():
         raise ValueError(
             "run_tokenize_similarity_pipeline: code_a and code_b must be non-empty "
             "(non-whitespace)"
         )
+
+    if (template or "").strip():
+        code_a = strip_template_classes(code_a, template)
+        code_b = strip_template_classes(code_b, template)
+        if not (code_a or "").strip() or not (code_b or "").strip():
+            raise ValueError(
+                "run_tokenize_similarity_pipeline: after template exclusion, both "
+                "code_a and code_b must be non-empty (non-whitespace)"
+            )
 
     strategy = strategy or JsonLeafKgramStrategy(k=5)
     map_path = Path(type_mapping_path or DEFAULT_TYPE_MAPPING_PATH)
