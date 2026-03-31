@@ -89,7 +89,6 @@ export default function Sidebar({refreshKey}) {
   useEffect(() => {
     if (token) {
       //TODO: fetch notifications
-      setNotifications(["analysis donhjkDGKJsdhgjl zsve khevnsjthnslkjhjsetmmhskje",{message:"b",href:"hjgm"},"c","c","c","c","c","c","c","c","c","c","c"])
 
       setUnread(notifications.length > 0)
     }
