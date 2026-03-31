@@ -77,8 +77,9 @@ describe('Sidebar component', () => {
   it('opens a course when its toggle button is clicked and fetches assignments', async () => {
     const user = userEvent.setup()
     renderSidebar()
+    const sidebar = screen.getAllByRole('complementary')[0]
 
-    const courseListItem = await screen.findByText('COSC 4P02')
+    const courseListItem = await within(sidebar).findByText('COSC 4P02')
     const toggleButton = within(courseListItem.closest('li')).getByRole('button')
 
     expect(toggleButton).toHaveAttribute('aria-expanded', 'false')
@@ -88,16 +89,17 @@ describe('Sidebar component', () => {
     await waitFor(() => expect(toggleButton).toHaveAttribute('aria-expanded', 'true'))
     expect(getCourseAssignments).toHaveBeenCalledTimes(1)
     expect(getCourseAssignments).toHaveBeenCalledWith('course-1')
-
-    expect(await screen.findByText('Assignment 1')).toBeInTheDocument()
-    expect(screen.getAllByText('Assignment 2')[0]).toBeInTheDocument()
+    
+    expect(await within(sidebar).findByText('Assignment 1')).toBeInTheDocument()
+    expect(within(sidebar).getByText('Assignment 2')).toBeInTheDocument()
   })
 
   it('auto-expands the active course when the route contains an assignment path', async () => {
     renderSidebar({ initialEntries: ['/course/course-1/assignment/a1'] })
+    const sidebar = screen.getAllByRole('complementary')[0]
 
-    expect(await screen.findByText('Assignment 1')).toBeInTheDocument()
-    expect(screen.getAllByText('Assignment 2')[0]).toBeInTheDocument()
+    expect(await within(sidebar).findByText('Assignment 1')).toBeInTheDocument()
+    expect(within(sidebar).getByText('Assignment 2')).toBeInTheDocument()
     expect(getCourseAssignments).toHaveBeenCalledWith('course-1')
 
     const courseListItem = screen.getAllByText('COSC 4P02')[0].closest('li')
@@ -114,13 +116,14 @@ describe('Sidebar component', () => {
       </MemoryRouter>,
       { legacyRoot: true }
     )
+    const sidebar = screen.getAllByRole('complementary')[0]
 
     await waitFor(() => expect(getAnalysisRunStatus).toHaveBeenCalledWith('run-123'))
 
-    const assignments = await screen.findAllByText('Assignment 2')
+    const assignments = await within(sidebar).findByText('Assignment 2')
 
     await waitFor(() => {
-      const assignmentLink = assignments[0].closest('a')
+      const assignmentLink = assignments.closest('a')
       expect(assignmentLink).toBeInTheDocument()
     })
     
