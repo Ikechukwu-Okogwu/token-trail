@@ -38,3 +38,8 @@ class AssignmentResponse(BaseModel):
     allowLate: bool = False
     exclusionCode: str | None = None
     createdAt: str
+    # Aggregated counts — populated by the assignment-list endpoint.
+    # Default to 0 / None so single-get and create responses stay well-typed.
+    submissionCount: int = 0
+    # 0–100 integer, or None when no analysis run has ever been queued.
+    analysisProgress: int | None = None
