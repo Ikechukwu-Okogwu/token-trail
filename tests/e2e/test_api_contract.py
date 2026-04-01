@@ -13,6 +13,7 @@ Test Plan:
 """
 from datetime import datetime, timedelta, timezone
 import io
+from pathlib import Path
 import time
 import zipfile
 from uuid import uuid4
@@ -1216,6 +1217,62 @@ def test_submission_accepts_optional_student_email(
     assert r.status_code == 201
     body = r.json()
     assert body["status"] == "processed"
+
+
+def test_submission_rejects_empty_zip(base_url: str, happy_path_setup: dict, tmp_path: Path) -> None:
+    """Defect guard: ZIP with no valid source files must be rejected with HTTP 400."""
+    key = happy_path_setup["assignmentKey"]
+    empty_zip = tmp_path / "empty.zip"
+    with zipfile.ZipFile(empty_zip, "w", zipfile.ZIP_DEFLATED):
+        pass  # intentionally empty
+    with open(empty_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={"assignmentKey": key, "studentIdentifier": "empty@test.edu"},
+            files={"zipFile": ("empty.zip", f, "application/zip")},
+            timeout=30,
+        )
+    assert r.status_code == 400
+    detail = r.json().get("detail", "")
+    assert "source files" in detail.lower(), f"unexpected detail: {detail!r}"
+
+
+def test_submission_rejects_zip_with_wrong_language_files(
+    base_url: str, happy_path_setup: dict, tmp_path: Path
+) -> None:
+    """Defect guard: ZIP containing only wrong-language files must be rejected with HTTP 400."""
+    key = happy_path_setup["assignmentKey"]
+    wrong_lang_zip = tmp_path / "wrong_lang.zip"
+    with zipfile.ZipFile(wrong_lang_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("main.py", "print('hello')")  # Python file, assignment is Java
+    with open(wrong_lang_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={"assignmentKey": key, "studentIdentifier": "wronglang@test.edu"},
+            files={"zipFile": ("wrong_lang.zip", f, "application/zip")},
+            timeout=30,
+        )
+    assert r.status_code == 400
+    detail = r.json().get("detail", "")
+    assert "source files" in detail.lower(), f"unexpected detail: {detail!r}"
+
+
+def test_submission_valid_zip_still_succeeds(
+    base_url: str, happy_path_setup: dict, test_zip: Path
+) -> None:
+    """Regression guard: valid ZIP with Java source still returns HTTP 201 after empty-ZIP fix."""
+    key = happy_path_setup["assignmentKey"]
+    with open(test_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={"assignmentKey": key, "studentIdentifier": "regression@test.edu"},
+            files={"zipFile": ("sub.zip", f, "application/zip")},
+            timeout=30,
+        )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["status"] == "processed"
+    assert body["fileCount"] >= 1
 
 
 def test_exclusion_code_crud_endpoints(base_url: str, happy_path_setup: dict) -> None:

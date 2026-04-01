@@ -132,6 +132,11 @@ async def submit(
 
     # 6. Filter valid source files by language
     source_files = list_valid_source_files(extracted_dir, language)
+    if not source_files:
+        raise HTTPException(
+            status_code=400,
+            detail=f"ZIP contains no valid {language} source files",
+        )
 
     # 7. Merge valid files deterministically (sorted by relative path)
     merged_path = merged_dir / "merged.txt"
