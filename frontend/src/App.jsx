@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
 import AssignmentDetailPage from './pages/AssignmentDetailPage'
@@ -35,7 +36,11 @@ function ProtectedRoute({ children }) {
   }, [pageLocation])
 
   if (authorized === null) {
-      return <div>Loading...</div>
+      return (
+        <div className="h-screen flex items-center justify-center bg-brand-pink/40">
+          <span className="text-sm text-gray-400">Loading…</span>
+        </div>
+      )
     }
 
     if (!authorized) {
@@ -57,11 +62,6 @@ export default function App() {
       .catch(console.error)
   }, [])
 
-  function handleLogout() {
-    localStorage.removeItem('token')
-    window.location.href = '/login'
-  }
-
   return (
     <>
       <Routes>
@@ -71,7 +71,7 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <HomePage onLogout={handleLogout} />
+              <HomePage />
             </ProtectedRoute>
           }
         />
@@ -93,42 +93,3 @@ export default function App() {
   )
 }
 
-function LandingPage() {
-  return (
-    <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
-
-      <div className="bg-[#3b3660] px-6 py-4 flex-shrink-0">
-        <span className="text-white text-xl font-bold">Token Trail</span>
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">Welcome to Token Trail</h1>
-          <p className="text-gray-500 text-base max-w-sm mx-auto">
-            Code similarity detection for programming assignments. Who are you?
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-6 w-full max-w-lg">
-          <a
-            href="/student-submit"
-            className="flex-1 bg-white border border-gray-200 rounded-2xl p-8 text-center no-underline text-gray-900 shadow-sm hover:shadow-md hover:border-[#3b3660] focus:outline-none focus:ring-2 focus:ring-[#3b3660] focus:ring-offset-2 transition-all group"
-          >
-            <div className="text-4xl mb-4">🎓</div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-[#3b3660] transition-colors">Student</h2>
-            <p className="text-sm text-gray-500">Submit your assignment ZIP</p>
-          </a>
-
-          <a
-            href="/login"
-            className="flex-1 bg-white border border-gray-200 rounded-2xl p-8 text-center no-underline text-gray-900 shadow-sm hover:shadow-md hover:border-[#3b3660] focus:outline-none focus:ring-2 focus:ring-[#3b3660] focus:ring-offset-2 transition-all group"
-          >
-            <div className="text-4xl mb-4">🏫</div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-[#3b3660] transition-colors">Instructor</h2>
-            <p className="text-sm text-gray-500">Manage courses and run analysis</p>
-          </a>
-        </div>
-      </div>
-    </div>
-  )
-}

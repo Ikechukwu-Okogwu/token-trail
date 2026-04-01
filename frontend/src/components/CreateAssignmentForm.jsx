@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../services/api'
+import Input from './ui/Input'
+import Button from './ui/Button'
+import ErrorBanner from './ui/ErrorBanner'
 
 const LANGUAGES = ['java', 'c', 'cpp']
-
-function toIsoDueDate(value) {
-  if (!value) return null
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed.toISOString()
-}
 
 export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) {
   const [title, setTitle]       = useState('')
@@ -19,7 +15,6 @@ export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) 
   const [error, setError]       = useState(null)
   const [loading, setLoading]   = useState(false)
 
-  // Auto-set isOpen to false when due date is in the past
   useEffect(() => {
     if (dueDate) {
       const due = new Date(dueDate)
@@ -32,7 +27,6 @@ export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) 
     e.preventDefault()
     setError(null)
 
-    // Duplicate title check
     try {
       const existing = await apiFetch(`/instructor/courses/${courseId}/assignments`)
       const duplicate = existing.some(
@@ -71,99 +65,98 @@ export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) 
   const isPastDue = dueDate && new Date(dueDate) < new Date()
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h3 className="text-lg font-bold text-gray-900 mb-4">New Assignment</h3>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <h3 className="text-lg font-semibold text-gray-900">New Assignment</h3>
 
-      {/* Title */}
-      <div className="mb-3">
-        <label htmlFor="assignment-title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-        <input
-          id="assignment-title"
-          type="text" value={title} onChange={(e) => setTitle(e.target.value)} required
-          placeholder="e.g. Assignment 1"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
-        />
-      </div>
+      <ErrorBanner message={error} />
 
-      {/* Language */}
-      <div className="mb-3">
-        <label htmlFor="assignment-language" className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-        <select id="assignment-language" value={language} onChange={(e) => setLanguage(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]">
+      <Input
+        label="Title"
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        required
+        placeholder="e.g. Assignment 1"
+        disabled={loading}
+      />
+
+      <div>
+        <label htmlFor="assignment-language" className="mb-1 block text-sm font-medium text-gray-700">Language</label>
+        <select
+          id="assignment-language"
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          disabled={loading}
+          className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
+        >
           {LANGUAGES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
         </select>
       </div>
 
-      {/* Due Date */}
-      <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Due Date (optional)</label>
+      <div>
+        <label htmlFor="assignment-due" className="mb-1 block text-sm font-medium text-gray-700">Due Date (optional)</label>
         <input
+          id="assignment-due"
           type="datetime-local"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
+          disabled={loading}
+          className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
         />
         {isPastDue && (
-          <p className="text-xs text-amber-600 mt-1">
-            ⚠ Due date is in the past — Open for submissions set to No.
+          <p className="mt-1 text-xs text-amber-600">
+            Due date is in the past — Open for submissions set to No.
           </p>
         )}
       </div>
 
-      {/* Open for submissions */}
-      <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Open for Submissions</label>
+      <div>
+        <span className="mb-1 block text-sm font-medium text-gray-700">Open for Submissions</span>
         <div className="flex gap-4">
-          <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm">
             <input type="radio" name="isOpen" checked={isOpen === true}
               onChange={() => setIsOpen(true)}
-              disabled={isPastDue}
-              className="accent-[#3b3660]"/>
+              disabled={isPastDue || loading}
+              className="accent-brand-purple"/>
             Yes
           </label>
-          <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm">
             <input type="radio" name="isOpen" checked={isOpen === false}
               onChange={() => setIsOpen(false)}
-              className="accent-[#3b3660]"/>
+              disabled={loading}
+              className="accent-brand-purple"/>
             No
           </label>
         </div>
       </div>
 
-      {/* Allow Late */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Allow Late Submissions</label>
+      <div>
+        <span className="mb-1 block text-sm font-medium text-gray-700">Allow Late Submissions</span>
         <div className="flex gap-4">
-          <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm">
             <input type="radio" name="allowLate" checked={allowLate === true}
               onChange={() => setAllowLate(true)}
-              className="accent-[#3b3660]"/>
+              disabled={loading}
+              className="accent-brand-purple"/>
             Yes
           </label>
-          <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-1.5 text-sm">
             <input type="radio" name="allowLate" checked={allowLate === false}
               onChange={() => setAllowLate(false)}
-              className="accent-[#3b3660]"/>
+              disabled={loading}
+              className="accent-brand-purple"/>
             No
           </label>
         </div>
       </div>
 
-      {error && (
-        <p className="text-red-500 text-sm mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          {error}
-        </p>
-      )}
-
-      <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+      <div className="flex gap-2 justify-end pt-1">
+        <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={loading}
-          className="px-4 py-2 text-sm text-white bg-[#3b3660] rounded-lg hover:bg-[#2d2b4a] disabled:opacity-50">
+        </Button>
+        <Button type="submit" disabled={loading}>
           {loading ? 'Creating…' : 'Create'}
-        </button>
+        </Button>
       </div>
     </form>
   )

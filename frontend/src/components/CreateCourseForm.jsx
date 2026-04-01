@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { apiFetch } from '../services/api'
+import Input from './ui/Input'
+import Button from './ui/Button'
+import ErrorBanner from './ui/ErrorBanner'
 
 export default function CreateCourseForm({ onCreated, onCancel }) {
   const [name, setName]   = useState('')
@@ -11,13 +14,12 @@ export default function CreateCourseForm({ onCreated, onCancel }) {
     e.preventDefault()
     setError(null)
 
-    // Duplicate name + term check
     try {
       const existing = await apiFetch('/instructor/courses')
       const duplicate = existing.some(
         (c) =>
           c.name.trim().toLowerCase() === name.trim().toLowerCase() &&
-          c.term.trim().toLowerCase() === term.trim().toLowerCase()
+          (c.term ?? '').trim().toLowerCase() === term.trim().toLowerCase()
       )
       if (duplicate) {
         setError(`A course named "${name}" already exists for term "${term}".`)
@@ -42,42 +44,38 @@ export default function CreateCourseForm({ onCreated, onCancel }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h3 className="text-lg font-bold text-gray-900 mb-4">New Course</h3>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <h3 className="text-lg font-semibold text-gray-900">New Course</h3>
 
-      <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Course Name</label>
-        <input
-          type="text" value={name} onChange={(e) => setName(e.target.value)} required
-          placeholder="e.g. COSC 4P02"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
-        />
-      </div>
+      <ErrorBanner message={error} />
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
-        <input
-          type="text" value={term} onChange={(e) => setTerm(e.target.value)} required
-          placeholder="e.g. Fall 2025"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
-        />
-      </div>
+      <Input
+        label="Course Name"
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        required
+        placeholder="e.g. COSC 4P02"
+        disabled={loading}
+      />
 
-      {error && (
-        <p className="text-red-500 text-sm mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-          {error}
-        </p>
-      )}
+      <Input
+        label="Term"
+        type="text"
+        value={term}
+        onChange={(e) => setTerm(e.target.value)}
+        required
+        placeholder="e.g. Fall 2025"
+        disabled={loading}
+      />
 
-      <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+      <div className="flex gap-2 justify-end pt-1">
+        <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
-        </button>
-        <button type="submit" disabled={loading}
-          className="px-4 py-2 text-sm text-white bg-[#3b3660] rounded-lg hover:bg-[#2d2b4a] disabled:opacity-50">
+        </Button>
+        <Button type="submit" disabled={loading}>
           {loading ? 'Creating…' : 'Create'}
-        </button>
+        </Button>
       </div>
     </form>
   )

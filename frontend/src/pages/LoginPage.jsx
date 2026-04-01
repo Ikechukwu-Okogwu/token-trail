@@ -1,11 +1,20 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { login, signup } from '../services/api'
+import { FileText, Loader2, ClipboardList, BarChart3, Columns } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import ErrorBanner from '../components/ui/ErrorBanner'
 
+const VALUE_POINTS = [
+  { icon: ClipboardList, text: 'Manage assignments and collect submissions' },
+  { icon: BarChart3, text: 'Review similarity results and confidence scores' },
+  { icon: Columns, text: 'Compare flagged submissions side by side' },
+]
+
 export default function LoginPage() {
   const [tab, setTab] = useState('signin')
+  const navigate = useNavigate()
 
   const [siEmail, setSiEmail]       = useState('')
   const [siPassword, setSiPassword] = useState('')
@@ -27,9 +36,13 @@ export default function LoginPage() {
     try {
       const data = await login(siEmail, siPassword)
       localStorage.setItem('token', data.accessToken)
-      window.location.href = '/dashboard'
+      navigate('/dashboard')
     } catch (err) {
-      setSiError(err.status === 401 ? 'Wrong email or password. Please try again.' : 'Something went wrong. Please try again.')
+      setSiError(
+        err.status === 401
+          ? 'Wrong email or password. Please try again.'
+          : 'Something went wrong. Please try again.'
+      )
     } finally {
       setSiLoading(false)
     }
@@ -44,81 +57,175 @@ export default function LoginPage() {
     try {
       const data = await signup(suName, suEmail, suPassword)
       localStorage.setItem('token', data.accessToken)
-      window.location.href = '/dashboard'
+      navigate('/dashboard')
     } catch (err) {
-      setSuError(err.status === 409 ? 'An account with this email already exists.' : 'Something went wrong. Please try again.')
+      setSuError(
+        err.status === 409
+          ? 'An account with this email already exists.'
+          : 'Something went wrong. Please try again.'
+      )
     } finally {
       setSuLoading(false)
     }
   }
 
-  const tabBase = 'flex-1 py-2 text-sm font-semibold rounded-lg transition-colors'
-  const tabActive = 'bg-[#3b3660] text-white shadow-sm'
-  const tabInactive = 'text-gray-500 hover:text-gray-700'
-
   return (
-    <div className="min-h-screen bg-gray-100 font-sans flex flex-col">
-      {/* Navbar */}
-      <div className="bg-[#3b3660] px-6 py-4 flex-shrink-0">
-        <span className="text-white text-xl font-bold">Token Trail</span>
-      </div>
+    <div className="relative flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,rgba(86,79,103,0.06),transparent_60%),_#FEF7FF66]">
+      {/* Header band — compact, matching landing page nav bar */}
+      <header className="relative bg-landing px-6 pb-12 pt-7">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-2.5 lg:items-start">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
+              <FileText className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-semibold text-white tracking-tight">Token Trail</span>
+          </Link>
+          <p className="text-sm font-medium text-white/80">
+            Instructor access for assignment management and similarity analysis
+          </p>
+        </div>
+        {/* Fade out into page background */}
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-brand-pink/40" />
+      </header>
 
-      {/* Centered card */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 w-full max-w-md p-8">
+      {/* Radial glow — soft emphasis behind the auth area */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(120,109,145,0.08),transparent_70%)]" />
 
-          <h1 className="text-xl font-bold text-gray-900 text-center mb-1">Teacher Portal</h1>
-          <p className="text-sm text-gray-500 text-center mb-6">Sign in or create an account to manage assignments</p>
+      {/* Content */}
+      <div className="relative z-10 flex flex-1 items-start justify-center px-4 pt-6 pb-12">
+        <div className="flex w-full max-w-5xl items-start gap-16">
+          {/* Auth card column */}
+          <div className="w-full max-w-lg mx-auto lg:mx-0">
+            {/* Card */}
+            <div className="rounded-2xl border border-white/60 bg-white px-10 py-9 ring-1 ring-black/5 shadow-xl hover:shadow-2xl transition-shadow duration-300">
+              <h1 className="text-xl font-bold text-gray-900 text-center mb-1">Teacher Portal</h1>
+              <p className="text-sm text-gray-500 text-center mb-6">
+                Sign in or create an account to get started
+              </p>
 
-          {/* Tab switcher */}
-          <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
-            <button className={`${tabBase} ${tab === 'signin' ? tabActive : tabInactive}`}
-              onClick={() => { setTab('signin'); setSiError(''); setSuError('') }}>
-              Sign In
-            </button>
-            <button className={`${tabBase} ${tab === 'signup' ? tabActive : tabInactive}`}
-              onClick={() => { setTab('signup'); setSiError(''); setSuError('') }}>
-              Sign Up
-            </button>
+              {/* Tab switcher — segmented control */}
+              <div className="flex gap-1 rounded-xl bg-gray-100 p-1 mb-6">
+                <button
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-all ${
+                    tab === 'signin'
+                      ? 'bg-brand-purple text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => { setTab('signin'); setSiError(''); setSuError('') }}
+                >
+                  Sign In
+                </button>
+                <button
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-all ${
+                    tab === 'signup'
+                      ? 'bg-brand-purple text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => { setTab('signup'); setSiError(''); setSuError('') }}
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              {/* Sign In form */}
+              {tab === 'signin' && (
+                <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+                  <ErrorBanner message={siError} />
+                  <Input
+                    label="Email"
+                    type="email"
+                    value={siEmail}
+                    onChange={e => setSiEmail(e.target.value)}
+                    placeholder="you@university.edu"
+                    disabled={siLoading}
+                  />
+                  <Input
+                    label="Password"
+                    type="password"
+                    value={siPassword}
+                    onChange={e => setSiPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={siLoading}
+                  />
+                  <Button type="submit" fullWidth disabled={siLoading} size="lg" className="mt-2">
+                    {siLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {siLoading ? 'Signing in…' : 'Sign In'}
+                  </Button>
+                </form>
+              )}
+
+              {/* Sign Up form */}
+              {tab === 'signup' && (
+                <form onSubmit={handleSignUp} className="flex flex-col gap-4">
+                  <ErrorBanner message={suError} />
+                  <Input
+                    label="Full Name"
+                    type="text"
+                    value={suName}
+                    onChange={e => setSuName(e.target.value)}
+                    placeholder="Jane Doe"
+                    disabled={suLoading}
+                  />
+                  <Input
+                    label="Email"
+                    type="email"
+                    value={suEmail}
+                    onChange={e => setSuEmail(e.target.value)}
+                    placeholder="you@university.edu"
+                    disabled={suLoading}
+                  />
+                  <Input
+                    label="Password"
+                    type="password"
+                    value={suPassword}
+                    onChange={e => setSuPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={suLoading}
+                  />
+                  <Input
+                    label="Confirm Password"
+                    type="password"
+                    value={suConfirm}
+                    onChange={e => setSuConfirm(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={suLoading}
+                  />
+                  <Button type="submit" fullWidth disabled={suLoading} size="lg" className="mt-2">
+                    {suLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {suLoading ? 'Creating account…' : 'Sign Up'}
+                  </Button>
+                </form>
+              )}
+            </div>
+
+            <p className="mt-5 text-center text-xs text-gray-400 lg:text-left">
+              &copy; {new Date().getFullYear()} Token Trail. Built for academic integrity.
+            </p>
           </div>
 
-          {/* Sign In form */}
-          {tab === 'signin' && (
-            <form onSubmit={handleSignIn} className="flex flex-col gap-4">
-              <ErrorBanner message={siError} />
-              <Input label="Email" type="email" value={siEmail}
-                onChange={e => setSiEmail(e.target.value)}
-                placeholder="you@university.edu" disabled={siLoading} />
-              <Input label="Password" type="password" value={siPassword}
-                onChange={e => setSiPassword(e.target.value)}
-                placeholder="••••••••" disabled={siLoading} />
-              <Button type="submit" fullWidth disabled={siLoading} size="lg" className="mt-1">
-                {siLoading ? 'Signing in…' : 'Sign In'}
-              </Button>
-            </form>
-          )}
-
-          {/* Sign Up form */}
-          {tab === 'signup' && (
-            <form onSubmit={handleSignUp} className="flex flex-col gap-4">
-              <ErrorBanner message={suError} />
-              <Input label="Email" type="email" value={suEmail}
-                onChange={e => setSuEmail(e.target.value)}
-                placeholder="you@university.edu" disabled={suLoading} />
-              <Input label="Full Name" type="text" value={suName}
-                onChange={e => setSuName(e.target.value)}
-                placeholder="Jane Doe" disabled={suLoading} />
-              <Input label="Password" type="password" value={suPassword}
-                onChange={e => setSuPassword(e.target.value)}
-                placeholder="••••••••" disabled={suLoading} />
-              <Input label="Confirm Password" type="password" value={suConfirm}
-                onChange={e => setSuConfirm(e.target.value)}
-                placeholder="••••••••" disabled={suLoading} />
-              <Button type="submit" fullWidth disabled={suLoading} size="lg" className="mt-1">
-                {suLoading ? 'Creating account…' : 'Sign Up'}
-              </Button>
-            </form>
-          )}
+          {/* Value props — visible on large screens only */}
+          <div className="hidden lg:flex flex-col gap-7 flex-1 pt-6">
+            <h2 className="text-xl font-bold text-gray-900 leading-snug">
+              Everything you need to<br />review code similarity
+            </h2>
+            <div className="flex flex-col gap-6">
+              {VALUE_POINTS.map((vp) => (
+                <div key={vp.text} className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-purple/10">
+                    <vp.icon className="h-5 w-5 text-brand-purple" />
+                  </div>
+                  <p className="text-sm leading-relaxed text-gray-600 pt-2.5">{vp.text}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-5 py-4">
+              <p className="text-xs leading-relaxed text-gray-500">
+                Token Trail uses token-based and winnowing analysis to detect structural
+                similarity in student code submissions. Results are advisory and intended
+                to support — not replace — academic judgment.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

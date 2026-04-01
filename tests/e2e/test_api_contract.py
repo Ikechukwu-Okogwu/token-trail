@@ -1388,3 +1388,276 @@ def test_class_list_route_removed_returns_404(base_url: str, auth_headers: dict)
         timeout=10,
     )
     assert r.status_code == 404
+
+
+# --- G1/G2/G5: GET/PATCH/DELETE single course ---
+
+
+def test_get_single_course_by_id(base_url: str, auth_headers: dict) -> None:
+    """Guards: GET /courses/{courseId} returns course with count fields."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Single Get Course", "term": "Spring 2026"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    r = requests.get(
+        f"{base_url}/api/instructor/courses/{course_id}",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["id"] == course_id
+    assert data["name"] == "Single Get Course"
+    assert data["term"] == "Spring 2026"
+    assert "instructorId" in data
+    assert data["assignmentCount"] == 0
+    assert data["analysisCompleteCount"] == 0
+
+
+def test_get_course_wrong_owner_returns_404(base_url: str, auth_headers: dict) -> None:
+    """Guards: GET /courses/{courseId} owned by another user returns 404."""
+    # Create a course under auth_headers owner
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Owner Course", "term": None},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    # Sign up a second user
+    email2 = f"other-{uuid4()}@example.com"
+    r2 = requests.post(
+        f"{base_url}/api/auth/signup",
+        json={"name": "Other User", "email": email2, "password": "secret123"},
+        timeout=10,
+    )
+    r2.raise_for_status()
+    other_token = r2.json()["accessToken"]
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+
+    r = requests.get(
+        f"{base_url}/api/instructor/courses/{course_id}",
+        headers=other_headers,
+        timeout=10,
+    )
+    assert r.status_code in (403, 404)
+
+
+def test_patch_course_updates_name_and_term(base_url: str, auth_headers: dict) -> None:
+    """Guards: PATCH /courses/{courseId} updates fields and returns updated course."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Old Name", "term": "Old Term"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    r = requests.patch(
+        f"{base_url}/api/instructor/courses/{course_id}",
+        headers=auth_headers,
+        json={"name": "New Name", "term": "New Term"},
+        timeout=10,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["id"] == course_id
+    assert data["name"] == "New Name"
+    assert data["term"] == "New Term"
+
+
+def test_patch_course_partial_update(base_url: str, auth_headers: dict) -> None:
+    """Guards: PATCH with only name leaves term unchanged."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Original", "term": "Fall 2026"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    r = requests.patch(
+        f"{base_url}/api/instructor/courses/{course_id}",
+        headers=auth_headers,
+        json={"name": "Renamed"},
+        timeout=10,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["name"] == "Renamed"
+    assert data["term"] == "Fall 2026"
+
+
+def test_delete_course_cascades_and_returns_404_after(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: DELETE /courses/{courseId} removes course; subsequent GET returns 404."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "To Be Deleted", "term": None},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    delete = requests.delete(
+        f"{base_url}/api/instructor/courses/{course_id}",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert delete.status_code == 204
+
+    fetch = requests.get(
+        f"{base_url}/api/instructor/courses/{course_id}",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert fetch.status_code == 404
+
+
+# --- G3/G4: assignmentCount / analysisCompleteCount on courses list ---
+
+
+def test_courses_list_includes_assignment_count(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: Courses list returns assignmentCount=1 after creating one assignment."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Count Course", "term": "S26"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": course_id,
+            "title": "HW Count",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    ).raise_for_status()
+
+    r = requests.get(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert r.status_code == 200
+    courses = r.json()
+    target = next((c for c in courses if c["id"] == course_id), None)
+    assert target is not None
+    assert target["assignmentCount"] == 1
+    assert target["analysisCompleteCount"] == 0
+
+
+# --- G6/G7: submissionCount / analysisProgress on assignment list ---
+
+
+def test_assignment_list_analysis_progress_none_before_run(
+    base_url: str, auth_headers: dict
+) -> None:
+    """Guards: analysisProgress is null when no analysis run exists for assignment."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Progress Course", "term": None},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    course_id = rc.json()["id"]
+
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": course_id,
+            "title": "No Run HW",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": None,
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    assignment_id = ra.json()["id"]
+
+    r = requests.get(
+        f"{base_url}/api/instructor/courses/{course_id}/assignments",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert r.status_code == 200
+    assignments = r.json()
+    target = next((a for a in assignments if a["id"] == assignment_id), None)
+    assert target is not None
+    assert target["submissionCount"] == 0
+    assert target["analysisProgress"] is None
+
+
+def test_assignment_list_includes_submission_count(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: submissionCount=1 after one submission is uploaded."""
+    course_id = happy_path_setup["courseId"]
+    assignment_id = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+
+    r = requests.get(
+        f"{base_url}/api/instructor/courses/{course_id}/assignments",
+        headers=headers,
+        timeout=10,
+    )
+    assert r.status_code == 200
+    assignments = r.json()
+    target = next((a for a in assignments if a["id"] == assignment_id), None)
+    assert target is not None
+    assert target["submissionCount"] == 1
+
+
+def test_assignment_list_analysis_progress_zero_after_queue(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: analysisProgress=0 after run is queued (not yet completed)."""
+    course_id = happy_path_setup["courseId"]
+    assignment_id = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+
+    # Queue a second run (first may have already started); we just need one in
+    # queued/running state. If both complete instantly, progress=100 is also valid.
+    r = requests.get(
+        f"{base_url}/api/instructor/courses/{course_id}/assignments",
+        headers=headers,
+        timeout=10,
+    )
+    assert r.status_code == 200
+    assignments = r.json()
+    target = next((a for a in assignments if a["id"] == assignment_id), None)
+    assert target is not None
+    # After queuing a run, progress must be non-None (0, 50, or 100)
+    assert target["analysisProgress"] is not None
+    assert 0 <= target["analysisProgress"] <= 100

@@ -3,17 +3,13 @@ import { apiFetch } from '../services/api'
 import CreateCourseForm from '../components/CreateCourseForm'
 import Sidebar from '../components/Sidebar/Sidebar'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  Search, Plus, LayoutGrid, List, AlertTriangle,
+  Loader2, BookOpen, MoreVertical, Pencil, Trash2, ClipboardList, FlaskConical
+} from 'lucide-react'
+import Button from '../components/ui/Button'
 
-
-/**
- * HomePage — instructor home, grid of course cards.
- * Fetches real courses from GET /api/instructor/courses.
- *
- * API response shape per course:
- *   { id, name, term, instructorId, createdAt }
- */
-
-export default function HomePage({ onCourseCreated, onLogout }) {
+export default function HomePage({ onCourseCreated }) {
   const [courses, setCourses]     = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
@@ -39,7 +35,6 @@ export default function HomePage({ onCourseCreated, onLogout }) {
     navigate(`/course/${course.id}`)
   }
 
-  // Called by CourseCard after rename or delete
   function handleCourseUpdated() {
     setRefreshKey((k) => k + 1)
   }
@@ -51,109 +46,150 @@ export default function HomePage({ onCourseCreated, onLogout }) {
   return (
     <div className="h-screen flex">
       <Sidebar refreshKey={refreshKey}/>
-      <main className="ml-55 flex-1">
-        <div className="p-6 min-h-full">
-          <div className="bg-white rounded-2xl shadow-sm p-6 min-h-full">
+      <main className="ml-55 flex-1 overflow-y-auto bg-brand-pink/40">
+        <div className="mx-auto max-w-5xl p-6 lg:p-8">
 
-            {/* Toolbar */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-xl px-4 py-2.5">
-                <svg style={{ display: 'block', width: 16, height: 16, flexShrink: 0 }}
-                  className="text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7"/>
-                </svg>
-                <input
-                  type="text" placeholder="Search courses…" value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="flex-1 bg-transparent text-sm text-gray-600 placeholder-gray-400 outline-none"
-                />
-                <svg style={{ display: 'block', width: 16, height: 16, flexShrink: 0 }}
-                  className="text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                </svg>
-              </div>
+          {/* Page header */}
+          <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand-purple/60">Instructor Dashboard</p>
+              <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
+              <p className="mt-1 text-sm text-gray-400">Manage your courses and track assignment analysis.</p>
+            </div>
+            <Button onClick={() => setShowCreate(true)} size="lg">
+              <Plus className="h-4 w-4" /> New Course
+            </Button>
+          </div>
 
-              <div className="flex items-center bg-gray-100 rounded-xl p-1">
-                <button onClick={() => setViewMode('list')}
-                  aria-label="List view"
-                  className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}>
-                  <svg style={{ display: 'block', width: 16, height: 16 }}
-                    fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                  </svg>
-                </button>
-                <button onClick={() => setViewMode('grid')}
-                  aria-label="Grid view"
-                  className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}>
-                  <svg style={{ display: 'block', width: 16, height: 16 }}
-                    fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="3" y="3" width="7" height="7" rx="1"/>
-                    <rect x="14" y="3" width="7" height="7" rx="1"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1"/>
-                    <rect x="14" y="14" width="7" height="7" rx="1"/>
-                  </svg>
-                </button>
-              </div>
-
-              <div className="w-px h-8 bg-gray-200"/>
-
-              <button onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 bg-[#3b3660] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2d2b4a] transition-colors shadow-sm">
-                <svg style={{ display: 'block', width: 16, height: 16 }}
-                  fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
-                </svg>
-                New
-              </button>
+          {/* Toolbar */}
+          <div className="mb-6 flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search courses…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 shadow-sm outline-none transition focus:border-brand-purple/40 focus:ring-2 focus:ring-brand-purple/10"
+              />
             </div>
 
-            {/* Error */}
-            {error && (
-              <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-6 text-sm">
-                <svg style={{ display: 'block', width: 18, height: 18, flexShrink: 0 }}
-                  fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round"
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                </svg>
-                <span>{error}</span>
-                <button onClick={() => setRefreshKey((k) => k + 1)}
-                  className="ml-auto underline text-red-600 hover:text-red-800 font-medium">Retry</button>
-              </div>
-            )}
-
-            {/* Loading */}
-            {loading && (
-              <div className="flex items-center justify-center gap-2 text-gray-400 text-sm py-16">
-                <svg className="animate-spin" style={{ width: 18, height: 18 }} fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-                Loading courses…
-              </div>
-            )}
-
-            {/* Empty */}
-            {!loading && !error && filtered.length === 0 && (
-              <div className="text-gray-400 text-sm text-center py-16">
-                {search ? `No courses match "${search}"` : 'No courses yet — click + New to create one.'}
-              </div>
-            )}
-
-            {/* Course cards */}
-            {!loading && !error && filtered.length > 0 && (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-3 gap-4' : 'flex flex-col gap-3'}>
-                {filtered.map((course) => (
-                  <CourseCard key={course.id} course={course} onUpdated={handleCourseUpdated} />
-                ))}
-              </div>
-            )}
+            <div className="flex items-center rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+                className={`rounded-lg p-2 transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-brand-purple text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+                className={`rounded-lg p-2 transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-brand-purple text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span className="flex-1">{error}</span>
+              <button
+                onClick={() => setRefreshKey((k) => k + 1)}
+                className="ml-auto font-medium text-red-600 underline hover:text-red-800"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <div className="flex items-center justify-center gap-2 py-24 text-sm text-gray-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading courses…
+            </div>
+          )}
+
+          {/* Empty */}
+          {!loading && !error && filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-purple/10">
+                <BookOpen className="h-7 w-7 text-brand-purple/50" />
+              </div>
+              <p className="text-sm font-semibold text-gray-600">
+                {search ? `No courses match "${search}"` : 'No courses yet'}
+              </p>
+              {!search && (
+                <p className="mt-1.5 text-xs text-gray-400">
+                  Create your first course to get started.
+                </p>
+              )}
+              {!search && (
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-purple px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-clicked"
+                >
+                  <Plus className="h-4 w-4" /> New Course
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Course list/grid */}
+          {!loading && !error && filtered.length > 0 && (
+            <>
+              {/* Section label */}
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                  Your Courses
+                  <span className="ml-2 rounded-full bg-brand-purple/10 px-2 py-0.5 text-brand-purple normal-case tracking-normal">
+                    {filtered.length}
+                  </span>
+                </p>
+              </div>
+
+              {viewMode === 'grid' ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {filtered.map((course) => (
+                    <CourseCard key={course.id} course={course} onUpdated={handleCourseUpdated} />
+                  ))}
+                  {/* Ghost "add course" slot */}
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    className="flex min-h-[168px] flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-gray-200 bg-transparent text-gray-400 transition-all duration-200 hover:border-brand-purple/40 hover:bg-brand-purple/[0.025] hover:text-brand-purple"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-dashed border-current/30 transition-colors">
+                      <Plus className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold">New Course</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-100">
+                  {filtered.map((course) => (
+                    <CourseListItem key={course.id} course={course} onUpdated={handleCourseUpdated} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
           {/* Create course modal */}
           {showCreate && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+              <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
                 <CreateCourseForm onCreated={handleCreated} onCancel={() => setShowCreate(false)} />
               </div>
             </div>
@@ -164,7 +200,8 @@ export default function HomePage({ onCourseCreated, onLogout }) {
   )
 }
 
-/* ── Course Card with 3-dot menu ── */
+
+/* ── Course Card (grid view) with 3-dot menu ── */
 function CourseCard({ course, onUpdated }) {
   const [menuOpen, setMenuOpen]   = useState(false)
   const [editing, setEditing]     = useState(false)
@@ -177,7 +214,6 @@ function CourseCard({ course, onUpdated }) {
   const menuRef = useRef(null)
   const navigate = useNavigate()
 
-  // Close menu when clicking outside
   useEffect(() => {
     function handleClick(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -223,128 +259,180 @@ function CourseCard({ course, onUpdated }) {
     }
   }
 
-  // ── Editing mode — inline on the card ──
   if (editing) {
     return (
-      <div className="bg-white border-2 border-[#3b3660] rounded-2xl p-5">
-        <p className="text-xs font-semibold text-[#3b3660] uppercase tracking-wide mb-3">Edit Course</p>
+      <div className="rounded-2xl border-2 border-brand-purple bg-white p-5">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-brand-purple">Edit Course</p>
         <div className="mb-2">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Course Name</label>
+          <label htmlFor="edit-course-name" className="mb-1 block text-xs font-medium text-gray-600">Course Name</label>
           <input
+            id="edit-course-name"
             type="text" value={editName}
             onChange={(e) => setEditName(e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
+            className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
           />
         </div>
         <div className="mb-3">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Term</label>
+          <label htmlFor="edit-course-term" className="mb-1 block text-xs font-medium text-gray-600">Term</label>
           <input
+            id="edit-course-term"
             type="text" value={editTerm}
             onChange={(e) => setEditTerm(e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#3b3660]"
+            className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/30"
           />
         </div>
-        {editError && <p className="text-red-500 text-xs mb-2">{editError}</p>}
+        {editError && <p className="mb-2 text-xs text-red-500">{editError}</p>}
         <div className="flex gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); setEditing(false); setEditError(null) }}
-            className="flex-1 px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
           >Cancel</button>
           <button
             onClick={handleSave} disabled={saving || !editName.trim()}
-            className="flex-1 px-3 py-1.5 text-xs text-white bg-[#3b3660] rounded-lg hover:bg-[#2d2b4a] disabled:opacity-50"
+            className="flex-1 rounded-lg bg-brand-purple px-3 py-1.5 text-xs text-white hover:bg-purple-clicked disabled:opacity-50"
           >{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
     )
   }
 
-  // ── Delete confirmation ──
   if (confirmDelete) {
     return (
-      <div className="bg-white border-2 border-red-300 rounded-2xl p-5">
-        <p className="text-sm font-semibold text-gray-900 mb-1">Delete "{course.name}"?</p>
-        <p className="text-xs text-gray-500 mb-4">This will permanently delete the course and all its assignments.</p>
-        {editError && <p className="text-red-500 text-xs mb-2">{editError}</p>}
+      <div className="rounded-2xl border-2 border-red-300 bg-white p-5">
+        <p className="mb-1 text-sm font-semibold text-gray-900">Delete &ldquo;{course.name}&rdquo;?</p>
+        <p className="mb-4 text-xs text-gray-500">This will permanently delete the course and all its assignments.</p>
+        {editError && <p className="mb-2 text-xs text-red-500">{editError}</p>}
         <div className="flex gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); setEditError(null) }}
-            className="flex-1 px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
           >Cancel</button>
           <button
             onClick={handleDelete} disabled={deleting}
-            className="flex-1 px-3 py-1.5 text-xs text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-50"
+            className="flex-1 rounded-lg bg-red-500 px-3 py-1.5 text-xs text-white hover:bg-red-600 disabled:opacity-50"
           >{deleting ? 'Deleting…' : 'Delete'}</button>
         </div>
       </div>
     )
   }
 
-  // ── Normal card ──
+  const initial = (course.name || '?').charAt(0).toUpperCase()
+
   return (
-    <div className="relative">
-      <Link
-        to={`/course/${course.id}`}
-        className="bg-white border border-gray-200 rounded-2xl p-5 block hover:shadow-md hover:border-gray-300 transition-all group no-underline"
-      >
-        <div className="flex items-start justify-between mb-3">
-          <span className="text-base font-bold text-gray-900">{course.name}</span>
-          {/* 3-dot menu button */}
-          <div ref={menuRef} className="relative">
+    <Link
+      to={`/course/${course.id}`}
+      className="group block overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:shadow-xl hover:border-brand-purple/30 hover:-translate-y-1 no-underline"
+    >
+      {/* Colored top accent stripe */}
+      <div className="h-1.5 w-full bg-brand-purple opacity-80" />
+
+      <div className="p-5">
+        {/* Card header: avatar + name + menu */}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-purple/10 text-base font-bold text-brand-purple select-none">
+              {initial}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-gray-900 leading-tight">{course.name}</p>
+              {course.term
+                ? <span className="mt-1 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500">{course.term}</span>
+                : <span className="mt-1 inline-block text-[11px] text-gray-400">No term set</span>
+              }
+            </div>
+          </div>
+
+          <div ref={menuRef} className="relative shrink-0">
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen((o) => !o) }}
-              className="text-gray-400 hover:text-gray-700 text-lg leading-none px-1 rounded hover:bg-gray-100 transition-colors"
+              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
               aria-label="Options"
-            >⋮</button>
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
 
-            {/* Dropdown */}
             {menuOpen && (
-              <div className="absolute right-0 top-7 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-36"
-                onClick={(e) => e.stopPropagation()}>
+              <div
+                role="menu"
+                className="absolute right-0 top-8 z-20 w-36 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => { if (e.key === 'Escape') setMenuOpen(false) }}
+              >
                 <button
                   onClick={(e) => { e.preventDefault(); setMenuOpen(false); setEditing(true) }}
-                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
-                  <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z"/>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18"/>
-                  </svg>
-                  Edit
+                  <Pencil className="h-3.5 w-3.5" /> Edit
                 </button>
                 <button
                   onClick={(e) => { e.preventDefault(); setMenuOpen(false); setConfirmDelete(true) }}
-                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                 >
-                  <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                  </svg>
-                  Delete
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
                 </button>
               </div>
             )}
           </div>
         </div>
-        <hr className="border-gray-100 mb-4"/>
-        <div className="flex gap-6">
-          <div>
-            <div className="text-3xl font-bold text-gray-900">{course.assignmentCount ?? 0}</div>
-            <div className="text-xs text-gray-500 mt-0.5">
+
+        {/* Divider */}
+        <hr className="mb-4 border-gray-100" />
+
+        {/* Stats */}
+        <div className="flex gap-4">
+          <div className="flex-1 rounded-xl bg-brand-purple/10 px-3 py-2.5">
+            <div className="text-2xl font-bold text-brand-purple leading-none">{course.assignmentCount ?? 0}</div>
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-brand-purple/60">
+              <ClipboardList className="h-3 w-3" />
               {course.assignmentCount === 1 ? 'Assignment' : 'Assignments'}
             </div>
           </div>
-          <div>
-            <div className="text-3xl font-bold text-gray-900">{course.analysisCompleteCount ?? 0}</div>
-            <div className="text-xs text-gray-500 mt-0.5">Analyses Complete</div>
+          <div className="flex-1 rounded-xl bg-brand-purple/10 px-3 py-2.5">
+            <div className="text-2xl font-bold text-brand-purple leading-none">{course.analysisCompleteCount ?? 0}</div>
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-brand-purple/60">
+              <FlaskConical className="h-3 w-3" />
+              Analyses
+            </div>
           </div>
         </div>
-        {course.term && (
-          <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">{course.term}</div>
-        )}
-      </Link>
-    </div>
+      </div>
+    </Link>
+  )
+}
+
+
+/* ── Course List Item (list view) ── */
+function CourseListItem({ course }) {
+  const initial = (course.name || '?').charAt(0).toUpperCase()
+
+  return (
+    <Link
+      to={`/course/${course.id}`}
+      className="flex items-center justify-between px-5 py-3.5 transition-colors hover:bg-brand-purple/[0.025] no-underline group"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-purple/10 text-sm font-bold text-brand-purple select-none">
+          {initial}
+        </div>
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-gray-900 group-hover:text-brand-purple transition-colors">{course.name}</span>
+          {course.term && (
+            <span className="text-xs text-gray-400">{course.term}</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-6 shrink-0 ml-4">
+        <div className="text-right">
+          <div className="text-sm font-bold text-brand-purple">{course.assignmentCount ?? 0}</div>
+          <div className="text-[11px] text-gray-400">assignments</div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-bold text-brand-purple">{course.analysisCompleteCount ?? 0}</div>
+          <div className="text-[11px] text-gray-400">analyses</div>
+        </div>
+      </div>
+    </Link>
   )
 }
