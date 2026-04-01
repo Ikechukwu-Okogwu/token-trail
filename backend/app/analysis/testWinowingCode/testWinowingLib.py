@@ -6,6 +6,11 @@ Run with project venv: venv\\Scripts\\python.exe testWinowingLib.py
 
 from __future__ import annotations
 
+try:
+    from app.analysis.testWinowingCode.render_result import store_compare_result_as_html
+except ImportError:
+    from render_result import store_compare_result_as_html
+
 import os
 from collections import defaultdict
 from typing import Sequence
@@ -243,7 +248,7 @@ def compare_files(path_a: str, path_b: str) -> dict:
 
 
 def compare_texts_with_template(
-    text_a: str, text_b: str, template: str = "", *, k: int = 5, name_a: str = "", name_b: str = ""
+    text_a: str, text_b: str, template: str = "", *, k: int = 5, name_a: str = "", name_b: str = "", auto_store: bool = False
 ) -> dict:
     """Compare two texts with winnowing, optionally excluding template hashes from overlap and similarity.
 
@@ -290,6 +295,21 @@ def compare_texts_with_template(
     points = build_match_points(index_a, index_b, common_hashes, max_pos_each=100) if common_hashes else []
     groups = group_match_points(points, min_group_size=4, delta_tol=5, max_gap=20) if points else []
 
+    
+    if auto_store:
+        
+        store_compare_result_as_html(
+            base_dir=os.path.dirname(os.path.abspath(__file__)),
+            name_a=name_a,
+            name_b=name_b,
+            text_a=text_a,
+            text_b=text_b,
+            similarity=similarity,
+            overlap=overlap,
+            groups=groups,
+        )
+
+
     return {
         "base_dir": os.path.dirname(os.path.abspath(__file__)),
         "name_a": name_a,
@@ -309,10 +329,10 @@ def main():
     # Reset outputs each run
     open(os.path.join(base, "original.txt"), "w", encoding="utf-8").close()
     open(os.path.join(base, "compared.txt"), "w", encoding="utf-8").close()
-    similar_codes_dir = os.path.join(base, "similarCodesWithTemplate")
+    similar_codes_dir = os.path.join(base, "similarCodes")
     path_original = os.path.join(similar_codes_dir, "original.py")
-    path_changed = os.path.join(similar_codes_dir, "changed.py")
-    path_template = os.path.join(similar_codes_dir, "template.py")
+    path_changed = os.path.join(similar_codes_dir, "changeVarNames.py")
+    # path_template = os.path.join(similar_codes_dir, "template.py")
     # path_change_var_names = os.path.join(similar_codes_dir, "changeVarNames.py")
 
     # compare_files(path_original, path_copied)
@@ -331,18 +351,17 @@ def main():
         text_original = f.read()
     with open(path_changed, "r", encoding="utf-8") as f:
         text_changed = f.read()
-    with open(path_template, "r", encoding="utf-8") as f:
-        text_template = f.read()
+    # with open(path_template, "r", encoding="utf-8") as f:
+    #     text_template = f.read()
 
     r1 = compare_texts_with_template(
         text_original,
         text_changed,
-        text_template,
+        "",
         k=5,
         name_a=os.path.basename(path_original),
         name_b=os.path.basename(path_changed),
     )
-
 
     store_compare_result_as_html(
         base_dir = r1["base_dir"],

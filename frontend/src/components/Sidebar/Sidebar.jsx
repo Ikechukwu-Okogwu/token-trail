@@ -5,7 +5,6 @@ import homeIcon from '../../assets/icons/home.svg'
 import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
-import notificationsUnread from '../../assets/icons/notifications_unread.svg'
 import assignmentIcon from '../../assets/icons/assignment.svg'
 import { getCourseAssignments, getInstructorCourses, getAnalysisRunStatus, logout } from '../../services/api'
 
@@ -46,18 +45,13 @@ export default function Sidebar({refreshKey}) {
   const [coursesLoading, setCoursesLoading] = useState(false)
   const token = localStorage.getItem('token')
   const [acctMenuOpen, setAcctMenuOpen] = useState(false)
-  const [notiMenuOpen, setNotiMenuOpen] = useState(false)
   const acctMenuRef = useRef(null)
   const acctBtnRef = useRef(null)
-  const notiMenuRef = useRef(null)
-  const notiBtnRef = useRef(null)
   const [courseAssignments, setCourseAssignments] = useState({})
   const [loadingCourseAssignments, setLoadingCourseAssignments] = useState({})
   const [expandedIds, setExpandedIds] = useState(new Set())
   const {runId} = useParams()
   const [runStatus, setRunStatus] = useState(null)
-  const [notifications, setNotifications] = useState([])
-  const [hasUnread, setUnread] = useState(false)
 
   const fetchAssignments = (courseId) => {
     if (courseAssignments[courseId] || loadingCourseAssignments[courseId]) return
@@ -79,24 +73,6 @@ export default function Sidebar({refreshKey}) {
         setLoadingCourseAssignments((prev) => ({ ...prev, [courseId]: false }))
       })
   }
-
-  const handleNotiOpened = () => {
-    setUnread(false)
-    setNotiMenuOpen(prev => !prev)
-    //TODO: clear notifications from db
-  }
-
-  useEffect(() => {
-    if (token) {
-      //TODO: fetch notifications
-
-      setUnread(notifications.length > 0)
-    }
-  }, [token])
-
-  useEffect(() => {
-    setUnread(notifications.length > 0)
-  }, [notifications])
 
   useEffect(() => {
     if (token) {
@@ -170,9 +146,6 @@ export default function Sidebar({refreshKey}) {
       if (acctMenuRef.current && !acctMenuRef.current.contains(e.target) && acctBtnRef.current && !acctBtnRef.current.contains(e.target)) {
         setAcctMenuOpen(false)
       }
-      if (notiMenuRef.current && !notiMenuRef.current.contains(e.target) && notiBtnRef.current && !notiBtnRef.current.contains(e.target)) {
-        setNotiMenuOpen(false)
-      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -197,8 +170,8 @@ export default function Sidebar({refreshKey}) {
     if (!isCurrentlyExpanded) {
           fetchAssignments(courseId)
     }
-  }
 
+  }
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-55 bg-brand-purple text-brand-pink shadow-right-sidebar shrink-0 flex flex-col">
@@ -207,7 +180,7 @@ export default function Sidebar({refreshKey}) {
         <nav>
           <ul>
             <li>
-              <NavLink to="/dashboard" className={navLinkClass} title="Home">
+              <NavLink to="/dashboard" className={navLinkClass}>
                 {({ isActive }) => navLinkContent(isActive, homeIcon, 'Home')}
               </NavLink>
             </li>
@@ -220,7 +193,6 @@ export default function Sidebar({refreshKey}) {
                   <NavLink
                     to={`/course/${course.id}`}
                     className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? '' : 'hover:bg-white/5'}`}
-                    title={course.name}
                   >
                     {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name, course.term)}
                     
@@ -247,7 +219,6 @@ export default function Sidebar({refreshKey}) {
                           <NavLink
                             to={`/course/${course.id}/assignment/${a.id}`}
                             className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive || a.id===runStatus?.assignmentId ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
-                            title={a.title}
                           >
                             {({ isActive }) => (
                               <>
@@ -272,45 +243,12 @@ export default function Sidebar({refreshKey}) {
       </div>
       {acctMenuOpen && (
         <div className='flex flex-col h-16 w-28 bg-brand-pink z-50 absolute bottom-15 left-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-hidden' ref={acctMenuRef}>
-          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 cursor-pointer'>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5'>
             Settings
           </button>
-          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red cursor-pointer' onClick={() => logout()}>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red' onClick={() => logout()}>
             Sign Out
           </button>
-        </div>
-      )}
-      {notiMenuOpen && (
-        <div className='flex flex-col max-h-64 w-44 bg-brand-pink z-50 absolute bottom-15 right-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-y-auto divide-y divide-bg-gray' ref={notiMenuRef}>
-          {notifications.length === 0 ? (
-            <div className='flex items-center justify-center min-h-16 text-sm text-[#4D4D4D] p-2'>
-              No notifications
-            </div>
-          ) : (
-            notifications.map((notification, index) => {
-              const message = typeof notification === 'string' ? notification : notification.message || 'Notification'
-              const href = typeof notification === 'object' && typeof notification.href === 'string' ? notification.href.trim() : ''
-              const hasLink = href !== ''
-
-              return hasLink ? (
-                <NavLink
-                  title={message}
-                  to={href}
-                  className='flex items-center text-left px-3 py-2 hover:bg-bg-gray text-sm cursor-pointer'
-                >
-                  <span className="truncate">{message}</span>
-                </NavLink>
-              ) : (
-                <button
-                  title={message}
-                  type='button'
-                  className='flex items-center text-left w-full px-3 py-2 text-sm'
-                >
-                  <span className="truncate">{message}</span>
-                </button>
-              )
-            })
-          )}
         </div>
       )}
       
@@ -321,11 +259,8 @@ export default function Sidebar({refreshKey}) {
         >
           <img src={accountIcon} alt="Account" className='h-8'/>
         </button>
-        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5"
-          onClick={() => handleNotiOpened()}
-          ref={notiBtnRef}
-        >
-          <img src={hasUnread ? notificationsUnread : notificationsIcon} alt="Notifications" className='h-7'/>
+        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5">
+          <img src={notificationsIcon} alt="Notifications" className='h-7'/>
         </button>
       </div>
     </aside>

@@ -65,7 +65,7 @@ def default_hash(text):
     import hashlib
 
     hs = hashlib.sha1(text.encode("utf-8"))
-    hs = hs.hexdigest()[-4:]
+    hs = hs.hexdigest()[-8:] # was [-4:], increased due to high collision rate
     hs = int(hs, 16)
 
     return hs
