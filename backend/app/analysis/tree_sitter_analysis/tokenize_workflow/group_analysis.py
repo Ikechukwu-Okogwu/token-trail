@@ -187,7 +187,8 @@ def load_type_mapping_csv(
     """
     Load ``raw_type,mapped_type`` rows; merge multiple ``mapped_type`` per ``raw_type``.
 
-    Lines starting with ``#`` and empty lines are ignored.
+    Rows with empty ``raw_type`` or ``mapped_type`` are skipped. A ``raw_type`` may
+    begin with ``#`` (e.g. C ``#include``) when encoded as a normal CSV field.
     """
     path = Path(path)
     merged: dict[str, set[str]] = defaultdict(set)
@@ -198,7 +199,7 @@ def load_type_mapping_csv(
         for row in reader:
             raw = (row.get("raw_type") or "").strip()
             dst = (row.get("mapped_type") or "").strip()
-            if not raw or not dst or raw.startswith("#"):
+            if not raw or not dst:
                 continue
             merged[raw].add(dst)
     return {k: frozenset(v) for k, v in merged.items()}

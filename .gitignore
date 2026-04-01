@@ -228,7 +228,17 @@ backend/app/analysis/config/**/*.pyc
 !backend/app/analysis/optimization/**
 backend/app/analysis/optimization/**/__pycache__/
 backend/app/analysis/optimization/**/*.pyc
-backend/app/analysis/optimization/genes/
+# genes/: track only seeds under genes/<lang>/init/; ignore GA runs (memory + timestamped dirs)
+backend/app/analysis/optimization/genes/java/*
+!backend/app/analysis/optimization/genes/java/init/
+!backend/app/analysis/optimization/genes/java/init/**
+backend/app/analysis/optimization/genes/c/*
+!backend/app/analysis/optimization/genes/c/init/
+!backend/app/analysis/optimization/genes/c/init/**
+backend/app/analysis/optimization/genes/cpp/*
+!backend/app/analysis/optimization/genes/cpp/init/
+!backend/app/analysis/optimization/genes/cpp/init/**
+backend/app/analysis/optimization/genetic_memory.csv
 !backend/app/analysis/tree_sitter_analysis/
 !backend/app/analysis/tree_sitter_analysis/**
 backend/app/analysis/tree_sitter_analysis/early_access/

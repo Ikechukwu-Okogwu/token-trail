@@ -1,0 +1,5 @@
+{
+  "prob_keep_unmatched_feature": 0.5,
+  "require_same_role_for_pairing": true,
+  "min_overlap_keys": 1
+}

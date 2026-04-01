@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from app.analysis.config.pipeline_config import (
     TokenizePipelineConfig,
     build_kgram_strategy,
+    load_tokenize_pipeline_config_for_language,
 )
 from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import filter_groups
 from app.analysis.tree_sitter_analysis.tokenize_workflow.group_deduplicate import (
@@ -29,7 +30,6 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy imp
     JsonLeafKgramStrategy,
 )
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import Token
-from app.analysis.tree_sitter_analysis.template_exclusion import strip_template_classes
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_preprocess import (
     leaf_tokens_and_truth_for_filter,
 )
@@ -110,36 +110,32 @@ def run_tokenize_similarity_pipeline(
     code_a: str,
     code_b: str,
     *,
-    config: TokenizePipelineConfig,
+    config: TokenizePipelineConfig | None = None,
+    language: str = "java",
     template: str = "",
 ) -> TokenizePipelineResult:
     """
-    1. If ``template`` is non-blank, strip each top-level class from ``template`` out
-       of both ``code_a`` and ``code_b`` (see :mod:`template_exclusion`).
+    1. Resolve ``config``: if ``None``, load ``bundles/<language>_default/meta.json``.
     2. Build per-side leaf tokens and truth tables using ``config.type_mapping`` and
-       ``config.default_categories`` (full table, then ``to_drop``).
+       ``config.default_categories``. If        ``template`` is non-blank, tokens on lines
+       that exactly match a non-blank template line get ``to_drop`` (language-agnostic;
+       see :mod:`template_exclusion`). Tokenizer follows ``language`` (``java`` / ``c`` / ``cpp``).
     3. Winnow k-grams, pair, group (parameters from ``config``).
     4. ``filter_groups`` with ``config.group_filter_config`` and pre-built truth tables.
     5. ``dedupe_subsumed_groups``, then ``dye_tokens`` → ``similarity``.
 
     Raises:
-        ValueError: if either source is empty/whitespace-only before exclusion, if
-            either side is empty after template exclusion, or if either side has no
-            leaf tokens after ``to_drop`` (treated as unusable for this pipeline).
+        ValueError: if either source is empty/whitespace-only, or if either side has
+            no leaf tokens after ``to_drop`` (treated as unusable for this pipeline).
     """
+    lang = (language or "").strip().lower()
+    if config is None:
+        config = load_tokenize_pipeline_config_for_language(lang)
+
     if not (code_a or "").strip() or not (code_b or "").strip():
         raise ValueError(
             "run_tokenize_similarity_pipeline: code_a and code_b must be non-empty "
             "(non-whitespace)"
-        )
-
-    if (template or "").strip():
-        code_a = strip_template_classes(code_a, template)
-        code_b = strip_template_classes(code_b, template)
-    if not (code_a or "").strip() or not (code_b or "").strip():
-        raise ValueError(
-            "run_tokenize_similarity_pipeline: after template exclusion, code_a and "
-            "code_b must both be non-empty (non-whitespace)"
         )
 
     strategy = build_kgram_strategy(config)
@@ -151,11 +147,15 @@ def run_tokenize_similarity_pipeline(
         code_a,
         type_mapping,
         default_categories=default_categories,
+        language=lang,
+        template=template,
     )
     tokens_b, truth_b = leaf_tokens_and_truth_for_filter(
         code_b,
         type_mapping,
         default_categories=default_categories,
+        language=lang,
+        template=template,
     )
     if not tokens_a or not tokens_b:
         raise ValueError(

@@ -51,15 +51,16 @@ def compute_javacode_similarity(
     dye coverage ``(marked_a + marked_b) / (n_a + n_b)``. Settings come from
     ``app/analysis/config/currently_using_meta`` → bundle ``meta.json``.
 
-    ``template``, ``name_a``, ``name_b``, ``auto_store`` are accepted for signature
-    compatibility but **ignored** (no class-level template exclusion).
+    ``template`` is passed to the pipeline for **line-based** template token dropping
+    (see :mod:`template_exclusion`). ``name_a``, ``name_b``, ``auto_store`` are
+    accepted for signature compatibility but ignored.
 
     Raises:
         ValueError: empty/whitespace-only input or no leaf tokens on a side.
 
     Java only.
     """
-    _ = (template, name_a, name_b, auto_store)
+    _ = (name_a, name_b, auto_store)
     _backend = Path(__file__).resolve().parents[2]
     if str(_backend) not in sys.path:
         sys.path.insert(0, str(_backend))
@@ -69,5 +70,7 @@ def compute_javacode_similarity(
     )
 
     cfg = load_active_tokenize_pipeline_config()
-    result = run_tokenize_similarity_pipeline(text_a, text_b, config=cfg)
+    result = run_tokenize_similarity_pipeline(
+        text_a, text_b, config=cfg, template=template
+    )
     return float(result.similarity)

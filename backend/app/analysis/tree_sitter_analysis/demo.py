@@ -22,7 +22,11 @@ _backend = Path(__file__).resolve().parents[3]
 if str(_backend) not in sys.path:
     sys.path.insert(0, str(_backend))
 
-from app.analysis.config import TokenizePipelineConfig, load_active_tokenize_pipeline_config
+from app.analysis.config import (
+    SUPPORTED_TOKENIZE_LANGUAGES,
+    TokenizePipelineConfig,
+    load_tokenize_pipeline_config_for_language,
+)
 from app.analysis.tree_sitter_analysis.tokenize_pipeline import (
     TokenizePipelineResult,
     run_tokenize_similarity_pipeline,
@@ -33,7 +37,12 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 REGRESSION_FIXTURES: list[Path] = [
     Path("regression/assignment_reordered_functions"),
     Path("regression/assignment_renamed_vars"),
+    Path("regression/assignment_renamed_vars_c"),
+    Path("regression/assignment_reordered_functions_c"),
     Path("regression/assignment_template_heavy"),
+    Path("regression/assignment_template_heavy_c"),
+    Path("regression/assignment_renamed_vars_cpp"),
+    Path("regression/assignment_reordered_functions_cpp"),
     Path("regression/assignment_stage3_rankset"),
 ]
 
@@ -46,14 +55,69 @@ RegressionRow: TypeAlias = tuple[
     tuple[float, float],
 ]
 
-_pipeline_cfg: TokenizePipelineConfig | None = None
+
+def _submission_source_candidates(submission_dir: Path, language: str) -> list[Path]:
+    """
+    Non-recursive: regular files under ``submission_dir`` whose suffix matches the
+    tokenize language (excluding dotfiles). Sorted by name for a stable order.
+    """
+    lang = (language or "").strip().lower()
+    if lang not in SUPPORTED_TOKENIZE_LANGUAGES:
+        raise ValueError(
+            f"submission source resolution: unsupported language {language!r} "
+            f"(expected one of {sorted(SUPPORTED_TOKENIZE_LANGUAGES)})"
+        )
+    if not submission_dir.is_dir():
+        return []
+
+    def _suffix_ok(path: Path) -> bool:
+        ext = path.suffix.lower()
+        if lang == "java":
+            return ext == ".java"
+        if lang == "c":
+            return ext == ".c"
+        if lang == "cpp":
+            return ext in (".cpp", ".cc", ".cxx")
+        return False
+
+    return sorted(
+        p
+        for p in submission_dir.iterdir()
+        if p.is_file() and not p.name.startswith(".") and _suffix_ok(p)
+    )
 
 
-def _pipeline_config() -> TokenizePipelineConfig:
-    global _pipeline_cfg
-    if _pipeline_cfg is None:
-        _pipeline_cfg = load_active_tokenize_pipeline_config()
-    return _pipeline_cfg
+def resolve_unique_submission_source_path(
+    submission_dir: Path,
+    language: str,
+    *,
+    context: str,
+) -> Path:
+    """
+    Exactly one language-appropriate source file must exist directly under
+    ``submission_dir``; otherwise raise ``ValueError`` with ``context`` in the message.
+    """
+    lang = (language or "").strip().lower()
+    candidates = _submission_source_candidates(submission_dir, language)
+    if len(candidates) == 0:
+        ext_hint = (
+            "*.java"
+            if lang == "java"
+            else "*.c"
+            if lang == "c"
+            else "*.cpp / *.cc / *.cxx"
+        )
+        raise ValueError(
+            f"{context}: no {ext_hint} source file under {submission_dir.resolve()} "
+            f"(need exactly one)"
+        )
+    if len(candidates) > 1:
+        names = ", ".join(sorted(p.name for p in candidates))
+        raise ValueError(
+            f"{context}: ambiguous sources for language={language!r} under "
+            f"{submission_dir.resolve()}: {names}"
+        )
+    return candidates[0]
 
 
 def _is_result_data_row(line: str) -> bool:
@@ -63,29 +127,48 @@ def _is_result_data_row(line: str) -> bool:
 
 def _read_fixture_template_and_pairs(
     base: Path,
-) -> tuple[str, list[tuple[str, str, float, float, float]]]:
+) -> tuple[str, list[tuple[str, str, float, float, float]], str]:
     """
     Parse ``result.txt`` for ``template_exclusion`` / ``template_file`` and data rows.
 
+    Submission sources are **not** read from ``result.txt``: each pair resolves the
+    single appropriate file under ``submissions/<name>/`` via
+    :func:`resolve_unique_submission_source_path` (``language=`` selects extensions).
+
+    Optional ``language=java`` / ``c`` / ``cpp`` selects the tokenizer and default
+    bundle (see :func:`run_tokenize_similarity_pipeline`); defaults to ``java``.
+
     Returns:
-        ``(template_text, [(name_a, name_b, expected, low, high), ...])``
+        ``(template_text, pairs, language)``
     """
     result_file = base / "result.txt"
     if not result_file.is_file():
-        return "", []
+        return "", [], "java"
     lines = result_file.read_text(encoding="utf-8").strip().splitlines()
     template_exclusion = False
     template_rel: str | None = None
+    language = "java"
     for line in lines:
         s = line.strip()
         if s.startswith("template_exclusion="):
             template_exclusion = s.split("=", 1)[1].strip().lower() == "true"
         elif s.startswith("template_file="):
             template_rel = s.split("=", 1)[1].strip()
+        elif s.startswith("language="):
+            v = s.split("=", 1)[1].strip().lower()
+            if v in SUPPORTED_TOKENIZE_LANGUAGES:
+                language = v
 
     template = ""
     if template_exclusion:
-        rel = template_rel or "template/Template.java"
+        if template_rel:
+            rel = template_rel
+        elif language == "c":
+            rel = "template/Template.c"
+        elif language == "cpp":
+            rel = "template/Template.cpp"
+        else:
+            rel = "template/Template.java"
         tmpl_path = base / rel
         if tmpl_path.is_file():
             template = tmpl_path.read_text(encoding="utf-8")
@@ -109,7 +192,7 @@ def _read_fixture_template_and_pairs(
                 low, high = float(low_str), float(high_str)
         pairs.append((name_a, name_b, expected, low, high))
 
-    return template, pairs
+    return template, pairs, language
 
 
 def compare_two_files(
@@ -119,12 +202,15 @@ def compare_two_files(
     template: str | None = None,
     template_path: str | Path | None = None,
     config: TokenizePipelineConfig | None = None,
+    language: str = "java",
     silence: bool = False,
 ) -> TokenizePipelineResult:
     """
-    Read two Java files, run the tokenize pipeline, optionally apply template exclusion.
+    Read two source files, run the tokenize pipeline, optionally apply template exclusion.
 
     ``template_path`` wins over ``template`` when the path exists as a file.
+    ``language`` is ``java``, ``c``, or ``cpp`` (tokenizer and default bundle when
+    ``config`` is omitted).
     """
     pa = Path(path_a)
     pb = Path(path_b)
@@ -141,10 +227,12 @@ def compare_two_files(
     if not tpl and template is not None:
         tpl = template
 
-    cfg = config or _pipeline_config()
+    cfg = config or load_tokenize_pipeline_config_for_language(language)
     code_a = pa.read_text(encoding="utf-8")
     code_b = pb.read_text(encoding="utf-8")
-    result = run_tokenize_similarity_pipeline(code_a, code_b, config=cfg, template=tpl)
+    result = run_tokenize_similarity_pipeline(
+        code_a, code_b, config=cfg, language=language, template=tpl
+    )
 
     if not silence:
         title = f"{pa.name} vs {pb.name}"
@@ -189,7 +277,7 @@ def run_regression_tests(
     fixtures: Sequence[Path] | None = None,
 ) -> list[RegressionRow]:
     """
-    Run regression pairs that have both ``Main.java`` files, using the tokenize pipeline.
+    Run regression pairs using the tokenize pipeline (Java and/or C per fixture headers).
 
     Returns:
         One tuple per executed pair:
@@ -197,17 +285,21 @@ def run_regression_tests(
         ``result`` is ``None`` if the pipeline raised or I/O failed. Skipped pairs
         (missing files) are omitted.
 
-        ``config``: when ``None``, uses the cached bundle from
-        :func:`load_active_tokenize_pipeline_config`.
+        ``config``: when ``None``, each fixture loads ``bundles/<language>_default``
+        from its ``result.txt`` ``language=`` line (default ``java``).
     """
-    cfg = config if config is not None else _pipeline_config()
     use_fixtures = list(fixtures) if fixtures is not None else REGRESSION_FIXTURES
     rows: list[RegressionRow] = []
 
     for rel in use_fixtures:
         base = _SCRIPT_DIR / rel
         title = str(rel).replace("\\", "/")
-        template, pairs = _read_fixture_template_and_pairs(base)
+        template, pairs, language = _read_fixture_template_and_pairs(base)
+        fixture_cfg = (
+            config
+            if config is not None
+            else load_tokenize_pipeline_config_for_language(language)
+        )
         submissions_dir = base / "submissions"
         if not submissions_dir.is_dir():
             if not silence:
@@ -216,6 +308,7 @@ def run_regression_tests(
 
         if not silence:
             print(f"\n--- Regression: {title} ---")
+            print(f"  language={language}")
             if template:
                 print(f"  template loaded ({len(template)} chars)")
             else:
@@ -223,18 +316,23 @@ def run_regression_tests(
 
         batch: list[RegressionRow] = []
         for name_a, name_b, expected, low, high in pairs:
-            path_a = submissions_dir / name_a / "Main.java"
-            path_b = submissions_dir / name_b / "Main.java"
-            if not path_a.is_file() or not path_b.is_file():
-                if not silence:
-                    print(f"  SKIP {name_a} vs {name_b}: Main.java not found")
-                continue
+            ctx = f"fixture {title!r} pair ({name_a} vs {name_b})"
+            path_a = resolve_unique_submission_source_path(
+                submissions_dir / name_a, language, context=ctx
+            )
+            path_b = resolve_unique_submission_source_path(
+                submissions_dir / name_b, language, context=ctx
+            )
             code_a = path_a.read_text(encoding="utf-8")
             code_b = path_b.read_text(encoding="utf-8")
             score: float | None = None
             try:
                 r = run_tokenize_similarity_pipeline(
-                    code_a, code_b, config=cfg, template=template
+                    code_a,
+                    code_b,
+                    config=fixture_cfg,
+                    language=language,
+                    template=template,
                 )
                 score = float(r.similarity)
             except (ValueError, OSError) as e:
@@ -273,10 +371,18 @@ def _cli() -> None:
     p = argparse.ArgumentParser(description="Tree-sitter tokenize pipeline demos.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    pc = sub.add_parser("compare", help="Compare two Java files with the pipeline.")
+    pc = sub.add_parser(
+        "compare", help="Compare two source files with the pipeline (Java/C/C++ via --language)."
+    )
     pc.add_argument("path_a", type=Path)
     pc.add_argument("path_b", type=Path)
     pc.add_argument("--template", type=Path, default=None, help="Template Java path")
+    pc.add_argument(
+        "--language",
+        choices=sorted(SUPPORTED_TOKENIZE_LANGUAGES),
+        default="java",
+        help="Tokenizer and default bundle (when not passing custom config).",
+    )
 
     pr = sub.add_parser("regression", help="Run all regression fixtures.")
     pr.add_argument(
@@ -291,6 +397,7 @@ def _cli() -> None:
             args.path_a,
             args.path_b,
             template_path=args.template,
+            language=args.language,
             silence=False,
         )
     else:

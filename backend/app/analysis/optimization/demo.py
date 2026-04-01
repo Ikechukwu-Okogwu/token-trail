@@ -10,6 +10,11 @@ from app.analysis.config import (
     save_tokenize_pipeline_bundle,
 )
 from app.analysis.optimization.fitness import evaluate_fitness, fitness_from_rows, row_penalty
+from app.analysis.optimization.genetic import (
+    GENETIC_LANGUAGES,
+    genes_language_root,
+    run_genetic_search,
+)
 from app.analysis.optimization.mutation import load_mutation_config, mutate_pipeline_config
 from app.analysis.tree_sitter_analysis.demo import run_regression_tests
 
@@ -97,7 +102,7 @@ def demo_mutation_bundle() -> None:
             fj = g1.features[j]
             print(f"  feature[{j}] NEW: {fj.name!r} weight={fj.weight:.4f}")
 
-    out_dir = _OPTIM_ROOT / "genes" / "test_bundle"
+    out_dir = genes_language_root("java") / "test_bundle"
     meta = save_tokenize_pipeline_bundle(after, out_dir)
     print(f"\nSaved mutated bundle to: {meta.parent.resolve()}")
     print(f"meta.json: {meta.resolve()}")
@@ -109,11 +114,29 @@ def main() -> None:
     sp.add_parser("fitness", help="Regression fitness on the active bundle (slow).")
     sp.add_parser(
         "mutate",
-        help="Mutate active config, print before/after, save to optimization/genes/test_bundle.",
+        help="Mutate active config, print before/after, save to optimization/genes/java/test_bundle.",
+    )
+    pg = sp.add_parser(
+        "genetic",
+        help="Mutation-only GA (genetic_config.json); use --fast for one fixture + tiny pop.",
+    )
+    pg.add_argument(
+        "--fast",
+        action="store_true",
+        help="Use genetic_config.fast: smaller pop/gen + single regression fixture.",
+    )
+    pg.add_argument(
+        "--language",
+        choices=sorted(GENETIC_LANGUAGES),
+        default=None,
+        help="Tokenizer/bundle family (genes + memory under optimization/genes/<language>/). "
+        "Default: genetic_config default_language.",
     )
     ns = ap.parse_args()
     if ns.cmd == "mutate":
         demo_mutation_bundle()
+    elif ns.cmd == "genetic":
+        run_genetic_search(language=ns.language, fast=ns.fast)
     else:
         main_fitness()
 

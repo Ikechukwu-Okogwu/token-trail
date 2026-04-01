@@ -24,9 +24,13 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy imp
 )
 
 CONFIG_PACKAGE_DIR = Path(__file__).resolve().parent
+BUNDLES_DIR = CONFIG_PACKAGE_DIR / "bundles"
 CURRENTLY_USING_META_FILENAME = "currently_using_meta"
 
 STRATEGY_JSON_LEAF = "json_leaf"
+
+# Tokenizer + default bundle under ``bundles/{language}_default/meta.json``.
+SUPPORTED_TOKENIZE_LANGUAGES: frozenset[str] = frozenset({"java", "c", "cpp"})
 
 
 @dataclass(frozen=True)
@@ -47,6 +51,32 @@ class TokenizePipelineConfig:
 
 def _currently_using_meta_file() -> Path:
     return CONFIG_PACKAGE_DIR / CURRENTLY_USING_META_FILENAME
+
+
+def default_bundle_meta_path_for_language(language: str) -> Path:
+    """
+    Return ``bundles/<language>_default/meta.json`` under :data:`CONFIG_PACKAGE_DIR`.
+
+    Raises:
+        ValueError: if ``language`` is not a supported tokenize language.
+    """
+    lang = (language or "").strip().lower()
+    if lang not in SUPPORTED_TOKENIZE_LANGUAGES:
+        raise ValueError(
+            f"unsupported tokenize language {language!r}; "
+            f"expected one of {sorted(SUPPORTED_TOKENIZE_LANGUAGES)}"
+        )
+    p = (BUNDLES_DIR / f"{lang}_default" / "meta.json").resolve()
+    if not p.is_file():
+        raise FileNotFoundError(f"bundle meta.json not found for language={lang!r}: {p}")
+    return p
+
+
+def load_tokenize_pipeline_config_for_language(language: str) -> TokenizePipelineConfig:
+    """Load :class:`TokenizePipelineConfig` from :func:`default_bundle_meta_path_for_language`."""
+    return load_tokenize_pipeline_config_from_meta_json(
+        default_bundle_meta_path_for_language(language)
+    )
 
 
 def resolve_active_meta_json_path() -> Path:

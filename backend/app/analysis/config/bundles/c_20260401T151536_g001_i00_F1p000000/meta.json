@@ -1,0 +1,14 @@
+{
+  "strategy": "json_leaf",
+  "k": 7,
+  "winnow_window": 4,
+  "max_pos_each": 101,
+  "min_group_size": 4,
+  "delta_tol": 5,
+  "max_gap": 120,
+  "default_categories": [
+    "unmapped"
+  ],
+  "type_mapping_file": "type_mapping.csv",
+  "group_filter_config_file": "group_filtering_config.json"
+}

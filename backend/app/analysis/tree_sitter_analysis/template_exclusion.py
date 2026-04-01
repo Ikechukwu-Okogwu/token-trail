@@ -1,10 +1,14 @@
 """
-Remove top-level template classes from Java sources before leaf tokenization.
+Template handling for the tokenize pipeline.
 
-Uses the same Tree-sitter Java grammar as ``refactor_tools`` (no ``tokenize_workflow``
-dependency). Template supplies **top-level** ``class_declaration`` simple names; any
-matching top-level class in the submission is deleted as a whole byte span. No extra
-string normalization after splicing.
+**Line-based exclusion (language-agnostic):** ``submission_lines_matching_template``
+marks 1-based source lines in a submission that match a non-blank line from the
+template string exactly (``splitlines`` equality). Used to OR into per-token ``to_drop``
+in :func:`leaf_tokens_and_truth_for_filter`.
+
+**Legacy Java:** ``strip_template_classes`` removes entire top-level classes by name —
+still available for callers that splice source before parsing; the main pipeline uses
+line-based dropping instead.
 """
 
 from __future__ import annotations
@@ -15,6 +19,32 @@ import tree_sitter_java as tslang
 _lang = Language(tslang.language())
 _parser = Parser()
 _parser.language = _lang
+
+
+def non_blank_template_line_set(template: str) -> frozenset[str]:
+    """
+    Distinct lines from ``template`` that contain at least one non-whitespace character.
+
+    Empty / whitespace-only template lines are ignored (not used for matching).
+    """
+    if not (template or "").strip():
+        return frozenset()
+    return frozenset(line for line in template.splitlines() if line.strip())
+
+
+def submission_lines_matching_template(code: str, template: str) -> frozenset[int]:
+    """
+    1-based line numbers in ``code`` whose full text equals some entry of
+    :func:`non_blank_template_line_set` (literal ``str`` match per ``splitlines()`` row).
+    """
+    needles = non_blank_template_line_set(template)
+    if not needles:
+        return frozenset()
+    hits: set[int] = set()
+    for line_no, line in enumerate(code.splitlines(), start=1):
+        if line in needles:
+            hits.add(line_no)
+    return frozenset(hits)
 
 
 def _class_declaration_name(node: Node, source: bytes) -> str | None:
