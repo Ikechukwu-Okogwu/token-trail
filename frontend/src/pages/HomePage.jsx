@@ -75,6 +75,7 @@ export default function HomePage({ onCourseCreated, onLogout }) {
 
               <div className="flex items-center bg-gray-100 rounded-xl p-1">
                 <button onClick={() => setViewMode('list')}
+                  aria-label="List view"
                   className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}>
                   <svg style={{ display: 'block', width: 16, height: 16 }}
                     fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -83,6 +84,7 @@ export default function HomePage({ onCourseCreated, onLogout }) {
                   </svg>
                 </button>
                 <button onClick={() => setViewMode('grid')}
+                  aria-label="Grid view"
                   className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-400 hover:text-gray-600'}`}>
                   <svg style={{ display: 'block', width: 16, height: 16 }}
                     fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
