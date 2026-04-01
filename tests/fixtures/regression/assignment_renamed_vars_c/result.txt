@@ -1,0 +1,10 @@
+fixture=assignment_renamed_vars_c
+language=c
+homogeneous=true
+template_exclusion=false
+engine_mode=direct
+require_all_pairs=true
+
+Alice.zip,Bob.zip,expected=0.5200,range=0.4000-0.7000,label=medium
+Alice.zip,Carol.zip,expected=0.0500,range=0.0000-0.2500,label=low
+Bob.zip,Carol.zip,expected=0.0500,range=0.0000-0.2500,label=low

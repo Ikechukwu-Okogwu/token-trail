@@ -1,0 +1,10 @@
+fixture=assignment_reordered_functions_c
+language=c
+homogeneous=true
+template_exclusion=false
+engine_mode=direct
+require_all_pairs=true
+
+Dev1.zip,Dev2.zip,expected=0.9500,range=0.8000-1.0000,label=high
+Dev1.zip,Dev3.zip,expected=0.0500,range=0.0000-0.2500,label=low
+Dev2.zip,Dev3.zip,expected=0.0500,range=0.0000-0.2500,label=low
