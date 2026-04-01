@@ -12,6 +12,7 @@ Test Plan:
   validation failures (400/404), placeholder-only 501 admin endpoints
 """
 from datetime import datetime, timedelta, timezone
+import io
 import time
 import zipfile
 from uuid import uuid4
@@ -798,22 +799,32 @@ def test_unknown_assignment_key_returns_valid_false(base_url: str) -> None:
     assert data["assignment"] is None
 
 
-def test_regenerate_key_returns_501_not_implemented(
+def test_regenerate_key_returns_200_and_rotates_key(
     base_url: str, happy_path_setup: dict
 ) -> None:
-    """Guards: Stub endpoint returns 501 with correct schema. Catches stub contract."""
+    """Guards: Regenerate key rotates assignment key and returns assignment payload."""
     aid = happy_path_setup["assignmentId"]
     headers = happy_path_setup["auth_headers"]
+    old_key = happy_path_setup["assignmentKey"]
     r = requests.post(
         f"{base_url}/api/instructor/assignments/{aid}/regenerate-key",
         headers=headers,
         timeout=5,
     )
-    assert r.status_code == 501
+    assert r.status_code == 200
     data = r.json()
-    assert data.get("status") == "not_implemented"
-    assert data.get("feature") == "regenerate_assignment_key"
-    assert "message" in data
+    assert data.get("id") == aid
+    assert data.get("assignmentKey") != old_key
+    assert len(data["assignmentKey"]) == 10
+    assert data["assignmentKey"].isdigit()
+
+    old_validate = requests.post(
+        f"{base_url}/api/public/assignment-key/validate",
+        json={"assignmentKey": old_key},
+        timeout=5,
+    )
+    assert old_validate.status_code == 200
+    assert old_validate.json()["valid"] is False
 
 
 def test_wrong_instructor_cannot_access_analysis_run_returns_403(
@@ -1112,3 +1123,211 @@ def test_zero_submissions_run_completes(
             break
         time.sleep(interval)
     assert last_status in ("completed", "failed"), f"Run stuck at {last_status}"
+
+
+def test_expire_key_invalidates_public_validation(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: Expire-key causes validate endpoint to return valid=false."""
+    aid = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+    key = happy_path_setup["assignmentKey"]
+
+    expire = requests.post(
+        f"{base_url}/api/instructor/assignments/{aid}/expire-key",
+        headers=headers,
+        timeout=10,
+    )
+    assert expire.status_code == 200
+    payload = expire.json()
+    assert payload["id"] == aid
+    assert payload["keyExpiry"] is not None
+
+    validate = requests.post(
+        f"{base_url}/api/public/assignment-key/validate",
+        json={"assignmentKey": key},
+        timeout=10,
+    )
+    assert validate.status_code == 200
+    assert validate.json()["valid"] is False
+
+
+def test_expired_key_rejects_submission(base_url: str, auth_headers: dict, test_zip) -> None:
+    """Guards: Submission upload is rejected when key is expired."""
+    rc = requests.post(
+        f"{base_url}/api/instructor/courses",
+        headers=auth_headers,
+        json={"name": "Expire C", "term": "F25"},
+        timeout=10,
+    )
+    rc.raise_for_status()
+    cid = rc.json()["id"]
+    ra = requests.post(
+        f"{base_url}/api/instructor/assignments",
+        headers=auth_headers,
+        json={
+            "courseId": cid,
+            "title": "Expire A",
+            "language": "java",
+            "isOpen": True,
+            "dueDate": None,
+            "keyExpiry": "2000-01-01T00:00:00+00:00",
+            "autoAnalysis": False,
+            "allowLate": False,
+            "exclusionCode": None,
+        },
+        timeout=10,
+    )
+    ra.raise_for_status()
+    key = ra.json()["assignmentKey"]
+
+    with open(test_zip, "rb") as f:
+        submit = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": key,
+                "studentIdentifier": "expired@test.edu",
+                "studentName": "Expired",
+            },
+            files={"zipFile": ("sub.zip", f, "application/zip")},
+            timeout=10,
+        )
+    assert submit.status_code == 400
+    assert "expired" in submit.json().get("detail", "").lower()
+
+
+def test_submission_accepts_optional_student_email(
+    base_url: str, happy_path_setup: dict, test_zip
+) -> None:
+    """Guards: Public submission accepts optional studentEmail field."""
+    key = happy_path_setup["assignmentKey"]
+    with open(test_zip, "rb") as f:
+        r = requests.post(
+            f"{base_url}/api/public/submissions",
+            data={
+                "assignmentKey": key,
+                "studentIdentifier": "s2@test.edu",
+                "studentName": "Student 2",
+                "studentEmail": "student2@test.edu",
+            },
+            files={"zipFile": ("sub.zip", f, "application/zip")},
+            timeout=30,
+        )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["status"] == "processed"
+
+
+def test_exclusion_code_crud_endpoints(base_url: str, happy_path_setup: dict) -> None:
+    """Guards: Exclusion-code GET/PUT/DELETE operate on assignment field."""
+    aid = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+
+    initial = requests.get(
+        f"{base_url}/api/instructor/assignments/{aid}/exclusion-code",
+        headers=headers,
+        timeout=10,
+    )
+    assert initial.status_code == 200
+    assert initial.json()["assignmentId"] == aid
+
+    put = requests.put(
+        f"{base_url}/api/instructor/assignments/{aid}/exclusion-code",
+        headers=headers,
+        json={"exclusionCode": "starter template"},
+        timeout=10,
+    )
+    assert put.status_code == 200
+    assert put.json()["exclusionCode"] == "starter template"
+
+    assignment = requests.get(
+        f"{base_url}/api/instructor/assignments/{aid}",
+        headers=headers,
+        timeout=10,
+    )
+    assert assignment.status_code == 200
+    assert assignment.json()["exclusionCode"] == "starter template"
+
+    delete = requests.delete(
+        f"{base_url}/api/instructor/assignments/{aid}/exclusion-code",
+        headers=headers,
+        timeout=10,
+    )
+    assert delete.status_code == 200
+    assert delete.json()["exclusionCode"] is None
+
+
+def test_download_submissions_returns_zip(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: Download endpoint returns a valid ZIP attachment."""
+    aid = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+    r = requests.get(
+        f"{base_url}/api/instructor/assignments/{aid}/submissions/download",
+        headers=headers,
+        timeout=15,
+    )
+    assert r.status_code == 200
+    assert "application/zip" in r.headers.get("content-type", "")
+    assert "attachment;" in r.headers.get("content-disposition", "")
+
+    # Validate zip bytes are parseable.
+    with zipfile.ZipFile(io.BytesIO(r.content), "r") as zf:
+        names = zf.namelist()
+        assert isinstance(names, list)
+        assert len(names) >= 1
+
+
+def test_delete_assignment_submissions_removes_list_entries(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: Delete submissions endpoint removes assignment submissions."""
+    aid = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+    delete = requests.delete(
+        f"{base_url}/api/instructor/assignments/{aid}/submissions",
+        headers=headers,
+        timeout=10,
+    )
+    assert delete.status_code == 204
+
+    listed = requests.get(
+        f"{base_url}/api/instructor/assignments/{aid}/submissions",
+        headers=headers,
+        timeout=10,
+    )
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+
+def test_delete_assignment_cascades_and_returns_404_after(
+    base_url: str, happy_path_setup: dict
+) -> None:
+    """Guards: Delete assignment removes assignment record."""
+    aid = happy_path_setup["assignmentId"]
+    headers = happy_path_setup["auth_headers"]
+    delete = requests.delete(
+        f"{base_url}/api/instructor/assignments/{aid}",
+        headers=headers,
+        timeout=10,
+    )
+    assert delete.status_code == 204
+
+    fetch = requests.get(
+        f"{base_url}/api/instructor/assignments/{aid}",
+        headers=headers,
+        timeout=10,
+    )
+    assert fetch.status_code == 404
+
+
+def test_class_list_route_removed_returns_404(base_url: str, auth_headers: dict) -> None:
+    """Guards: Removed class-list scaffolding now returns 404."""
+    bogus_course_id = "665f00000000000000000000"
+    r = requests.get(
+        f"{base_url}/api/instructor/courses/{bogus_course_id}/class-list",
+        headers=auth_headers,
+        timeout=10,
+    )
+    assert r.status_code == 404
