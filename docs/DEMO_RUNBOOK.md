@@ -24,6 +24,7 @@ backend/app/analysis/localtest/submission_files/
   copied.zip     ← Bob's plagiarised copy  (93.5% similar to original)
   changed.zip    ← Carol's modified version (43% similar)
 ```
+For regression fixture ZIP sets and expected-score contracts, see `docs/TEST_ZIPS.md`.
 
 **Demo account** — sign up fresh each time or reuse:
 - Email: `demo@tokentrail.test`

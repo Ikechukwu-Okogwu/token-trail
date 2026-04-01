@@ -38,7 +38,6 @@ class FingerprintPairGroup:
         return max(p.pos_b for p in self.pairs)
 
 
-
 def grouping_fingerprint_pairs(
     points: Sequence[FingerprintPair],
     *,

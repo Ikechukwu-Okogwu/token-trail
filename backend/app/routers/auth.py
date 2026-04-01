@@ -1,10 +1,11 @@
 """Auth router: instructor signup, login, and profile."""
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.core.db import get_db
 from app.core.deps import get_current_instructor
+from app.middleware.rate_limit import enforce_rate_limit
 from app.core.security import create_access_token, hash_password, verify_password
 from app.schemas.auth import (
     AuthResponse,
@@ -17,8 +18,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=201)
-async def signup(body: SignupRequest):
+async def signup(body: SignupRequest, request: Request):
     """Register a new instructor account."""
+    subject = f"{request.client.host if request.client else 'unknown'}:{body.email.lower()}"
+    enforce_rate_limit(scope="auth", subject=subject)
     db = get_db()
 
     if db.instructors.find_one({"email": body.email}):
@@ -36,8 +39,10 @@ async def signup(body: SignupRequest):
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(body: LoginRequest):
+async def login(body: LoginRequest, request: Request):
     """Log in and receive a JWT access token."""
+    subject = f"{request.client.host if request.client else 'unknown'}:{body.email.lower()}"
+    enforce_rate_limit(scope="auth", subject=subject)
     db = get_db()
     instructor = db.instructors.find_one({"email": body.email})
 

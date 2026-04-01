@@ -23,6 +23,7 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB = os.getenv("MONGO_DB", "token_trail")
 
 POLL_INTERVAL_SECONDS = 5
+PURGE_INTERVAL_SECONDS = 24 * 60 * 60
 
 
 def main():
@@ -34,8 +35,25 @@ def main():
 
     # Lazy import so the worker boots even if analysis code evolves
     from app.services.analysis_service import run_analysis_for_assignment
+    from app.services.retention_service import purge_expired_assignment_data
+
+    # Defer first purge window so startup can process queued analysis runs quickly.
+    last_purge_at = time.time()
 
     while True:
+        now_epoch = time.time()
+        if now_epoch - last_purge_at >= PURGE_INTERVAL_SECONDS:
+            try:
+                purge_stats = purge_expired_assignment_data(db)
+                print(
+                    "[worker] retention purge:",
+                    f"submissions={purge_stats['deletedSubmissions']}",
+                    f"dirs={purge_stats['deletedSubmissionDirs']}",
+                )
+            except Exception as exc:
+                print(f"[worker] retention purge failed: {exc}")
+            last_purge_at = now_epoch
+
         # Atomically claim one queued job (prevents duplicate processing)
         job = db.analysis_runs.find_one_and_update(
             {"status": "queued"},

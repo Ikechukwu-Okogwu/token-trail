@@ -1,5 +1,5 @@
 """Schemas for instructor similarity-result endpoints."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SimilarityResultListItem(BaseModel):
@@ -8,8 +8,14 @@ class SimilarityResultListItem(BaseModel):
     runId: str
     assignmentId: str
     leftSubmissionId: str
+    leftStudentIdentifier: str
+    leftStudentName: str | None = None
     rightSubmissionId: str
+    rightStudentIdentifier: str
+    rightStudentName: str | None = None
     similarityScore: float
+    confidence: float = 0.0
+    largestBlockSize: int = 0
 
 
 class SimilarityResultsResponse(BaseModel):
@@ -25,7 +31,11 @@ class SimilarityPairDetailResponse(BaseModel):
     runId: str
     assignmentId: str
     leftSubmissionId: str
+    leftStudentIdentifier: str
+    leftStudentName: str | None = None
     rightSubmissionId: str
+    rightStudentIdentifier: str
+    rightStudentName: str | None = None
     similarityScore: float
     summary: str | None = None
 
@@ -36,6 +46,19 @@ class MatchingRegion(BaseModel):
     leftEndLine: int
     rightStartLine: int
     rightEndLine: int
+    score: float
+    evidenceType: str = Field(default="winnowing_group")
+    snippet: str
+
+
+class ExcludedRegion(BaseModel):
+    """Line-range segment excluded from highlight rendering."""
+    leftStartLine: int | None = None
+    leftEndLine: int | None = None
+    rightStartLine: int | None = None
+    rightEndLine: int | None = None
+    evidenceType: str = Field(default="non_match")
+    reason: str | None = None
 
 
 class SimilarityComparisonResponse(BaseModel):
@@ -44,10 +67,18 @@ class SimilarityComparisonResponse(BaseModel):
     runId: str
     assignmentId: str
     leftSubmissionId: str
+    leftStudentIdentifier: str
+    leftStudentName: str | None = None
     rightSubmissionId: str
+    rightStudentIdentifier: str
+    rightStudentName: str | None = None
     similarityScore: float
     leftFilePath: str
     rightFilePath: str
     leftCode: str
     rightCode: str
     matchingRegions: list[MatchingRegion]
+    excludedRegions: list[ExcludedRegion]
+    summary: str
+    confidence: float
+    snippets: list[str]

@@ -7,9 +7,6 @@
 All request/response bodies are JSON unless otherwise noted.
 Protected routes require `Authorization: Bearer <token>`.
 
-> Skeleton note: some endpoints are contract placeholders only and intentionally return `501 Not Implemented` with:
-> `{ "status": "not_implemented", "feature": "<feature_key>", "message": "Skeleton placeholder endpoint. Implementation planned in future sprint." }`
-
 ---
 
 ## Health Check
@@ -37,7 +34,8 @@ Response `201`:
 { "accessToken": "eyJhbGciOi..." }
 ```
 
-Errors: `409` email already registered.
+Errors:
+- `409` email already registered
 
 ---
 
@@ -53,20 +51,21 @@ Response `200`:
 { "accessToken": "eyJhbGciOi..." }
 ```
 
-Errors: `401` invalid email or password.
+Errors:
+- `401` invalid credentials
+- `429` rate-limited (if enabled)
 
 ---
 
 ### `GET /api/auth/me`
-
-Headers: `Authorization: Bearer <token>`
 
 Response `200`:
 ```json
 { "id": "665f...", "name": "Alice", "email": "alice@example.com" }
 ```
 
-Errors: `401` invalid / missing token.
+Errors:
+- `401` invalid / missing token
 
 ---
 
@@ -74,33 +73,19 @@ Errors: `401` invalid / missing token.
 
 ### `POST /api/instructor/courses`
 
-Request:
-```json
-{ "name": "CS101", "term": "Fall 2025" }
-```
-
-Response `201`:
-```json
-{
-  "id": "665f...",
-  "name": "CS101",
-  "term": "Fall 2025",
-  "instructorId": "665e...",
-  "createdAt": "2025-06-01T12:00:00+00:00"
-}
-```
+Response `201`: `CourseResponse`
 
 ---
 
 ### `GET /api/instructor/courses`
 
-Response `200`: array of `CourseResponse`.
+Response `200`: array of `CourseResponse`
 
 ---
 
 ### `GET /api/instructor/courses/{courseId}/assignments`
 
-Response `200`: array of `AssignmentResponse` for the given instructor-owned course.
+Response `200`: array of `AssignmentResponse`
 
 Errors:
 - `400` invalid course ID format
@@ -110,38 +95,9 @@ Errors:
 
 ### `POST /api/instructor/assignments`
 
-Request:
-```json
-{
-  "courseId": "665f...",
-  "title": "HW1 Sorting",
-  "language": "java",
-  "isOpen": true,
-  "dueDate": "2025-06-08T23:59:59+00:00",
-  "keyExpiry": "2025-06-09T00:00:00+00:00",
-  "autoAnalysis": false,
-  "allowLate": false,
-  "exclusionCode": null
-}
-```
+Creates assignment with unique 10-digit `assignmentKey`.
 
-Response `201`:
-```json
-{
-  "id": "665f...",
-  "courseId": "665f...",
-  "title": "HW1 Sorting",
-  "language": "java",
-  "assignmentKey": "4829103756",
-  "isOpen": true,
-  "dueDate": "2025-06-08T23:59:59+00:00",
-  "keyExpiry": "2025-06-09T00:00:00+00:00",
-  "autoAnalysis": false,
-  "allowLate": false,
-  "exclusionCode": null,
-  "createdAt": "2025-06-01T12:00:00+00:00"
-}
-```
+Response `201`: `AssignmentResponse`
 
 ---
 
@@ -159,32 +115,19 @@ Request (all fields optional):
 }
 ```
 
-Response `200`: full `AssignmentResponse`.
+Response `200`: full `AssignmentResponse`
 
 ---
 
 ### `GET /api/instructor/assignments/{assignmentId}`
 
-Response `200`: `AssignmentResponse`.
+Response `200`: `AssignmentResponse`
 
 ---
 
 ### `GET /api/instructor/assignments/{assignmentId}/submissions`
 
-Response `200`:
-```json
-[
-  {
-    "submissionId": "665f...",
-    "assignmentId": "665f...",
-    "studentIdentifier": "alice@uni.edu",
-    "studentName": "Alice",
-    "submittedAt": "2025-06-02T09:30:00+00:00",
-    "fileCount": 5,
-    "status": "processed"
-  }
-]
-```
+Response `200`: array of `SubmissionListItem`
 
 ---
 
@@ -199,109 +142,110 @@ Response `201`:
 
 ### `GET /api/instructor/analysis-runs/{runId}`
 
-Response `200`:
-```json
-{
-  "runId": "665f...",
-  "assignmentId": "665f...",
-  "status": "completed",
-  "algorithmVersion": "v0",
-  "createdAt": "2025-06-02T10:00:00+00:00",
-  "startedAt": "2025-06-02T10:00:01+00:00",
-  "finishedAt": "2025-06-02T10:00:05+00:00",
-  "errorMessage": null
-}
-```
-
-`status` enum: `queued` | `running` | `completed` | `failed`.
-
-Errors:
-- `401` invalid / missing token
-- `403` analysis run belongs to another instructor
-- `404` run or backing assignment not found
+Response `200`: run status payload  
+`status` enum: `queued` | `running` | `completed` | `failed`
 
 ---
 
 ### `GET /api/instructor/analysis-runs/{runId}/similarity-results`
 
-Response `200`:
-```json
-{
-  "runId": "665f...",
-  "assignmentId": "665f...",
-  "results": [
-    {
-      "resultId": "runId__leftSubmissionId__rightSubmissionId",
-      "runId": "665f...",
-      "assignmentId": "665f...",
-      "leftSubmissionId": "665f...",
-      "rightSubmissionId": "665f...",
-      "similarityScore": 0.87
-    }
-  ]
-}
-```
-
-Errors:
-- `400` invalid run ID format
-- `401` invalid / missing token
-- `403` analysis run belongs to another instructor
-- `404` run, assignment, or similarity results not found
+Response `200`: ranked similarity pairs payload
 
 ---
 
 ### `GET /api/instructor/similarity-results/{resultId}`
 
-`resultId` format:
-`runId__leftSubmissionId__rightSubmissionId`
-
-Response `200`:
-```json
-{
-  "resultId": "runId__leftSubmissionId__rightSubmissionId",
-  "runId": "665f...",
-  "assignmentId": "665f...",
-  "leftSubmissionId": "665f...",
-  "rightSubmissionId": "665f...",
-  "similarityScore": 0.87,
-  "summary": "Pair similarity computed from merged submission sources."
-}
-```
-
-Errors:
-- `400` invalid `resultId` format
-- `401` invalid / missing token
-- `403` analysis run belongs to another instructor
-- `404` run, assignment, similarity result, or backing similarity document not found
+Response `200`: pair detail payload
 
 ---
 
 ### `GET /api/instructor/similarity-results/{resultId}/comparison`
 
+Response `200`: comparison payload (`leftCode`, `rightCode`, `matchingRegions`, etc.)
+
+---
+
+## Instructor Admin (JWT + assignment ownership)
+
+### `POST /api/instructor/assignments/{assignmentId}/regenerate-key`
+
+Regenerates assignment key and invalidates previous key.
+
+Response `200`: `AssignmentResponse` (with new `assignmentKey`)
+
+---
+
+### `POST /api/instructor/assignments/{assignmentId}/expire-key`
+
+Expires assignment key immediately by setting `keyExpiry` to current UTC time.
+
+Response `200`: `AssignmentResponse`
+
+---
+
+### `GET /api/instructor/assignments/{assignmentId}/submissions/download`
+
+Downloads all submissions as a ZIP.
+
+Response `200` with headers:
+- `Content-Type: application/zip`
+- `Content-Disposition: attachment; filename="assignment-<assignmentId>-submissions.zip"`
+
+Archive currently includes available:
+- `<submissionId>/raw.zip`
+- `<submissionId>/merged/merged.txt`
+
+---
+
+### `DELETE /api/instructor/assignments/{assignmentId}/submissions`
+
+Deletes assignment submissions from MongoDB and disk (`UPLOAD_DIR/<assignmentId>`).
+
+Response `204` (idempotent)
+
+---
+
+### `DELETE /api/instructor/assignments/{assignmentId}`
+
+Deletes assignment and cascades related submissions, analysis runs, similarity results, and files.
+
+Response `204`
+
+---
+
+### `GET /api/instructor/assignments/{assignmentId}/exclusion-code`
+
 Response `200`:
 ```json
-{
-  "resultId": "runId__leftSubmissionId__rightSubmissionId",
-  "runId": "665f...",
-  "assignmentId": "665f...",
-  "leftSubmissionId": "665f...",
-  "rightSubmissionId": "665f...",
-  "similarityScore": 0.87,
-  "leftFilePath": "uploads/.../merged/merged.txt",
-  "rightFilePath": "uploads/.../merged/merged.txt",
-  "leftCode": "//// FILE: ...",
-  "rightCode": "//// FILE: ...",
-  "matchingRegions": []
-}
+{ "assignmentId": "665f...", "exclusionCode": "starter template" }
 ```
 
-`matchingRegions` is currently empty in the baseline engine; line-level match regions are a later enhancement.
+---
 
-Errors:
-- `400` invalid `resultId` format
+### `PUT /api/instructor/assignments/{assignmentId}/exclusion-code`
+
+Request:
+```json
+{ "exclusionCode": "starter template" }
+```
+
+Response `200`: `ExclusionCodeResponse`
+
+---
+
+### `DELETE /api/instructor/assignments/{assignmentId}/exclusion-code`
+
+Clears exclusion code by setting it to `null`.
+
+Response `200`:
+```json
+{ "assignmentId": "665f...", "exclusionCode": null }
+```
+
+Common admin errors:
 - `401` invalid / missing token
-- `403` analysis run belongs to another instructor
-- `404` run, assignment, similarity result, or backing submissions not found
+- `403` assignment not owned by current instructor
+- `404` assignment not found
 
 ---
 
@@ -314,15 +258,21 @@ Request:
 { "assignmentKey": "4829103756" }
 ```
 
-Response `200`:
+Response `200` when valid:
 ```json
 {
   "valid": true,
-  "assignment": { "id": "665f...", "language": "java", "isOpen": true }
+  "assignment": {
+    "id": "665f...",
+    "language": "java",
+    "isOpen": true,
+    "dueDate": "2025-06-08T23:59:59+00:00",
+    "allowLate": false
+  }
 }
 ```
 
-If key is not found:
+If key is unknown or expired:
 ```json
 { "valid": false, "assignment": null }
 ```
@@ -338,6 +288,7 @@ Content-Type: `multipart/form-data`
 | `assignmentKey`     | string | yes      |
 | `studentIdentifier` | string | yes      |
 | `studentName`       | string | no       |
+| `studentEmail`      | string | no       |
 | `zipFile`           | file   | yes      |
 
 Response `201`:
@@ -350,43 +301,34 @@ Response `201`:
 }
 ```
 
-**Submission pipeline:**
-1. Validate assignment key.
-2. Save raw ZIP to `uploads/<assignmentId>/<submissionId>/raw.zip`.
-3. Safe-extract (path traversal blocked).
-4. Filter valid source files by assignment language.
-5. Merge files deterministically (sorted by relative path, with `//// FILE:` headers).
-6. Store Submission document (`status: "processed"`).
+Validation errors:
+- `404` invalid assignment key
+- `400` assignment key expired
+- `400` assignment closed
+- `400` due date passed and `allowLate=false`
+- `400` invalid `studentEmail` format (when provided)
+- `429` rate-limited (if enabled)
+
+Notes:
+- `studentEmail` is optional and non-blocking for submission success
+- Email confirmation delivery may be disabled by provider configuration
 
 ---
 
-## Running Outside Docker
+## Runtime Behavior Notes
 
-When running the backend directly on your machine instead of in Docker, set:
-
-```
-MONGO_URI=mongodb://localhost:27017
-```
+- Retention default: `DEFAULT_RETENTION_DAYS=30`; worker runs periodic purge for expired submissions and associated files.
+- Anonymization applies to stored `studentIdentifier` when `ANONYMIZATION_MODE != none`.
+- Rate limits are controlled by:
+  - `RATE_LIMIT_AUTH_ATTEMPTS_PER_HOUR`
+  - `RATE_LIMIT_SUBMISSION_ATTEMPTS_PER_HOUR`
+  - `0` disables each scope.
 
 ---
 
-## Instructor Placeholder Endpoints (`501`)
+## Removed Endpoints
 
-All endpoints below are deliberate skeleton contracts and currently return `501 Not Implemented`.
-
-### Assignment Key Management
-
-- `POST /api/instructor/assignments/{assignmentId}/regenerate-key`
-- `POST /api/instructor/assignments/{assignmentId}/expire-key`
-
-### Instructor Admin Actions
-
-- `GET /api/instructor/assignments/{assignmentId}/submissions/download`
-- `DELETE /api/instructor/assignments/{assignmentId}/submissions`
-- `DELETE /api/instructor/assignments/{assignmentId}`
-- `GET /api/instructor/assignments/{assignmentId}/exclusion-code`
-- `PUT /api/instructor/assignments/{assignmentId}/exclusion-code`
-- `DELETE /api/instructor/assignments/{assignmentId}/exclusion-code`
+The previous class-list scaffolding endpoints are removed and now return `404`:
 - `GET /api/instructor/courses/{courseId}/class-list`
 - `PUT /api/instructor/courses/{courseId}/class-list`
 - `POST /api/instructor/courses/{courseId}/class-list`

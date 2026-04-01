@@ -1,0 +1,10 @@
+fixture=assignment_template_heavy
+language=java
+homogeneous=true
+template_exclusion=true
+engine_mode=direct
+require_all_pairs=true
+
+TemplateA.zip,TemplateB.zip,expected=0.1463,range=0.0000-0.1800,label=low
+TemplateA.zip,TemplateC.zip,expected=0.0400,range=0.0000-0.1200,label=low
+TemplateB.zip,TemplateC.zip,expected=0.0400,range=0.0000-0.1200,label=low

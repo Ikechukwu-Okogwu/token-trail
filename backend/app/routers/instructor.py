@@ -302,6 +302,7 @@ async def get_analysis_run(
     return RunStatusResponse(
         runId=str(run["_id"]),
         assignmentId=run["assignmentId"],
+        courseId=assignment["courseId"],
         status=run["status"],
         algorithmVersion=run["algorithmVersion"],
         createdAt=run["createdAt"],

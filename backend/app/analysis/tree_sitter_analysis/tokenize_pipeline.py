@@ -117,7 +117,7 @@ def run_tokenize_similarity_pipeline(
     """
     1. Resolve ``config``: if ``None``, load ``bundles/<language>_default/meta.json``.
     2. Build per-side leaf tokens and truth tables using ``config.type_mapping`` and
-       ``config.default_categories``. If        ``template`` is non-blank, tokens on lines
+       ``config.default_categories``. If ``template`` is non-blank, tokens on lines
        that exactly match a non-blank template line get ``to_drop`` (language-agnostic;
        see :mod:`template_exclusion`). Tokenizer follows ``language`` (``java`` / ``c`` / ``cpp``).
     3. Winnow k-grams, pair, group (parameters from ``config``).

@@ -1,11 +1,14 @@
 """Public router: key-gated student routes (no JWT required)."""
+from datetime import datetime, timezone
+import re
 from pathlib import Path
 
 from bson import ObjectId
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from app.core.config import MAX_UPLOAD_MB, UPLOAD_DIR
 from app.core.db import get_db
+from app.middleware.rate_limit import enforce_rate_limit
 from app.schemas.public import (
     SubmissionResponse,
     ValidateKeyAssignmentInfo,
@@ -13,10 +16,33 @@ from app.schemas.public import (
     ValidateKeyResponse,
 )
 from app.services.merge_service import merge_source_files
+from app.services.notification_service import send_submission_confirmation_email
 from app.services.submission_service import create_submission
 from app.services.zip_service import list_valid_source_files, safe_extract_zip
 
 router = APIRouter(prefix="/public", tags=["public"])
+_EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    """Parse an ISO datetime string into a timezone-aware datetime."""
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _is_key_expired(assignment: dict) -> bool:
+    expiry = _parse_iso_datetime(assignment.get("keyExpiry"))
+    if not expiry:
+        return False
+    return datetime.now(timezone.utc) > expiry
 
 
 @router.post("/assignment-key/validate", response_model=ValidateKeyResponse)
@@ -27,6 +53,8 @@ async def validate_assignment_key(body: ValidateKeyRequest):
 
     if not assignment:
         return ValidateKeyResponse(valid=False, assignment=None)
+    if _is_key_expired(assignment):
+        return ValidateKeyResponse(valid=False, assignment=None)
 
     return ValidateKeyResponse(
         valid=True,
@@ -34,15 +62,19 @@ async def validate_assignment_key(body: ValidateKeyRequest):
             id=str(assignment["_id"]),
             language=assignment["language"],
             isOpen=assignment.get("isOpen", True),
+            dueDate=assignment.get("dueDate"),
+            allowLate=assignment.get("allowLate", False),
         ),
     )
 
 
 @router.post("/submissions", response_model=SubmissionResponse, status_code=201)
 async def submit(
+    request: Request,
     assignmentKey: str = Form(...),
     studentIdentifier: str = Form(...),
     studentName: str | None = Form(None),
+    studentEmail: str | None = Form(None),
     zipFile: UploadFile = File(...),
 ):
     """Upload a ZIP submission for an assignment.
@@ -51,16 +83,30 @@ async def submit(
               -> deterministic merge -> store Submission document.
     """
     db = get_db()
+    subject = request.client.host if request.client else "unknown"
+    enforce_rate_limit(scope="submission", subject=subject)
 
     # 1. Validate assignment key and load assignment
     assignment = db.assignments.find_one({"assignmentKey": assignmentKey})
     if not assignment:
         raise HTTPException(status_code=404, detail="Invalid assignment key")
+    if _is_key_expired(assignment):
+        raise HTTPException(status_code=400, detail="Assignment key has expired")
     if not assignment.get("isOpen", False):
         raise HTTPException(status_code=400, detail="Assignment is closed for submissions")
+    if not assignment.get("allowLate", False):
+        due_date = _parse_iso_datetime(assignment.get("dueDate"))
+        if due_date and datetime.now(timezone.utc) > due_date:
+            raise HTTPException(status_code=400, detail="Assignment due date has passed")
 
     assignment_id = str(assignment["_id"])
+    assignment_title = assignment.get("title", "Assignment")
     language = assignment["language"]
+    normalized_email: str | None = None
+    if studentEmail:
+        normalized_email = studentEmail.strip()
+        if normalized_email and not _EMAIL_REGEX.match(normalized_email):
+            raise HTTPException(status_code=400, detail="Invalid studentEmail format")
 
     # 2. Create submission ID early so we can build directory paths
     submission_id = str(ObjectId())
@@ -86,6 +132,11 @@ async def submit(
 
     # 6. Filter valid source files by language
     source_files = list_valid_source_files(extracted_dir, language)
+    if not source_files:
+        raise HTTPException(
+            status_code=400,
+            detail=f"ZIP contains no valid {language} source files",
+        )
 
     # 7. Merge valid files deterministically (sorted by relative path)
     merged_path = merged_dir / "merged.txt"
@@ -98,10 +149,23 @@ async def submit(
         assignment_id=assignment_id,
         student_identifier=studentIdentifier,
         student_name=studentName,
+        student_email=normalized_email,
         file_count=len(source_files),
         zip_storage_path=str(zip_path),
         merged_storage_path=str(merged_path),
     )
+
+    # Keep email integration non-blocking for the submission pipeline.
+    if normalized_email:
+        try:
+            send_submission_confirmation_email(
+                recipient_email=normalized_email,
+                assignment_title=assignment_title,
+                file_count=len(source_files),
+                replacement_status="new",
+            )
+        except Exception:
+            pass
 
     return SubmissionResponse(
         submissionId=submission_id,

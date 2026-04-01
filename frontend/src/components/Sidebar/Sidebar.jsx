@@ -1,21 +1,25 @@
-import { useState, useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { NavLink, useLocation, useParams } from 'react-router-dom'
 import './Sidebar.css'
 import homeIcon from '../../assets/icons/home.svg'
 import courseIcon from '../../assets/icons/course.svg'
 import accountIcon from '../../assets/icons/account.svg'
 import notificationsIcon from '../../assets/icons/notifications.svg'
 import assignmentIcon from '../../assets/icons/assignment.svg'
-import { getCourseAssignments, getInstructorCourses } from '../../services/api'
+import { getCourseAssignments, getInstructorCourses, getAnalysisRunStatus, logout } from '../../services/api'
 
 const navLinkClass = ({ isActive }) =>
   `flex items-center flex-1 gap-2 h-11 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`
 
-const navLinkContent = (isActive, icon, label) => (
+const navLinkContent = (isActive, icon, label, term) => (
   <>
     <div className={`w-2 h-full ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
     <img src={icon} alt="" />
-    <span className='truncate'>{label}</span>
+    <div className="flex flex-col">
+      <span className='truncate'>{label}</span>
+      <span className="text-[0.7rem]">{term}</span>
+    </div>
+    
   </>
 )
 
@@ -38,7 +42,37 @@ function ChevronUp({ className = 'w-4 h-4' }) {
 export default function Sidebar({refreshKey}) {
   const location = useLocation()
   const [courses, setCourses] = useState([])
+  const [coursesLoading, setCoursesLoading] = useState(false)
   const token = localStorage.getItem('token')
+  const [acctMenuOpen, setAcctMenuOpen] = useState(false)
+  const acctMenuRef = useRef(null)
+  const acctBtnRef = useRef(null)
+  const [courseAssignments, setCourseAssignments] = useState({})
+  const [loadingCourseAssignments, setLoadingCourseAssignments] = useState({})
+  const [expandedIds, setExpandedIds] = useState(new Set())
+  const {runId} = useParams()
+  const [runStatus, setRunStatus] = useState(null)
+
+  const fetchAssignments = (courseId) => {
+    if (courseAssignments[courseId] || loadingCourseAssignments[courseId]) return
+
+    setLoadingCourseAssignments((prev) => ({ ...prev, [courseId]: true }))
+
+    getCourseAssignments(courseId)
+      .then((data) => {
+        setCourseAssignments((prev) => ({
+          ...prev,
+          [courseId]: Array.isArray(data) ? data : [],
+        }))
+      })
+      .catch((err) => {
+        console.error('Failed to fetch assignments for course', courseId, err)
+        setCourseAssignments((prev) => ({ ...prev, [courseId]: [] }))
+      })
+      .finally(() => {
+        setLoadingCourseAssignments((prev) => ({ ...prev, [courseId]: false }))
+      })
+  }
 
   useEffect(() => {
     if (token) {
@@ -51,46 +85,92 @@ export default function Sidebar({refreshKey}) {
         })
     }
   }, [token, refreshKey])
-  const [expandedIds, setExpandedIds] = useState(new Set())
+
   useEffect(() => {
-    const initial = new Set()
+    if (runId) {
+      getAnalysisRunStatus(runId)
+        .then(setRunStatus)
+        .catch(console.error)
+    }
+  }, [runId])
 
-    courses.forEach((course) => {
-      const assignments = course.assignments ?? []
-      const hasActiveAssignment = assignments.some(
-        (a) => location.pathname === `/course/${course.id}/assignment/${a.id}`
-      )
+  useEffect(() => {
+    if (!runStatus || courses.length === 0) return
 
-      if (hasActiveAssignment) {
-        initial.add(course.id)
-      }
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      next.add(runStatus.courseId)
+      return next
     })
+  }, [runStatus, courses])
 
-    setExpandedIds(initial)
-  }, [courses, location.pathname])
+  useEffect(() => {
+    if (runStatus) return // don't override run logic
 
-  const [courseAssignments, setCourseAssignments] = useState({})
+    setExpandedIds(prev => {
+      const next = new Set(prev)
 
-  const toggleCourse = async (courseId) => {
+      courses.forEach(course => {
+        if (location.pathname.startsWith(`/course/${course.id}`)) {
+          next.add(course.id)
+        }
+      })
+
+      return next
+    })
+  }, [courses, location.pathname, runStatus])
+
+  useEffect(() => {
+    if (!runStatus || courses.length === 0) return
+
+    const courseId = runStatus.courseId
+
+    if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
+      fetchAssignments(courseId)
+    }
+  }, [runStatus, courses, courseAssignments, loadingCourseAssignments])
+
+  useEffect(() => { //fetches assignments automatically if on page where dropdown starts open
+    const match = location.pathname.match(/^\/course\/([^\/]+)(?:\/assignment\/[^\/]+)?$/)
+    if (match) {
+      const courseId = match[1]
+      if (!courseAssignments[courseId] && !loadingCourseAssignments[courseId]) {
+        fetchAssignments(courseId)
+      }
+    }
+    
+  }, [location.pathname, courseAssignments, loadingCourseAssignments])
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (acctMenuRef.current && !acctMenuRef.current.contains(e.target) && acctBtnRef.current && !acctBtnRef.current.contains(e.target)) {
+        setAcctMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+  
+  const toggleCourse = (courseId) => {
+    const isCurrentlyExpanded = expandedIds.has(courseId)
     setExpandedIds((prev) => {
       const next = new Set(prev)
       if (next.has(courseId)) {
         next.delete(courseId)
       } else {
         next.add(courseId)
-        // Fetch assignments if not already fetched
-        if (!courseAssignments[courseId]) {
-          getCourseAssignments(courseId)
-            .then((assignments) => {
-              setCourseAssignments(prev => ({ ...prev, [courseId]: assignments }))
-            })
-            .catch((err) => {
-              console.error('Failed to fetch assignments for course', courseId, err)
-            })
-        }
       }
       return next
     })
+
+    if (!isCurrentlyExpanded) {
+          fetchAssignments(courseId)
+    }
+
   }
 
   return (
@@ -105,7 +185,7 @@ export default function Sidebar({refreshKey}) {
               </NavLink>
             </li>
             {courses.map((course) => {
-              const assignments = courseAssignments[course.id] ?? course.assignments ?? []
+              const assignments = courseAssignments[course.id] ?? []
               const isExpanded = expandedIds.has(course.id)
               return (
               <li key={course.id}>
@@ -114,41 +194,45 @@ export default function Sidebar({refreshKey}) {
                     to={`/course/${course.id}`}
                     className={({isActive}) => `flex items-center flex-1 gap-2 h-11 ${(isActive&&location.pathname === `/course/${course.id}`) ? '' : 'hover:bg-white/5'}`}
                   >
-                    {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name)}
+                    {({ isActive }) => navLinkContent((isActive&&location.pathname === `/course/${course.id}`), courseIcon, course.name, course.term)}
                     
                   </NavLink>
-                  {assignments.length > 0 && (
-                    <button 
-                      onClick={() => toggleCourse(course.id)} 
-                      className="p-1.5 mr-2 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
-                      aria-expanded={isExpanded}
-                    >
-                      <span className="">
-                        {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                      </span>
-                    </button>
-                  )}
                   
+                  <button 
+                    onClick={() => toggleCourse(course.id)} 
+                    className="p-1.5 mr-2 flex-0 items-center rounded-[60px] hover:bg-[#FEF7FFBF] text-[#FEF7FFBF] hover:text-brand-purple cursor-pointer"
+                    aria-expanded={isExpanded}
+                  >
+                    <span className="">
+                      {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                    </span>
+                  </button>
                 </div>
                 
-                {isExpanded && assignments.length > 0 && (
+                {isExpanded && (
                   <ul className="border-l-[1.5px] border-purple-clicked ml-5">
-                    {assignments.map((a) => (
-                      <li key={a.id}>
-                        <NavLink
-                          to={`/course/${course.id}/assignment/${a.id}`}
-                          className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
-                        >
-                          {({ isActive }) => (
-                            <>
-                              <div className={`w-2 h-full ml-[-1.5px] ${isActive ? 'bg-[#FEF7FFBF]' : ''}`} />
-                              <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
-                              <span className="truncate">{a.title}</span>
-                            </>
-                          )}
-                        </NavLink>
-                      </li>
-                    ))}
+                    {loadingCourseAssignments[course.id] ? (
+                      <li className="text-sm text-[#FEF7FFBF] py-2">Loading assignments…</li>
+                    ) : assignments.length > 0 ? (
+                      assignments.map((a) => (
+                        <li key={a.id}>
+                          <NavLink
+                            to={`/course/${course.id}/assignment/${a.id}`}
+                            className={({ isActive }) => `flex items-center gap-2 h-9 ${isActive || a.id===runStatus?.assignmentId ? 'bg-purple-clicked' : 'hover:bg-white/5'}`}
+                          >
+                            {({ isActive }) => (
+                              <>
+                                <div className={`w-2 h-full ml-[-1.5px] ${isActive || a.id===runStatus?.assignmentId ? 'bg-[#FEF7FFBF]' : ''}`} />
+                                <img src={assignmentIcon} alt="" className="w-5 h-5 shrink-0" />
+                                <span className="truncate">{a.title}</span>
+                              </>
+                            )}
+                          </NavLink>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-sm text-[#FEF7FFBF] p-2">No assignments yet</li>
+                    )}
                   </ul>
                 )}
               </li>
@@ -157,8 +241,22 @@ export default function Sidebar({refreshKey}) {
           </ul>
         </nav>
       </div>
+      {acctMenuOpen && (
+        <div className='flex flex-col h-16 w-28 bg-brand-pink z-50 absolute bottom-15 left-0 rounded-sm shadow-menu text-[#4D4D4D] overflow-hidden' ref={acctMenuRef}>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5'>
+            Settings
+          </button>
+          <button className='flex-1 hover:bg-bg-gray text-left px-1.5 text-closed-red' onClick={() => logout()}>
+            Sign Out
+          </button>
+        </div>
+      )}
+      
       <div className="h-14 border-t border-t-[#FFFFFF80] flex">
-        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5 ">
+        <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5 "
+          onClick={() => setAcctMenuOpen(prev => !prev)}
+          ref={acctBtnRef}
+        >
           <img src={accountIcon} alt="Account" className='h-8'/>
         </button>
         <button className="flex-1 shadow-button flex items-center justify-center cursor-pointer hover:bg-white/5">

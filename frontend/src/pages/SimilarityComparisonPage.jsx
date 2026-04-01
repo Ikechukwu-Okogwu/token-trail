@@ -42,11 +42,17 @@ export default function SimilarityComparisonPage() {
           <div className="flex gap-3 flex-1 overflow-hidden">
             <CodePane
               title={`Submission A — ${data.leftSubmissionId.slice(-8)}`}
+              submissionId={data.leftSubmissionId}
+              studentIdentifier={data.leftStudentIdentifier}
+              studentName={data.leftStudentName}
               code={data.leftCode}
               filePath={data.leftFilePath}
             />
             <CodePane
               title={`Submission B — ${data.rightSubmissionId.slice(-8)}`}
+              submissionId={data.rightSubmissionId}
+              studentIdentifier={data.rightStudentIdentifier}
+              studentName={data.rightStudentName}
               code={data.rightCode}
               filePath={data.rightFilePath}
             />
@@ -57,13 +63,24 @@ export default function SimilarityComparisonPage() {
   )
 }
 
-function CodePane({ title, code, filePath }) {
+function CodePane({ title, submissionId, studentIdentifier, studentName, code, filePath }) {
   const lines = (code || '').split('\n')
   return (
     <div className="flex-1 flex flex-col bg-gray-950 rounded-xl overflow-hidden">
       <div className="px-4 py-2 bg-gray-900 flex-shrink-0">
-        <span className="text-xs font-semibold text-gray-300">{title}</span>
-        {filePath && <span className="text-xs text-gray-500 ml-2 font-mono">{filePath.split('/').pop() || filePath}</span>}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-gray-300">{title}</div>
+            <div className="text-[11px] text-gray-400 font-mono truncate">Submission ID: {submissionId || 'N/A'}</div>
+            <div className="text-[11px] text-gray-400 font-mono truncate">Student ID: {studentIdentifier || 'N/A'}</div>
+            <div className="text-[11px] text-gray-400 truncate">Student Name: {studentName || 'N/A'}</div>
+          </div>
+          {filePath && (
+            <span className="text-xs text-gray-500 ml-2 font-mono flex-shrink-0">
+              {filePath.split('/').pop() || filePath}
+            </span>
+          )}
+        </div>
       </div>
       {!code ? (
         <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">No source available</div>
