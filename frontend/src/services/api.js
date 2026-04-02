@@ -1,3 +1,4 @@
+
 /**
  * Base API fetch helper for Token Trail.
  * Reads VITE_API_BASE_URL and attaches the JWT when present.
@@ -27,9 +28,9 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (res.status === 204) return null
-  if (res.status === 201) {
+  if (res.status === 401) {
     localStorage.removeItem('token') 
-    navigate('/dashboard') //forcing navigate to some protected will trigger the unauth splash screen
+    window.location.href = '/login' //forcing navigate to some protected will trigger the unauth splash screen
   }
   return res.json()
 }
