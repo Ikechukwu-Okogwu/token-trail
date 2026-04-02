@@ -4,6 +4,7 @@ import { getSimilarityResults, getAnalysisRunStatus } from '../services/api'
 import Sidebar from '../components/Sidebar/Sidebar'
 import { StatusBadge } from '../components/ui/Badge'
 import ErrorBanner from '../components/ui/ErrorBanner'
+import WarningBanner from '../components/ui/WarningBanner'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import {
   AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown,
@@ -141,6 +142,13 @@ export default function SimilarityReportPage() {
                 <StatCard icon={TrendingUp} label="Highest Score"  value={stats.highest > 0 ? `${Math.round(stats.highest * 100)}%` : '—'} accent={stats.highest >= 0.8 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'} />
               </div>
 
+              {/* Run warnings */}
+              {runInfo?.warnings?.length > 0 && (
+                <div className="mb-4">
+                  <WarningBanner warnings={runInfo.warnings} />
+                </div>
+              )}
+
               {/* Controls */}
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="relative flex-1 min-w-[200px] max-w-xs">
@@ -222,12 +230,20 @@ export default function SimilarityReportPage() {
                               <ScoreBar score={row.similarityScore} />
                             </td>
                             <td className="px-4 py-3.5">
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
-                                {row.similarityScore >= 0.8 && (
-                                  <AlertTriangle className="mr-1 h-3 w-3" />
+                              <div className="flex items-center gap-1.5">
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
+                                  {row.similarityScore >= 0.8 && (
+                                    <AlertTriangle className="mr-1 h-3 w-3" />
+                                  )}
+                                  {text}
+                                </span>
+                                {row.warnings?.length > 0 && (
+                                  <span title={row.warnings.join('; ')} className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 cursor-help">
+                                    <AlertTriangle className="mr-0.5 h-2.5 w-2.5" />
+                                    !
+                                  </span>
                                 )}
-                                {text}
-                              </span>
+                              </div>
                             </td>
                             <td className="px-4 py-3.5">
                               <Link

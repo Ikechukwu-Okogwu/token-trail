@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getSimilarityComparison } from '../services/api'
 import Sidebar from '../components/Sidebar/Sidebar'
 import ErrorBanner from '../components/ui/ErrorBanner'
+import { DarkWarningBanner } from '../components/ui/WarningBanner'
 import {
   ArrowLeft, Info, User, FileCode, Loader2,
   ChevronLeft, ChevronRight, Crosshair, Shield
@@ -139,6 +140,17 @@ export default function SimilarityComparisonPage() {
                     </span>
                   </div>
                 )}
+
+                {data.analysisMethod && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/60 px-2.5 py-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500">Method</span>
+                    <span className={`text-xs font-semibold ${
+                      data.analysisMethod === 'error_fallback' ? 'text-amber-400' : 'text-gray-300'
+                    }`}>
+                      {data.analysisMethod === 'tokenize' ? 'AST Token' : data.analysisMethod === 'error_fallback' ? 'Fallback' : data.analysisMethod}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -155,6 +167,11 @@ export default function SimilarityComparisonPage() {
               Highlighted regions indicate structural similarity based on token-level analysis.
             </p>
           </div>
+        )}
+
+        {/* ── Warnings banner ── */}
+        {data?.warnings?.length > 0 && (
+          <DarkWarningBanner warnings={data.warnings} />
         )}
 
         {/* ── Match navigation bar ── */}
