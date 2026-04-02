@@ -16,7 +16,7 @@ from app.analysis.localtest.log import test_log
 BASE_URL = "http://localhost:8000/api"
 TEST_PROJECT = "run_analysis_on_specified_assignment"
 
-assignment_id = "69ba0363a906062a119e9b6d"
+assignment_id = "69c94e9c416228f190bb8592"
 
 
 def run():

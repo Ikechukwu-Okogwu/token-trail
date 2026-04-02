@@ -23,6 +23,7 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.grouping_fingerprint_pa
 )
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
     Token,
+    _categories_for_raw_type,
     align_mapped_type_truth_tables,
     mapped_type_truth_table,
 )
@@ -186,7 +187,8 @@ def load_type_mapping_csv(
     """
     Load ``raw_type,mapped_type`` rows; merge multiple ``mapped_type`` per ``raw_type``.
 
-    Lines starting with ``#`` and empty lines are ignored.
+    Rows with empty ``raw_type`` or ``mapped_type`` are skipped. A ``raw_type`` may
+    begin with ``#`` (e.g. C ``#include``) when encoded as a normal CSV field.
     """
     path = Path(path)
     merged: dict[str, set[str]] = defaultdict(set)
@@ -197,7 +199,7 @@ def load_type_mapping_csv(
         for row in reader:
             raw = (row.get("raw_type") or "").strip()
             dst = (row.get("mapped_type") or "").strip()
-            if not raw or not dst or raw.startswith("#"):
+            if not raw or not dst:
                 continue
             merged[raw].add(dst)
     return {k: frozenset(v) for k, v in merged.items()}
@@ -234,12 +236,9 @@ def _categories_for_token(
     *,
     default_categories: Collection[str],
 ) -> frozenset[str]:
-    raw = token.type
-    if raw in type_mapping:
-        cats = frozenset(type_mapping[raw])
-        if cats:
-            return cats
-    return frozenset(default_categories)
+    return _categories_for_raw_type(
+        token.type, type_mapping, default_categories=default_categories
+    )
 
 
 def _mass_counts_for_span(

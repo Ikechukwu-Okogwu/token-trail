@@ -1,0 +1,94 @@
+{
+  "keep_threshold": 0.5,
+  "default_similarity_no_match": 0.4431718537872646,
+  "features": [
+    {
+      "name": "structural_low_literal",
+      "role": "evidence_positive",
+      "intervals": {
+        "keyword": [
+          0.1128873416178616,
+          0.23668724773199035
+        ],
+        "literal": [
+          0.021662968899685456,
+          0.15904320868432198
+        ],
+        "name": [
+          0.19896351212422714,
+          0.3134763544369442
+        ]
+      },
+      "contribution": 0.6801743011842453,
+      "weight": 1.0
+    },
+    {
+      "name": "high_literal_clear_suspicion",
+      "role": "evidence_negative",
+      "intervals": {
+        "literal": [
+          0.22779270609713684,
+          0.9910128001674191
+        ]
+      },
+      "contribution": 0.12,
+      "weight": 2.486691917055424
+    },
+    {
+      "name": "balanced_skeletal_code",
+      "role": "evidence_positive",
+      "intervals": {
+        "keyword": [
+          0.14621219519048842,
+          0.23692770930427687
+        ],
+        "operator": [
+          0.0983432696833047,
+          0.1547793026624779
+        ],
+        "punct": [
+          0.31793416009502923,
+          0.41847537055714923
+        ]
+      },
+      "contribution": 0.6622287972375782,
+      "weight": 1.176038247505356
+    },
+    {
+      "name": "name_rich_low_keyword",
+      "role": "evidence_positive",
+      "intervals": {
+        "keyword": [
+          0.12,
+          0.19
+        ],
+        "literal": [
+          0.05,
+          0.12
+        ],
+        "name": [
+          0.2,
+          0.28
+        ]
+      },
+      "contribution": 0.7107390367108063,
+      "weight": 1.091401123313087
+    },
+    {
+      "name": "punct_heavy_fragment",
+      "role": "evidence_positive",
+      "intervals": {
+        "name": [
+          0.16968933974469955,
+          0.25288414633762246
+        ],
+        "punct": [
+          0.3610858966163002,
+          0.5241323883100358
+        ]
+      },
+      "contribution": 0.61,
+      "weight": 0.7026814274036227
+    }
+  ]
+}

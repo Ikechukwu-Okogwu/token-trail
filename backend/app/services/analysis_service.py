@@ -1,17 +1,17 @@
 """Analysis service: similarity run with language-dispatched engine.
 
 Language dispatch:
-  - Java  → AST/token pipeline (run_tokenize_similarity_pipeline), rename-robust,
-             template-aware via AST class-level byte-span exclusion.
-  - C/C++ → character k-gram winnowing (compare_texts_with_template), unchanged.
-  - Java fallback (parse failure / empty tokens) → character winnowing.
+  - Java, C, C++ → AST/token pipeline (``run_tokenize_similarity_pipeline``) with
+    language-specific bundle ``meta.json``; template text uses line-based token
+    dropping (see ``template_exclusion``).
+  - Unsupported or empty language, or pipeline failure → character k-gram winnowing
+    (``compare_texts_with_template``).
 
-The public API surface (build_similarity_metrics output contract, run_analysis_for_assignment)
-is unchanged. Routers, schemas, and frontend require no modification.
+The public API surface (``build_similarity_metrics`` output contract,
+``run_analysis_for_assignment``) is unchanged for routers and frontend.
 
-Architectural note: _character_winnowing_metrics is kept as a named helper so that
-a future C/C++ AST engine can replace the C/C++ dispatch branch without touching
-the Java path or the service contract.
+Architectural note: ``_character_winnowing_metrics`` is kept as a named helper so
+callers can fall back without duplicating offset/line logic.
 """
 from __future__ import annotations
 
@@ -24,27 +24,46 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from pymongo.database import Database
 
+from app.analysis.config import (
+    SUPPORTED_TOKENIZE_LANGUAGES,
+    load_tokenize_pipeline_config_from_meta_json,
+)
+from app.analysis.config.pipeline_config import CONFIG_PACKAGE_DIR
 from app.analysis.testWinowingCode.testWinowingLib import compare_texts_with_template
+from app.analysis.tree_sitter_analysis.tokenize_pipeline import (
+    TokenizePipelineResult,
+    run_tokenize_similarity_pipeline,
+)
+from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import (
+    group_token_span_bounds,
+)
+from app.core.deps import to_object_id
 
-try:
-    from app.analysis.tree_sitter_analysis.tokenize_pipeline import (
-        TokenizePipelineResult,
-        run_tokenize_similarity_pipeline,
-    )
-    from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy import (
-        JsonLeafKgramStrategy,
-    )
-    from app.analysis.tree_sitter_analysis.tokenize_workflow.group_analysis import (
-        group_token_span_bounds,
-    )
-    _JAVA_TOKENIZE_AVAILABLE = True
-except Exception:
-    _JAVA_TOKENIZE_AVAILABLE = False
+_BUNDLES_DIR = CONFIG_PACKAGE_DIR / "bundles"
+
+# Production tokenize bundles: folder names under ``bundles/`` (copy new GA outputs here and update).
+_PRODUCTION_BUNDLE_JAVA = "java_20260401T014642_g001_i08_F0p824260"
+_PRODUCTION_BUNDLE_C = "c_20260401T151536_g001_i00_F1p000000"
+_PRODUCTION_BUNDLE_CPP = "cpp_20260401T154450_g017_i00_F0p824255"
 
 
-# ---------------------------------------------------------------------------
-# Private helpers (shared by both engine paths)
-# ---------------------------------------------------------------------------
+def _normalize_assignment_language(raw: object) -> str:
+    if not isinstance(raw, str) or not raw.strip():
+        return "java"
+    lang = raw.strip().lower()
+    if lang not in SUPPORTED_TOKENIZE_LANGUAGES:
+        return "java"
+    return lang
+
+
+def _bundle_meta_json_for_language(lang: str) -> Path:
+    """``bundles/<gene-folder>/meta.json`` for each assignment language."""
+    if lang == "c":
+        return (_BUNDLES_DIR / _PRODUCTION_BUNDLE_C / "meta.json").resolve()
+    if lang == "cpp":
+        return (_BUNDLES_DIR / _PRODUCTION_BUNDLE_CPP / "meta.json").resolve()
+    return (_BUNDLES_DIR / _PRODUCTION_BUNDLE_JAVA / "meta.json").resolve()
+
 
 def _read_text(path_str: str | None) -> str:
     """Read text from a merged submission file path."""
@@ -154,26 +173,12 @@ def _confidence_and_coverage(
     return round(min(1.0, (0.55 * similarity) + (0.45 * coverage)), 4)
 
 
-# ---------------------------------------------------------------------------
-# Java AST/token adapter
-# ---------------------------------------------------------------------------
-
 def _tokenize_result_to_metrics(
-    result: "TokenizePipelineResult",
+    result: TokenizePipelineResult,
     text_a: str,
     text_b: str,
 ) -> dict[str, object]:
-    """Convert a TokenizePipelineResult into the canonical service metrics dict.
-
-    All 7 required fields are preserved:
-      similarity, matchingRegions, excludedRegions, confidence,
-      snippets, largestBlockSize, summary.
-
-    Region score is the fraction of total fingerprint pairs belonging to each
-    group (mirrors the character-path's len(group) / total_points).
-    evidenceType is set to "tokenize_group" to distinguish from the
-    character-winnowing path ("winnowing_group") in the stored JSON.
-    """
+    """Convert a TokenizePipelineResult into the canonical service metrics dict."""
     tokens_a = result.tokens_a
     tokens_b = result.tokens_b
     k = result.strategy_k
@@ -248,10 +253,6 @@ def _tokenize_result_to_metrics(
     }
 
 
-# ---------------------------------------------------------------------------
-# Character-winnowing path (C, C++, Java fallback)
-# ---------------------------------------------------------------------------
-
 def _character_winnowing_metrics(
     text_a: str,
     text_b: str,
@@ -259,11 +260,7 @@ def _character_winnowing_metrics(
     template_text: str = "",
     k: int = 5,
 ) -> dict[str, object]:
-    """Character k-gram winnowing path used for C, C++, and Java parse fallback.
-
-    Kept as a named function so a future C/C++ AST engine can replace the
-    C/C++ dispatch branch without touching Java logic or the service contract.
-    """
+    """Character k-gram winnowing fallback."""
     result = compare_texts_with_template(text_a, text_b, template_text, k=k)
     groups = result.get("groups", [])
     similarity = float(result.get("similarity", 0.0))
@@ -340,10 +337,6 @@ def _character_winnowing_metrics(
     }
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
 def build_similarity_metrics(
     text_a: str,
     text_b: str,
@@ -352,26 +345,28 @@ def build_similarity_metrics(
     k: int = 5,
     language: str = "",
 ) -> dict[str, object]:
-    """Compute score + block-level data used by ranked and comparison endpoints.
-
-    Dispatch:
-      - Java  → AST/token pipeline (rename-robust, AST template exclusion).
-                Falls back to character winnowing on parse failure or empty tokens.
-      - C/C++ → character winnowing (behaviour unchanged from before Phase B).
-    """
-    if language == "java" and _JAVA_TOKENIZE_AVAILABLE and text_a.strip() and text_b.strip():
+    """Score + block-level data for ranked and comparison endpoints (full metrics dict)."""
+    lang_key = (language or "").strip().lower()
+    if (
+        lang_key in SUPPORTED_TOKENIZE_LANGUAGES
+        and text_a.strip()
+        and text_b.strip()
+    ):
         try:
+            cfg = load_tokenize_pipeline_config_from_meta_json(
+                _bundle_meta_json_for_language(lang_key)
+            )
             result = run_tokenize_similarity_pipeline(
                 text_a,
                 text_b,
+                config=cfg,
+                language=lang_key,
                 template=template_text,
-                strategy=JsonLeafKgramStrategy(k=k),
             )
             return _tokenize_result_to_metrics(result, text_a, text_b)
         except Exception:
-            pass  # fall through to character-winnowing path
+            pass
 
-    # C, C++, and Java fallback
     return _character_winnowing_metrics(text_a, text_b, template_text=template_text, k=k)
 
 
@@ -399,14 +394,30 @@ def load_submission_text_and_path(db: Database, submission_id: str) -> tuple[str
 def run_analysis_for_assignment(
     db: Database, assignment_id: str, run_id: str
 ) -> None:
-    """Run the similarity-analysis pipeline for one assignment."""
-    # Fetch assignment to get optional template exclusion code and language
+    """Run the similarity-analysis pipeline for one assignment.
+
+    Writes one document to the similarity_results collection:
+    ``{runId, assignmentId, createdAt, pairs:[{submissionA, submissionB, score, matchingRegions}]}``.
+
+    Score and ``matchingRegions`` come from ``run_tokenize_similarity_pipeline`` (dye
+    coverage + per-kept-group line spans). On pipeline error (empty/unparseable source),
+    score is 0.0 and regions are empty.
+
+    Bundle is ``app/analysis/config/bundles/<gene-folder>/meta.json``, chosen by
+    assignment ``language`` (``java`` / ``c`` / ``cpp``); see module-level
+    ``_PRODUCTION_BUNDLE_*`` constants. Unknown or missing language defaults to the
+    Java bundle.
+
+    If the assignment has non-empty ``exclusionCode``, it is passed as ``template`` for
+    line-based template token dropping (see ``template_exclusion``).
+    """
     assignment = db["assignments"].find_one(
-        {"_id": ObjectId(assignment_id)},
+        {"_id": to_object_id(assignment_id)},
         {"exclusionCode": 1, "language": 1},
     )
-    template_text: str = (assignment or {}).get("exclusionCode") or ""
-    language: str = ((assignment or {}).get("language") or "").lower()
+    _exc = (assignment or {}).get("exclusionCode")
+    template = _exc.strip() if isinstance(_exc, str) else ""
+    lang = _normalize_assignment_language((assignment or {}).get("language"))
 
     submissions = list(
         db["submissions"].find(
@@ -415,7 +426,19 @@ def run_analysis_for_assignment(
         )
     )
 
+    print(
+        "run analysis for assignment",
+        assignment_id,
+        "language=",
+        lang,
+        flush=True,
+    )
+
     submissions.sort(key=lambda s: str(s.get("_id", "")))
+
+    pipeline_cfg = load_tokenize_pipeline_config_from_meta_json(
+        _bundle_meta_json_for_language(lang)
+    )
 
     prepared: list[dict[str, str]] = []
     for s in submissions:
@@ -430,25 +453,27 @@ def run_analysis_for_assignment(
         )
 
     pairs: list[dict[str, object]] = []
-    for pair_index, (a, b) in enumerate(combinations(prepared, 2), start=1):
-        metrics = build_similarity_metrics(
-            a["text"], b["text"],
-            template_text=template_text,
-            k=5,
-            language=language,
-        )
+    for a, b in combinations(prepared, 2):
+        try:
+            result = run_tokenize_similarity_pipeline(
+                a["text"],
+                b["text"],
+                config=pipeline_cfg,
+                language=lang,
+                template=template,
+            )
+            score = result.similarity
+            regions = result.matching_regions_as_dicts()
+        except (ValueError, FileNotFoundError, OSError):
+            score = 0.0
+            regions = []
         pairs.append(
             {
                 "resultId": f"{run_id}__{a['submissionId']}__{b['submissionId']}",
                 "submissionA": a["submissionId"],
                 "submissionB": b["submissionId"],
-                "score": metrics["similarity"],
-                "confidence": metrics["confidence"],
-                "largestBlockSize": metrics["largestBlockSize"],
-                "summary": metrics["summary"],
-                "matchingRegions": metrics["matchingRegions"],
-                "excludedRegions": metrics["excludedRegions"],
-                "snippets": metrics["snippets"],
+                "score": score,
+                "matchingRegions": regions,
             }
         )
 

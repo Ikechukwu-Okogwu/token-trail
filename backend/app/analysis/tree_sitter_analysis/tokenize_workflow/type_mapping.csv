@@ -25,6 +25,11 @@ raw_type,mapped_type
 ~,operator
 <,operator
 >,operator
+==,operator
+!=,operator
+<=,operator
++=,operator
+++,operator
 public,keyword
 private,keyword
 protected,keyword
@@ -44,6 +49,7 @@ long,keyword
 float,keyword
 double,keyword
 boolean,keyword
+boolean_type,keyword
 char,keyword
 if,keyword
 else,keyword
@@ -100,3 +106,5 @@ true,keyword
 false,keyword
 null,literal
 null,keyword
+line_comment,to_drop
+block_comment,to_drop

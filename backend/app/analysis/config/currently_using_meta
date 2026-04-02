@@ -1,0 +1,2 @@
+# Path to meta.json relative to this config package directory (app/analysis/config).
+bundles/java_default/meta.json

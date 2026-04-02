@@ -215,11 +215,38 @@ frontend/.env
 # analysis developing
 backend/app/analysis/**
 !backend/app/analysis/
+!backend/app/analysis/__init__.py
 !backend/app/analysis/analysis.py
 !backend/app/analysis/analysis_demo.py
+# Config bundles (meta.json, CSV, currently_using_meta) + pipeline helpers — required for production
+!backend/app/analysis/config/
+!backend/app/analysis/config/**
+backend/app/analysis/config/**/__pycache__/
+backend/app/analysis/config/**/*.pyc
+# Optimization (GA / fitness / mutation); genes/ is local experiment output only
+!backend/app/analysis/optimization/
+!backend/app/analysis/optimization/**
+backend/app/analysis/optimization/**/__pycache__/
+backend/app/analysis/optimization/**/*.pyc
+# genes/: track only seeds under genes/<lang>/init/; ignore GA runs (memory + timestamped dirs)
+backend/app/analysis/optimization/genes/java/*
+!backend/app/analysis/optimization/genes/java/init/
+!backend/app/analysis/optimization/genes/java/init/**
+backend/app/analysis/optimization/genes/c/*
+!backend/app/analysis/optimization/genes/c/init/
+!backend/app/analysis/optimization/genes/c/init/**
+backend/app/analysis/optimization/genes/cpp/*
+!backend/app/analysis/optimization/genes/cpp/init/
+!backend/app/analysis/optimization/genes/cpp/init/**
+backend/app/analysis/optimization/genetic_memory.csv
 !backend/app/analysis/tree_sitter_analysis/
 !backend/app/analysis/tree_sitter_analysis/**
 backend/app/analysis/tree_sitter_analysis/early_access/
+backend/app/analysis/tree_sitter_analysis/early_access_2/
+backend/app/analysis/tree_sitter_analysis/early_access_3/
+# tokenize_workflow: track package + configs (not __pycache__ — use tree_sitter_analysis/**/__pycache__/ below)
+!backend/app/analysis/tree_sitter_analysis/tokenize_workflow/
+!backend/app/analysis/tree_sitter_analysis/tokenize_workflow/**
 backend/app/analysis/tree_sitter_analysis/todo.md
 backend/app/analysis/tree_sitter_analysis/__pycache__/
 backend/app/analysis/tree_sitter_analysis/**/__pycache__/
