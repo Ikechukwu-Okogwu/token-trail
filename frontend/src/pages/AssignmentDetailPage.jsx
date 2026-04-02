@@ -10,6 +10,7 @@ import Sidebar from '../components/Sidebar/Sidebar'
 import Button from '../components/ui/Button'
 import { StatusBadge } from '../components/ui/Badge'
 import ErrorBanner from '../components/ui/ErrorBanner'
+import WarningBanner from '../components/ui/WarningBanner'
 import {
   ArrowLeft, Copy, CheckCircle, Play, RefreshCw, Eye,
   Loader2, FileCode, Users, Clock, Key, Code2, Calendar,
@@ -468,6 +469,25 @@ export default function AssignmentDetailPage() {
                         {runStatus?.errorMessage && (
                           <div className="border-t border-gray-100 px-4 py-3">
                             <ErrorBanner message={`Failure: ${runStatus.errorMessage}`} />
+                          </div>
+                        )}
+
+                        {runStatus?.warnings?.length > 0 && (
+                          <div className="border-t border-gray-100 px-4 py-3">
+                            <WarningBanner warnings={runStatus.warnings} />
+                          </div>
+                        )}
+
+                        {runStatus?.pairsAnalyzed != null && (
+                          <div className="flex items-center gap-4 border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500">
+                            <span>
+                              <span className="font-semibold text-gray-700">{runStatus.pairsAnalyzed}</span> pair{runStatus.pairsAnalyzed !== 1 ? 's' : ''} analyzed
+                            </span>
+                            {runStatus.pairsFailed > 0 && (
+                              <span className="text-amber-600">
+                                <span className="font-semibold">{runStatus.pairsFailed}</span> failed
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
