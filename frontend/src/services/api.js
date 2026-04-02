@@ -27,6 +27,10 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (res.status === 204) return null
+  if (res.status === 201) {
+    localStorage.removeItem('token') 
+    navigate('/dashboard') //forcing navigate to some protected will trigger the unauth splash screen
+  }
   return res.json()
 }
 
