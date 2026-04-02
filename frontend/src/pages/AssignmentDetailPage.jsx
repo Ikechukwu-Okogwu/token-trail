@@ -276,16 +276,14 @@ export default function AssignmentDetailPage() {
                         </div>
 
                         {/* Exclusion code */}
-                        {assignment.exclusionCode && (
-                          <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-                            <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
-                              <FileCode className="h-3 w-3" /> Exclusion Code
-                            </div>
-                            <pre className="max-h-40 overflow-x-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs font-mono text-gray-700">
-                              {assignment.exclusionCode}
-                            </pre>
+                        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
+                            <FileCode className="h-3 w-3" /> Exclusion Code
                           </div>
-                        )}
+                          <pre className="max-h-40 overflow-x-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs font-mono text-gray-700">
+                            {assignment.exclusionCode}
+                          </pre>
+                        </div>
                       </>
                     )}
                   </div>
@@ -343,7 +341,7 @@ export default function AssignmentDetailPage() {
                           {submissions.map((s) => (
                             <tr
                               key={s.submissionId}
-                              className="transition-colors hover:bg-brand-purple/[0.025]"
+                              className="transition-colors"
                             >
                               <td className="px-5 py-4">
                                 <p className="font-semibold text-gray-900">
