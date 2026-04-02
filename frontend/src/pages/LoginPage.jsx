@@ -72,7 +72,7 @@ export default function LoginPage() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,rgba(86,79,103,0.06),transparent_60%),_#FEF7FF66]">
       {/* Header band — compact, matching landing page nav bar */}
-      <header className="relative bg-landing px-6 pb-12 pt-7">
+      <header className="relative bg-landing px-6 pb-7 pt-5">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-2.5 lg:items-start">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
@@ -80,12 +80,7 @@ export default function LoginPage() {
             </div>
             <span className="text-xl font-semibold text-white tracking-tight">Token Trail</span>
           </Link>
-          <p className="text-sm font-medium text-white/80">
-            Instructor access for assignment management and similarity analysis
-          </p>
         </div>
-        {/* Fade out into page background */}
-        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-brand-pink/40" />
       </header>
 
       {/* Radial glow — soft emphasis behind the auth area */}
@@ -93,12 +88,13 @@ export default function LoginPage() {
 
       {/* Content */}
       <div className="relative z-10 flex flex-1 items-start justify-center px-4 pt-6 pb-12">
-        <div className="flex w-full max-w-5xl items-start gap-16">
+        <div className="flex w-full justify-center relative">
+          <div className="w-80 mr-4"/>
           {/* Auth card column */}
           <div className="w-full max-w-lg mx-auto lg:mx-0">
             {/* Card */}
             <div className="rounded-2xl border border-white/60 bg-white px-10 py-9 ring-1 ring-black/5 shadow-xl hover:shadow-2xl transition-shadow duration-300">
-              <h1 className="text-xl font-bold text-gray-900 text-center mb-1">Teacher Portal</h1>
+              <h1 className="text-xl font-bold text-gray-900 text-center mb-1">Instructor Portal</h1>
               <p className="text-sm text-gray-500 text-center mb-6">
                 Sign in or create an account to get started
               </p>
@@ -202,29 +198,12 @@ export default function LoginPage() {
               &copy; {new Date().getFullYear()} Token Trail. Built for academic integrity.
             </p>
           </div>
-
-          {/* Value props — visible on large screens only */}
-          <div className="hidden lg:flex flex-col gap-7 flex-1 pt-6">
-            <h2 className="text-xl font-bold text-gray-900 leading-snug">
-              Everything you need to<br />review code similarity
-            </h2>
-            <div className="flex flex-col gap-6">
-              {VALUE_POINTS.map((vp) => (
-                <div key={vp.text} className="flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-purple/10">
-                    <vp.icon className="h-5 w-5 text-brand-purple" />
-                  </div>
-                  <p className="text-sm leading-relaxed text-gray-600 pt-2.5">{vp.text}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-5 py-4">
-              <p className="text-xs leading-relaxed text-gray-500">
-                Token Trail uses token-based and winnowing analysis to detect structural
-                similarity in student code submissions. Results are advisory and intended
-                to support — not replace — academic judgment.
-              </p>
-            </div>
+          <div className="w-80 h-fit rounded-xl ml-4 border border-gray-200 bg-gray-50 px-5 py-4">
+            <p className="text-xs leading-relaxed text-gray-500">
+              Token Trail uses token-based and winnowing analysis to detect structural
+              similarity in student code submissions. Results are advisory and intended
+              to support — not replace — academic judgment.
+            </p>
           </div>
         </div>
       </div>

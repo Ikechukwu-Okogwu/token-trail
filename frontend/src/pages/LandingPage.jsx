@@ -125,9 +125,6 @@ export default function LandingPage() {
               </span>
             </Link>
           </div>
-
-          {/* Gradient overlay — fades bottom half of card zone from purple into the page bg */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-b from-transparent via-brand-pink/25 to-brand-pink/40" />
         </div>
 
         {/* ── Value proposition ── */}
