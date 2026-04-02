@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import StudentSubmitPage from './pages/StudentSubmitPage'
@@ -13,7 +13,6 @@ import SimilarityComparisonPage from './pages/SimilarityComparisonPage'
 
 function ProtectedRoute({ children }) {
   const [authorized, setAuthorized] = useState(null)
-  
   const pageLocation = useLocation()
 
   useEffect(() => {
@@ -30,24 +29,48 @@ function ProtectedRoute({ children }) {
           localStorage.removeItem("token")
           setAuthorized(false)
         } else {
-          setAuthorized(true) 
+          setAuthorized(true)
         }
       })
   }, [pageLocation])
 
   if (authorized === null) {
-      return (
-        <div className="h-screen flex items-center justify-center bg-brand-pink/40">
-          <span className="text-sm text-gray-400">Loading…</span>
+    return (
+      <div className="h-screen flex items-center justify-center bg-brand-pink/40">
+        <span className="text-sm text-gray-400">Loading…</span>
+      </div>
+    )
+  }
+
+  if (!authorized) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm px-4 py-10">
+        <div className="mx-auto w-full max-w-lg rounded-[2rem] bg-white/95 p-8 shadow-2xl ring-1 ring-slate-900/10">
+          <h2 className="text-2xl font-semibold text-slate-900">Login required</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-700">
+            Your session is missing or expired, or you do not have access to this page.
+            Please login to continue.
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link
+              to="/login"
+              className="inline-flex justify-center rounded-full bg-brand-purple px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              Go to login
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+            >
+              Return home
+            </Link>
+          </div>
         </div>
-      )
-    }
+      </div>
+    )
+  }
 
-    if (!authorized) {
-      return <Navigate to="/login" replace />
-    }
-
-    return children
+  return children
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
