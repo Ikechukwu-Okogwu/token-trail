@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
+  downloadSubmissionsZip,
   getAnalysisRunStatus,
   getAssignmentSubmissions,
   getInstructorAssignmentById,
+  importRepositoryZip,
   queueAnalysisRun,
   updateInstructorAssignment,
 } from '../services/api'
@@ -16,7 +18,7 @@ import {
   ArrowLeft, Copy, CheckCircle, Play, RefreshCw, Eye,
   Loader2, FileCode, Users, Clock, Key, Code2, Calendar,
   ToggleLeft, ToggleRight, ChevronRight, AlertTriangle,
-  FlaskConical,
+  FlaskConical, Download, Upload,
 } from 'lucide-react'
 
 function mapApiError(error, fallback) {
@@ -61,6 +63,11 @@ function isOverdue(value) {
   return !Number.isNaN(d.getTime()) && d < new Date()
 }
 
+function truncateId(value) {
+  if (!value) return value
+  return value.length > 16 ? value.slice(0, 8) + '…' : value
+}
+
 export default function AssignmentDetailPage() {
   const { assignmentId, courseId } = useParams()
   const navigate = useNavigate()
@@ -87,6 +94,12 @@ export default function AssignmentDetailPage() {
   const [saveLoading, setSaveLoading]             = useState(false)
   const [saveError, setSaveError]                 = useState(null)
   const [copied, setCopied]                       = useState(false)
+  const [exportLoading, setExportLoading]           = useState(false)
+  const [exportError, setExportError]               = useState(null)
+  const [importFile, setImportFile]                 = useState(null)
+  const [importLoading, setImportLoading]           = useState(false)
+  const [importError, setImportError]               = useState(null)
+  const [importResult, setImportResult]             = useState(null)
 
   const hasLoadedAssignment = Boolean(assignment?.id)
   const hasRun              = Boolean(currentRun?.runId)
@@ -176,6 +189,38 @@ export default function AssignmentDetailPage() {
     }
   }
 
+<<<<<<< HEAD
+=======
+  async function handleExportSubmissions() {
+    if (!assignmentId) return
+    setExportLoading(true); setExportError(null)
+    try {
+      await downloadSubmissionsZip(assignmentId)
+    } catch (error) {
+      setExportError(mapApiError(error, 'Could not download submissions.'))
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  async function handleImportRepository() {
+    if (!assignmentId || !importFile) return
+    setImportLoading(true); setImportError(null); setImportResult(null)
+    try {
+      const result = await importRepositoryZip(assignmentId, importFile)
+      setImportResult(result)
+      setImportFile(null)
+      // Refresh submissions list to show newly imported entries
+      const fresh = await getAssignmentSubmissions(assignmentId).catch(() => [])
+      setSubmissions(fresh)
+    } catch (error) {
+      setImportError(mapApiError(error, 'Could not import repository.'))
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
+>>>>>>> 151127fefb4fb9c591724bc54dc49de9c8fca4c8
   useEffect(() => {
     if (!assignment || isEditing) return
     setDraftDueDate(getDateInputValue(assignment.dueDate))
@@ -471,15 +516,31 @@ export default function AssignmentDetailPage() {
                       </h2>
                     </div>
                     {hasLoadedAssignment && (
-                      <span className="rounded-full bg-brand-purple/10 px-2.5 py-0.5 text-xs font-semibold text-brand-purple">
-                        {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-brand-purple/10 px-2.5 py-0.5 text-xs font-semibold text-brand-purple">
+                          {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
+                        </span>
+                        {submissions.length > 0 && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleExportSubmissions}
+                            disabled={exportLoading}
+                          >
+                            {exportLoading
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Download className="h-3.5 w-3.5" />}
+                            {exportLoading ? 'Exporting…' : 'Export ZIP'}
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
 
                 <div className="p-6">
                   <ErrorBanner message={submissionsError} />
+                  <ErrorBanner message={exportError} />
 
                   {!submissionsError && hasLoadedAssignment && submissions.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -515,9 +576,9 @@ export default function AssignmentDetailPage() {
                             >
                               <td className="px-5 py-4">
                                 <p className="font-semibold text-gray-900">
-                                  {s.studentName || <span className="font-normal italic text-gray-400">Unnamed</span>}
+                                  {truncateId(s.studentName) || <span className="font-normal italic text-gray-400">Unnamed</span>}
                                 </p>
-                                <p className="mt-0.5 font-mono text-xs text-gray-400">{s.studentIdentifier}</p>
+                                <p className="mt-0.5 font-mono text-xs text-gray-400" title={s.studentIdentifier}>{truncateId(s.studentIdentifier)}</p>
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-500">{formatDate(s.submittedAt)}</td>
                               <td className="px-4 py-4 text-sm text-gray-700">{s.fileCount}</td>
@@ -529,6 +590,88 @@ export default function AssignmentDetailPage() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+
+                  {/* ── Import Repository ── */}
+                  {hasLoadedAssignment && (
+                    <div className="mt-5 rounded-xl border border-dashed border-gray-300 bg-gray-50/50 p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">
+                            <Upload className="mr-1.5 inline h-4 w-4 text-gray-400" />
+                            Import Submissions
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            Bulk-add submissions from another system. Upload a <code className="rounded bg-gray-200 px-1">.zip</code> file exported from Token Trail or structured the same way.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50">
+                            <FileCode className="h-3.5 w-3.5" />
+                            {importFile ? importFile.name : 'Choose ZIP…'}
+                            <input
+                              type="file"
+                              accept=".zip"
+                              className="hidden"
+                              onChange={(e) => {
+                                setImportFile(e.target.files?.[0] || null)
+                                setImportResult(null); setImportError(null)
+                              }}
+                            />
+                          </label>
+                          <Button
+                            size="sm"
+                            onClick={handleImportRepository}
+                            disabled={!importFile || importLoading}
+                          >
+                            {importLoading
+                              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing…</>
+                              : <><Upload className="h-3.5 w-3.5" /> Import</>}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <ErrorBanner message={importError} />
+
+                      {importResult && (
+                        <div className="mt-3 rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="flex items-center gap-3 mb-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <p className="text-sm font-semibold text-gray-800">
+                              Import complete — {importResult.imported} imported, {importResult.skipped} skipped
+                            </p>
+                          </div>
+
+                          {importResult.details?.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Imported</p>
+                              <div className="space-y-0.5">
+                                {importResult.details.map((d) => (
+                                  <p key={d.submissionId} className="text-xs text-gray-600">
+                                    <span className="font-medium">{d.folder}</span>
+                                    <span className="text-gray-400"> — {d.fileCount} file{d.fileCount !== 1 ? 's' : ''}</span>
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {importResult.skippedDetails?.length > 0 && (
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-500 mb-1">Skipped</p>
+                              <div className="space-y-0.5">
+                                {importResult.skippedDetails.map((s, i) => (
+                                  <p key={i} className="text-xs text-amber-700">
+                                    <span className="font-medium">{s.folder}</span>
+                                    <span className="text-amber-500"> — {s.reason}</span>
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -25,6 +25,11 @@ function scoreLabel(score) {
   return { text: 'Low', cls: 'bg-green-50 text-green-700 border border-green-200' }
 }
 
+function truncateId(value) {
+  if (!value) return value
+  return value.length > 16 ? value.slice(0, 8) + '…' : value
+}
+
 function ScoreBar({ score }) {
   const pct = Math.round(score * 100)
   const color = score >= 0.8 ? 'bg-red-500' : score >= 0.5 ? 'bg-amber-400' : 'bg-green-500'
@@ -229,15 +234,15 @@ export default function SimilarityReportPage() {
                             <td className="px-5 py-3.5 text-xs text-gray-400 tabular-nums">{i + 1}</td>
                             <td className="px-4 py-3.5">
                               <div className="font-semibold text-gray-900">
-                                {row.leftStudentName || <span className="text-gray-400 font-normal italic">Unnamed</span>}
+                                {truncateId(row.leftStudentName) || <span className="text-gray-400 font-normal italic">Unnamed</span>}
                               </div>
-                              <div className="text-xs text-gray-400 font-mono mt-0.5">{row.leftStudentIdentifier || '—'}</div>
+                              <div className="text-xs text-gray-400 font-mono mt-0.5" title={row.leftStudentIdentifier}>{truncateId(row.leftStudentIdentifier) || '—'}</div>
                             </td>
                             <td className="px-4 py-3.5">
                               <div className="font-semibold text-gray-900">
-                                {row.rightStudentName || <span className="text-gray-400 font-normal italic">Unnamed</span>}
+                                {truncateId(row.rightStudentName) || <span className="text-gray-400 font-normal italic">Unnamed</span>}
                               </div>
-                              <div className="text-xs text-gray-400 font-mono mt-0.5">{row.rightStudentIdentifier || '—'}</div>
+                              <div className="text-xs text-gray-400 font-mono mt-0.5" title={row.rightStudentIdentifier}>{truncateId(row.rightStudentIdentifier) || '—'}</div>
                             </td>
                             <td className="px-4 py-3.5">
                               <ScoreBar score={row.similarityScore} />
