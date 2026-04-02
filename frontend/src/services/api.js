@@ -27,11 +27,13 @@ export async function apiFetch(path, options = {}) {
     throw error
   }
 
-  if (res.status === 204) return null
   if (res.status === 401) {
     localStorage.removeItem('token') 
-    window.location.href = '/login' //forcing navigate to some protected will trigger the unauth splash screen
+    window.location.reload() //forcing reload on some protected will trigger the unauth splash screen
   }
+  
+  if (res.status === 204) return null
+  
   return res.json()
 }
 
