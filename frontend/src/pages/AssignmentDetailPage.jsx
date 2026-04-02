@@ -157,7 +157,7 @@ export default function AssignmentDetailPage() {
     <div className="h-screen flex">
       <Sidebar />
       <main className="ml-55 flex-1 overflow-y-auto bg-brand-pink/40">
-        <div className="mx-auto max-w-4xl p-6 lg:p-8">
+        <div className="mx-auto max-w-5xl p-6 lg:p-8">
 
           {/* ── Page header ── */}
           <div className="mb-7">
@@ -165,7 +165,7 @@ export default function AssignmentDetailPage() {
               to={backPath}
               className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-400 no-underline transition-colors hover:text-brand-purple"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to assignments
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Assignments
             </Link>
 
             {assignment && (

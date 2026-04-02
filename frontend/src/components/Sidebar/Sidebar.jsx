@@ -123,7 +123,7 @@ export default function Sidebar({ refreshKey }) {
       {/* ── Logo ── */}
       <a
         href="/dashboard"
-        className="flex items-center gap-2.5 px-4 pt-5 pb-4 no-underline group"
+        className="flex items-center gap-2.5 px-4 pt-5 pb-3 no-underline group"
       >
         {/* Brand mark */}
         <div className="h-6 w-6 rounded-[6px] bg-brand-pink/15 flex items-center justify-center flex-shrink-0 ring-1 ring-brand-pink/20 group-hover:bg-brand-pink/20 transition-colors duration-150">
@@ -146,7 +146,7 @@ export default function Sidebar({ refreshKey }) {
       {/* ── Navigation ── */}
       <div className="grow overflow-y-auto px-2 pb-4" style={{ scrollbarWidth: 'none' }}>
 
-        {/* Home */}
+        {/* Dashboard */}
         <NavLink
           to="/dashboard"
           className={({ isActive }) =>
@@ -163,22 +163,10 @@ export default function Sidebar({ refreshKey }) {
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-[18px] w-[3px] rounded-r-full bg-brand-pink/90 shadow-[0_0_6px_rgba(254,247,255,0.4)]" />
               )}
               <img src={homeIcon} alt="" className="w-4 h-4 shrink-0 opacity-70" />
-              <span>Home</span>
+              <span>Dashboard</span>
             </>
           )}
         </NavLink>
-
-        {/* Courses section label */}
-        {courses.length > 0 && (
-          <div className="mt-5 mb-1.5 px-3">
-            <span
-              className="text-brand-pink/30 font-semibold uppercase"
-              style={{ fontSize: '10px', letterSpacing: '0.08em' }}
-            >
-              Courses
-            </span>
-          </div>
-        )}
 
         {/* Course list */}
         <div className="flex flex-col gap-px">

@@ -78,24 +78,26 @@ export default function CoursePage({ onAssignmentCreated }) {
           {/* Breadcrumb */}
           <Link
             to="/dashboard"
-            className="mb-5 inline-flex items-center gap-1.5 text-sm text-gray-400 no-underline transition-colors hover:text-brand-purple"
+            className="mb-3 inline-flex items-center gap-1.5 text-sm text-gray-400 no-underline transition-colors hover:text-brand-purple"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            {course?.name ? course.name : 'Back to courses'}
+            Back to Dashboard
           </Link>
 
           {/* Page header */}
-          <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               {course?.name && (
-                <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand-purple/60">
-                  {course.name}{course.term ? ` · ${course.term}` : ''}
-                </p>
+                <>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {course.name}
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-400">
+                    {course.term ? `${course.term}` : ''}
+                  </p>
+                </>
               )}
-              <h1 className="text-2xl font-bold text-gray-900">Assignments</h1>
-              <p className="mt-1 text-sm text-gray-400">
-                Manage assignments and track student submissions.
-              </p>
+              
             </div>
             <Button onClick={() => setShowCreate(true)} size="lg">
               <Plus className="h-4 w-4" /> New Assignment
