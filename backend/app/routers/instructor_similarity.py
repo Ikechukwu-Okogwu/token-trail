@@ -183,6 +183,8 @@ async def get_ranked_similarity_results(
             similarityScore=float(pair.get("score", 0.0)),
             confidence=float(pair.get("confidence", 0.0)),
             largestBlockSize=int(pair.get("largestBlockSize", 0)),
+            analysisMethod=pair.get("analysisMethod") or "tokenize",
+            warnings=pair.get("warnings") or [],
         )
         for idx, pair in enumerate(ranked_pairs, start=1)
     ]
@@ -280,7 +282,12 @@ async def get_similarity_side_by_side_comparison(
             ],
         }
     else:
-        metrics = build_similarity_metrics(left_code, right_code, k=5)
+        lang = (assignment.get("language") or "").strip().lower()
+        metrics = build_similarity_metrics(left_code, right_code, k=5, language=lang)
+
+    # Propagate pair-level warnings and analysisMethod from stored data
+    pair_warnings = pair.get("warnings") or []
+    analysis_method = pair.get("analysisMethod") or "tokenize"
 
     return SimilarityComparisonResponse(
         resultId=result_id,
@@ -302,4 +309,6 @@ async def get_similarity_side_by_side_comparison(
         summary=str(metrics["summary"]),
         confidence=float(metrics["confidence"]),
         snippets=[s for s in metrics["snippets"] if s],
+        analysisMethod=analysis_method,
+        warnings=pair_warnings,
     )

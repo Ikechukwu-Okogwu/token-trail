@@ -16,6 +16,8 @@ class SimilarityResultListItem(BaseModel):
     similarityScore: float
     confidence: float = 0.0
     largestBlockSize: int = 0
+    analysisMethod: str = "tokenize"
+    warnings: list[str] = []
 
 
 class SimilarityResultsResponse(BaseModel):
@@ -82,3 +84,5 @@ class SimilarityComparisonResponse(BaseModel):
     summary: str
     confidence: float
     snippets: list[str]
+    analysisMethod: str = "tokenize"
+    warnings: list[str] = []

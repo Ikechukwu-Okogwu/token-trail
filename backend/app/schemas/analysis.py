@@ -18,3 +18,6 @@ class RunStatusResponse(BaseModel):
     startedAt: str | None = None
     finishedAt: str | None = None
     errorMessage: str | None = None
+    warnings: list[str] = []
+    pairsAnalyzed: int | None = None
+    pairsFailed: int | None = None

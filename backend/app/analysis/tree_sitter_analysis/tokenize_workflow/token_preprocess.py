@@ -35,6 +35,103 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint impor
 # Mapped category label: any token row with ``True`` here is removed from the stream.
 TO_DROP_MAPPED_LABEL = "to_drop"
 
+# Per-language *leaf* token types (keywords, type tokens) that reliably appear in
+# valid code of that language. Used by ``compute_parse_quality_score`` to detect
+# wrong-language content that tree-sitter silently misparses.
+# These are leaf-level types from tree-sitter grammars — NOT internal/parent node types.
+_EXPECTED_LEAF_TYPES: dict[str, frozenset[str]] = {
+    "java": frozenset({
+        # Keywords that tree-sitter emits as named leaf tokens
+        "public", "private", "protected", "static", "final", "class", "interface",
+        "extends", "implements", "new", "return", "void_type", "this", "super",
+        "import", "package", "throws", "throw", "try", "catch", "finally",
+        "if", "else", "for", "while", "do", "switch", "case", "break", "continue",
+        "boolean_type", "integral_type", "floating_point_type",
+        # Types
+        "null_literal", "true", "false",
+    }),
+    "c": frozenset({
+        "return", "if", "else", "for", "while", "do", "switch", "case", "break",
+        "continue", "struct", "typedef", "enum", "union", "sizeof",
+        "void", "auto", "extern", "static", "register", "const", "volatile",
+        "signed", "unsigned",
+        "primitive_type",
+        # NOTE: type_identifier deliberately excluded — it matches any identifier
+        # tree-sitter interprets as a type name, including Python keywords (def,
+        # import, etc.) when Python code is parsed as C, inflating PQS.
+        "null", "true", "false",
+    }),
+    "cpp": frozenset({
+        "return", "if", "else", "for", "while", "do", "switch", "case", "break",
+        "continue", "class", "struct", "typedef", "enum", "union", "sizeof",
+        "void", "auto", "extern", "static", "register", "const", "volatile",
+        "namespace", "using", "public", "private", "protected", "virtual",
+        "template", "typename", "new", "delete", "throw", "try", "catch",
+        "primitive_type",
+        # NOTE: type_identifier excluded — see C set comment above.
+        "null", "nullptr", "true", "false",
+    }),
+}
+
+# PQS below this threshold triggers a low-parse-quality warning.
+PARSE_QUALITY_THRESHOLD = 0.05
+
+
+def compute_parse_quality_score(
+    tokens: Sequence[Token], *, language: str
+) -> float:
+    """Fraction of leaf tokens whose type is in the expected leaf-type set.
+
+    For language-mismatch detection, the key insight is that wrong-language
+    code parsed by tree-sitter produces a very different leaf token type
+    distribution.  For example, valid Java code always has keywords like
+    ``public``, ``class``, ``static``, ``void_type``, ``integral_type`` as
+    leaf tokens.  Python code parsed as Java has none of these — only
+    ``identifier``, ``type_identifier``, and punctuation.
+
+    Returns 0.0 if there are no tokens.
+    """
+    if not tokens:
+        return 0.0
+    expected = _EXPECTED_LEAF_TYPES.get(language, frozenset())
+    if not expected:
+        return 1.0  # no expectation → assume fine
+    hits = sum(1 for t in tokens if t.type in expected)
+    return hits / len(tokens)
+
+
+# Hard rejection threshold for upload-time validation.
+# Below this, the merged source is almost certainly not the expected language.
+# Calibrated against: Python-in-Java=0.045, JS-in-Java=0.024, valid-Java-min=0.133,
+# Python-in-C=0.022–0.037 (class/import-heavy), valid-C-min=0.101.
+# Gap: worst-valid (0.101 C) vs threshold (0.05) = 2.0x safety margin.
+UPLOAD_REJECT_PQS_THRESHOLD = 0.05
+
+# Minimum token count for PQS to be meaningful.  Very short files
+# (e.g. a single comment line) have unreliable PQS — skip the check.
+UPLOAD_MIN_TOKENS_FOR_PQS = 8
+
+
+def quick_parse_quality(code: str, *, language: str) -> tuple[float, int]:
+    """Tokenize *code* and return ``(pqs, token_count)`` without truth tables.
+
+    This is a lightweight entry point for upload-time validation: it only
+    needs the tokenizer and PQS logic, not pandas or the full pipeline.
+
+    Returns ``(0.0, 0)`` for unsupported languages or empty code.
+    """
+    lang = (language or "").strip().lower()
+    if not code.strip() or lang not in ("java", "c", "cpp"):
+        return 0.0, 0
+    if lang == "java":
+        tokens = tokenize_java(code)
+    elif lang == "c":
+        tokens = tokenize_c(code)
+    else:
+        tokens = tokenize_cpp(code)
+    pqs = compute_parse_quality_score(tokens, language=lang)
+    return pqs, len(tokens)
+
 
 def warn_error_leaves(tokens: Sequence[Token], *, language: str = "java") -> None:
     if any(t.type == "ERROR" for t in tokens):
@@ -68,17 +165,22 @@ def leaf_tokens_and_truth_for_filter(
     default_categories: Collection[str] = ("unmapped",),
     language: str = "java",
     template: str = "",
-) -> tuple[list[Token], pd.DataFrame]:
+) -> tuple[list[Token], "pd.DataFrame", float]:
     """
     1. Leaf-tokenize source (``tokenize_java`` / ``tokenize_c`` / ``tokenize_cpp`` per ``language``).
     2. Possibly warn on ERROR leaves.
-    3. Full ``mapped_type_truth_table`` (includes ``to_drop`` when configured in CSV).
-    4. If ``template`` is non-blank: lines in ``code`` that exactly match some
+    3. Compute parse quality score (PQS) — fraction of tokens matching expected
+       structural types for the language. Low PQS signals likely language mismatch.
+    4. Full ``mapped_type_truth_table`` (includes ``to_drop`` when configured in CSV).
+    5. If ``template`` is non-blank: lines in ``code`` that exactly match some
        non-blank template line (see :mod:`template_exclusion`) OR extra ``to_drop``
        for tokens whose ``start_line`` and ``end_line`` both lie on such lines
        (simplified rule; see project todo).
-    5. Drop every token whose ``to_drop`` column is ``True``; drop the same rows from
+    6. Drop every token whose ``to_drop`` column is ``True``; drop the same rows from
        the frame, remove the ``to_drop`` column, ``reset_index(drop=True)``.
+
+    Returns:
+        (kept_tokens, truth_dataframe, parse_quality_score)
 
     Raises:
         ValueError: if ``to_drop`` is not among mapped category columns, or ``language``
@@ -87,7 +189,7 @@ def leaf_tokens_and_truth_for_filter(
     import pandas as pd
 
     if not code.strip():
-        return [], pd.DataFrame(dtype=bool)
+        return [], pd.DataFrame(dtype=bool), 0.0
 
     _require_to_drop_column(type_mapping, default_categories=default_categories)
 
@@ -104,6 +206,17 @@ def leaf_tokens_and_truth_for_filter(
             "(expected 'java', 'c', or 'cpp')"
         )
     warn_error_leaves(tokens, language=lang)
+    pqs = compute_parse_quality_score(tokens, language=lang)
+
+    if pqs < PARSE_QUALITY_THRESHOLD:
+        warnings.warn(
+            f"{lang} parse quality score is very low ({pqs:.3f}); "
+            "the source code may not be valid for this language "
+            "(e.g. wrong language in file). "
+            "Similarity results may be unreliable.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     truth_full = mapped_type_truth_table(
         tokens,
@@ -132,4 +245,4 @@ def leaf_tokens_and_truth_for_filter(
         .reset_index(drop=True)
     )
 
-    return tokens_kept, df_kept
+    return tokens_kept, df_kept, pqs

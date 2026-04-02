@@ -1,11 +1,15 @@
 """Schemas for assignment endpoints."""
+from typing import Literal
+
 from pydantic import BaseModel
+
+SUPPORTED_LANGUAGES = Literal["java", "c", "cpp"]
 
 
 class AssignmentCreateRequest(BaseModel):
     courseId: str
     title: str
-    language: str          # "java", "c", or "cpp"
+    language: SUPPORTED_LANGUAGES
     isOpen: bool = True
     dueDate: str | None = None
     keyExpiry: str | None = None
@@ -16,7 +20,7 @@ class AssignmentCreateRequest(BaseModel):
 
 class AssignmentUpdateRequest(BaseModel):
     title: str | None = None
-    language: str | None = None
+    language: SUPPORTED_LANGUAGES | None = None
     isOpen: bool | None = None
     dueDate: str | None = None
     keyExpiry: str | None = None

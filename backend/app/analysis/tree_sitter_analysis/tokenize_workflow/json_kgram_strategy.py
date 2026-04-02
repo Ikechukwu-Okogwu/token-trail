@@ -70,7 +70,7 @@ class JsonLeafKgramStrategy:
             leaf_tokens_and_truth_for_filter,
         )
 
-        tokens, _ = leaf_tokens_and_truth_for_filter(
+        tokens, _, _pqs = leaf_tokens_and_truth_for_filter(
             code,
             _get_default_type_mapping(),
             default_categories=("unmapped",),

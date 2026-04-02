@@ -513,6 +513,15 @@ async def get_analysis_run(
     if not course:
         raise HTTPException(status_code=403, detail="Not your analysis run")
 
+    # Pull run-level diagnostics from similarity_results (written by analysis worker)
+    sim_doc = db.similarity_results.find_one(
+        {"runId": str(run["_id"])},
+        {"warnings": 1, "pairsAnalyzed": 1, "pairsFailed": 1},
+    )
+    run_warnings = (sim_doc or {}).get("warnings") or []
+    pairs_analyzed = (sim_doc or {}).get("pairsAnalyzed")
+    pairs_failed = (sim_doc or {}).get("pairsFailed")
+
     return RunStatusResponse(
         runId=str(run["_id"]),
         assignmentId=run["assignmentId"],
@@ -523,4 +532,7 @@ async def get_analysis_run(
         startedAt=run.get("startedAt"),
         finishedAt=run.get("finishedAt"),
         errorMessage=run.get("errorMessage"),
+        warnings=run_warnings,
+        pairsAnalyzed=pairs_analyzed,
+        pairsFailed=pairs_failed,
     )
