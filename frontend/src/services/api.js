@@ -19,17 +19,20 @@ export async function apiFetch(path, options = {}) {
   }
 
   const res = await fetch(url, { ...options, headers })
-
+  
+  
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
+
+    if (res.status === 401) {
+      localStorage.removeItem('token') 
+      window.location.reload() //forcing reload on some protected will trigger the unauth splash screen
+      return
+    }
+
     const error = new Error(body.detail || `HTTP ${res.status}`)
     error.status = res.status
     throw error
-  }
-
-  if (res.status === 401) {
-    localStorage.removeItem('token') 
-    window.location.reload() //forcing reload on some protected will trigger the unauth splash screen
   }
 
   if (res.status === 204) return null
