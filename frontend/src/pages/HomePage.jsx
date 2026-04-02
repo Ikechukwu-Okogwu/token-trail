@@ -50,11 +50,11 @@ export default function HomePage({ onCourseCreated }) {
         <div className="mx-auto max-w-5xl p-6 lg:p-8">
 
           {/* Page header */}
-          <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand-purple/60">Instructor Dashboard</p>
-              <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
-              <p className="mt-1 text-sm text-gray-400">Manage your courses and track assignment analysis.</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand-purple/60"></p>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+              <p className="mt-1 text-sm text-gray-400">Course Management</p>
             </div>
             <Button onClick={() => setShowCreate(true)} size="lg">
               <Plus className="h-4 w-4" /> New Course
@@ -426,11 +426,11 @@ function CourseListItem({ course }) {
       <div className="flex items-center gap-6 shrink-0 ml-4">
         <div className="text-right">
           <div className="text-sm font-bold text-brand-purple">{course.assignmentCount ?? 0}</div>
-          <div className="text-[11px] text-gray-400">assignments</div>
+          <div className="text-[11px] text-gray-400">Assignments</div>
         </div>
         <div className="text-right">
           <div className="text-sm font-bold text-brand-purple">{course.analysisCompleteCount ?? 0}</div>
-          <div className="text-[11px] text-gray-400">analyses</div>
+          <div className="text-[11px] text-gray-400">Analyses</div>
         </div>
       </div>
     </Link>

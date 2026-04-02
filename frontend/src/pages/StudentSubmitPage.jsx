@@ -152,7 +152,6 @@ export default function StudentSubmitPage() {
             Submit your assignment securely in a few quick steps
           </p>
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-brand-pink/40" />
       </header>
 
       {/* Radial glow */}

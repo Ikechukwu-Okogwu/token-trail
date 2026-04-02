@@ -36,6 +36,10 @@
   html {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
+
+  button {
+    cursor: pointer;
+  }
 }
 
 @layer components {

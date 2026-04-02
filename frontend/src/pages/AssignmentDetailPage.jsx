@@ -158,7 +158,7 @@ export default function AssignmentDetailPage() {
     <div className="h-screen flex">
       <Sidebar />
       <main className="ml-55 flex-1 overflow-y-auto bg-brand-pink/40">
-        <div className="mx-auto max-w-4xl p-6 lg:p-8">
+        <div className="mx-auto max-w-5xl p-6 lg:p-8">
 
           {/* ── Page header ── */}
           <div className="mb-7">
@@ -166,7 +166,7 @@ export default function AssignmentDetailPage() {
               to={backPath}
               className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-400 no-underline transition-colors hover:text-brand-purple"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to assignments
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Assignments
             </Link>
 
             {assignment && (
@@ -277,16 +277,14 @@ export default function AssignmentDetailPage() {
                         </div>
 
                         {/* Exclusion code */}
-                        {assignment.exclusionCode && (
-                          <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-                            <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
-                              <FileCode className="h-3 w-3" /> Exclusion Code
-                            </div>
-                            <pre className="max-h-40 overflow-x-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs font-mono text-gray-700">
-                              {assignment.exclusionCode}
-                            </pre>
+                        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
+                            <FileCode className="h-3 w-3" /> Exclusion Code
                           </div>
-                        )}
+                          <pre className="max-h-40 overflow-x-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs font-mono text-gray-700">
+                            {assignment.exclusionCode ? assignment.exclusionCode : "N/A"}
+                          </pre>
+                        </div>
                       </>
                     )}
                   </div>
@@ -329,7 +327,7 @@ export default function AssignmentDetailPage() {
                   {submissions.length > 0 && (
                     <div className="overflow-x-auto rounded-xl border border-gray-100">
                       <table className="w-full text-sm">
-                        <thead>
+                        <thead className="w-full table table-fixed">
                           <tr className="border-b border-gray-100 bg-gray-50/80 text-left text-xs text-gray-400 uppercase tracking-wide">
                             <th className="px-5 py-3">Student</th>
                             <th className="px-4 py-3">Submitted</th>
@@ -340,11 +338,11 @@ export default function AssignmentDetailPage() {
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-gray-100 max-h-60 w-full overflow-y-scroll block">
                           {submissions.map((s) => (
                             <tr
                               key={s.submissionId}
-                              className="transition-colors hover:bg-brand-purple/[0.025]"
+                              className="transition-colors w-full table table-fixed"
                             >
                               <td className="px-5 py-4">
                                 <p className="font-semibold text-gray-900">

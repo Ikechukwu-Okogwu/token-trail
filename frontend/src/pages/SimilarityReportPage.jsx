@@ -8,7 +8,7 @@ import WarningBanner from '../components/ui/WarningBanner'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import {
   AlertTriangle, Search, ArrowUpDown, ArrowUp, ArrowDown,
-  Users, GitCompare, Flag, TrendingUp, ChevronRight, Info,
+  Users, GitCompare, Flag, TrendingUp, ChevronRight, Info, ArrowLeft
 } from 'lucide-react'
 
 const THRESHOLDS = [
@@ -70,7 +70,10 @@ export default function SimilarityReportPage() {
       getSimilarityResults(runId),
       getAnalysisRunStatus(runId).catch(() => null),
     ])
-      .then(([results, info]) => { setData(results); setRunInfo(info) })
+      .then(([results, info]) => {
+        setData(results)
+        setRunInfo(info)
+      })
       .catch((err) => setError(err.message || 'Failed to load results.'))
       .finally(() => setLoading(false))
   }, [runId])
@@ -102,12 +105,22 @@ export default function SimilarityReportPage() {
   }, [results, threshold, search, sortDir])
 
   const toggleSort = () => setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+  const backPath = runInfo?.courseId && runInfo?.assignmentId
+    ? `/course/${runInfo.courseId}/assignment/${runInfo.assignmentId}`
+    : '/dashboard'
 
   return (
     <div className="h-screen flex">
       <Sidebar />
       <main className="ml-55 flex-1 overflow-y-auto bg-brand-pink/40">
         <div className="mx-auto max-w-6xl p-6 lg:p-8">
+          <Link
+            to={backPath}
+            className="mb-3 inline-flex items-center gap-1.5 text-sm text-gray-400 no-underline transition-colors hover:text-brand-purple"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Assignment Details
+          </Link>
 
           {/* Header */}
           <div className="mb-6">
