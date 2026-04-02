@@ -29,8 +29,8 @@ MAX_UPLOAD_MB: int = int(_get_env("MAX_UPLOAD_MB", "50"))
 DEFAULT_RETENTION_DAYS: int = int(_get_env("DEFAULT_RETENTION_DAYS", "30"))
 
 # Privacy/anonymization placeholders
-ANONYMIZATION_MODE: str = _get_env("ANONYMIZATION_MODE", "none")
-ANONYMIZATION_SALT: str = _get_env("ANONYMIZATION_SALT", "")
+ANONYMIZATION_MODE: str = _get_env("ANONYMIZATION_MODE", "hash")
+ANONYMIZATION_SALT: str = _get_env("ANONYMIZATION_SALT", "token-trail-default-salt")
 
 # Notification/email placeholders
 EMAIL_PROVIDER: str = _get_env("EMAIL_PROVIDER", "none")

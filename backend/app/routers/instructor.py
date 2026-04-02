@@ -18,6 +18,7 @@ from app.schemas.assignment import (
 )
 from app.schemas.course import CourseCreateRequest, CourseResponse, CourseUpdateRequest
 from app.schemas.public import SubmissionListItem
+from app.services.anonymization_service import pseudonymize_student_identifier
 
 router = APIRouter(prefix="/instructor", tags=["instructor"])
 
@@ -440,8 +441,8 @@ async def list_submissions(
         SubmissionListItem(
             submissionId=str(s["_id"]),
             assignmentId=s["assignmentId"],
-            studentIdentifier=s["studentIdentifier"],
-            studentName=s.get("studentName"),
+            studentIdentifier=pseudonymize_student_identifier(s["studentIdentifier"]),
+            studentName=pseudonymize_student_identifier(s.get("studentName")) if s.get("studentName") else None,
             submittedAt=s["submittedAt"],
             fileCount=s["fileCount"],
             status=s["status"],

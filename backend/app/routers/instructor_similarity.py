@@ -17,6 +17,7 @@ from app.services.analysis_service import (
     load_submission_text_and_path,
     resolve_pair_result_id,
 )
+from app.services.anonymization_service import pseudonymize_student_identifier
 
 router = APIRouter(prefix="/instructor", tags=["instructor-similarity"])
 
@@ -163,23 +164,27 @@ async def get_ranked_similarity_results(
             runId=str(run["_id"]),
             assignmentId=str(assignment["_id"]),
             leftSubmissionId=str(pair.get("submissionA", "")),
-            leftStudentIdentifier=str(
-                submission_map.get(str(pair.get("submissionA", "")), {}).get(
-                    "studentIdentifier", ""
+            leftStudentIdentifier=pseudonymize_student_identifier(
+                str(
+                    submission_map.get(str(pair.get("submissionA", "")), {}).get(
+                        "studentIdentifier", ""
+                    )
                 )
             ),
-            leftStudentName=submission_map.get(
-                str(pair.get("submissionA", "")), {}
-            ).get("studentName"),
+            leftStudentName=pseudonymize_student_identifier(
+                submission_map.get(str(pair.get("submissionA", "")), {}).get("studentName")
+            ) if submission_map.get(str(pair.get("submissionA", "")), {}).get("studentName") else None,
             rightSubmissionId=str(pair.get("submissionB", "")),
-            rightStudentIdentifier=str(
-                submission_map.get(str(pair.get("submissionB", "")), {}).get(
-                    "studentIdentifier", ""
+            rightStudentIdentifier=pseudonymize_student_identifier(
+                str(
+                    submission_map.get(str(pair.get("submissionB", "")), {}).get(
+                        "studentIdentifier", ""
+                    )
                 )
             ),
-            rightStudentName=submission_map.get(
-                str(pair.get("submissionB", "")), {}
-            ).get("studentName"),
+            rightStudentName=pseudonymize_student_identifier(
+                submission_map.get(str(pair.get("submissionB", "")), {}).get("studentName")
+            ) if submission_map.get(str(pair.get("submissionB", "")), {}).get("studentName") else None,
             similarityScore=float(pair.get("score", 0.0)),
             confidence=float(pair.get("confidence", 0.0)),
             largestBlockSize=int(pair.get("largestBlockSize", 0)),
@@ -221,11 +226,11 @@ async def get_similarity_pair_detail(
         runId=str(run["_id"]),
         assignmentId=str(assignment["_id"]),
         leftSubmissionId=str(pair.get("submissionA")),
-        leftStudentIdentifier=str(left_submission.get("studentIdentifier") or ""),
-        leftStudentName=left_submission.get("studentName"),
+        leftStudentIdentifier=pseudonymize_student_identifier(str(left_submission.get("studentIdentifier") or "")),
+        leftStudentName=pseudonymize_student_identifier(left_submission.get("studentName")) if left_submission.get("studentName") else None,
         rightSubmissionId=str(pair.get("submissionB")),
-        rightStudentIdentifier=str(right_submission.get("studentIdentifier") or ""),
-        rightStudentName=right_submission.get("studentName"),
+        rightStudentIdentifier=pseudonymize_student_identifier(str(right_submission.get("studentIdentifier") or "")),
+        rightStudentName=pseudonymize_student_identifier(right_submission.get("studentName")) if right_submission.get("studentName") else None,
         similarityScore=float(pair.get("score", 0.0)),
         summary=pair.get("summary") or "Pair similarity computed from merged submission sources.",
     )
@@ -294,11 +299,11 @@ async def get_similarity_side_by_side_comparison(
         runId=str(run["_id"]),
         assignmentId=str(assignment["_id"]),
         leftSubmissionId=str(pair.get("submissionA")),
-        leftStudentIdentifier=str(left_submission.get("studentIdentifier") or ""),
-        leftStudentName=left_submission.get("studentName"),
+        leftStudentIdentifier=pseudonymize_student_identifier(str(left_submission.get("studentIdentifier") or "")),
+        leftStudentName=pseudonymize_student_identifier(left_submission.get("studentName")) if left_submission.get("studentName") else None,
         rightSubmissionId=str(pair.get("submissionB")),
-        rightStudentIdentifier=str(right_submission.get("studentIdentifier") or ""),
-        rightStudentName=right_submission.get("studentName"),
+        rightStudentIdentifier=pseudonymize_student_identifier(str(right_submission.get("studentIdentifier") or "")),
+        rightStudentName=pseudonymize_student_identifier(right_submission.get("studentName")) if right_submission.get("studentName") else None,
         similarityScore=float(pair.get("score", 0.0)),
         leftFilePath=left_path,
         rightFilePath=right_path,

@@ -64,8 +64,7 @@ export default function CreateCourseForm({ onCreated, onCancel }) {
         type="text"
         value={term}
         onChange={(e) => setTerm(e.target.value)}
-        required
-        placeholder="e.g. Fall 2025"
+        placeholder="e.g. Fall 2025 (optional)"
         disabled={loading}
       />
 
