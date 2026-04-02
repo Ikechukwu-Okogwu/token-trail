@@ -8,7 +8,6 @@ const LANGUAGES = ['java', 'c', 'cpp']
 
 export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) {
   const [title, setTitle]       = useState('')
-  const [exclusionCode, setExclusionCode]       = useState('')
   const [language, setLanguage] = useState('java')
   const [isOpen, setIsOpen]     = useState(true)
   const [dueDate, setDueDate]   = useState('')
@@ -50,7 +49,6 @@ export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) 
         isOpen,
         allowLate,
         dueDate: dueDate || null,
-        exclusionCode: exclusionCode || null
       }
       const assignment = await apiFetch('/instructor/assignments', {
         method: 'POST',
@@ -111,15 +109,6 @@ export default function CreateAssignmentForm({ courseId, onCreated, onCancel }) 
           </p>
         )}
       </div>
-
-      <Input
-        label="Exclusion Code (optional)"
-        type="text"
-        value={exclusionCode}
-        onChange={(e) => setExclusionCode(e.target.value)}
-        placeholder="Not included in analysis"
-        disabled={loading}
-      />
 
       <div>
         <span className="mb-1 block text-sm font-medium text-gray-700">Open for Submissions</span>
