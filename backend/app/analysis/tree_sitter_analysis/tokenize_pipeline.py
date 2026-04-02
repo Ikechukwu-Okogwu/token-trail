@@ -45,6 +45,8 @@ class TokenizePipelineResult:
     tokens_a: tuple[Token, ...]
     tokens_b: tuple[Token, ...]
     strategy_k: int
+    parse_quality_a: float = 1.0
+    parse_quality_b: float = 1.0
 
     def matching_regions_as_dicts(self) -> list[dict[str, int]]:
         """
@@ -143,14 +145,14 @@ def run_tokenize_similarity_pipeline(
     filter_cfg = config.group_filter_config
     default_categories = config.default_categories
 
-    tokens_a, truth_a = leaf_tokens_and_truth_for_filter(
+    tokens_a, truth_a, pqs_a = leaf_tokens_and_truth_for_filter(
         code_a,
         type_mapping,
         default_categories=default_categories,
         language=lang,
         template=template,
     )
-    tokens_b, truth_b = leaf_tokens_and_truth_for_filter(
+    tokens_b, truth_b, pqs_b = leaf_tokens_and_truth_for_filter(
         code_b,
         type_mapping,
         default_categories=default_categories,
@@ -212,4 +214,6 @@ def run_tokenize_similarity_pipeline(
         tokens_a=tuple(tokens_a),
         tokens_b=tuple(tokens_b),
         strategy_k=k,
+        parse_quality_a=pqs_a,
+        parse_quality_b=pqs_b,
     )

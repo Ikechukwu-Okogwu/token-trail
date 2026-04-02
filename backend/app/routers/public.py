@@ -15,6 +15,11 @@ from app.schemas.public import (
     ValidateKeyRequest,
     ValidateKeyResponse,
 )
+from app.analysis.tree_sitter_analysis.tokenize_workflow.token_preprocess import (
+    UPLOAD_MIN_TOKENS_FOR_PQS,
+    UPLOAD_REJECT_PQS_THRESHOLD,
+    quick_parse_quality,
+)
 from app.services.merge_service import merge_source_files
 from app.services.notification_service import send_submission_confirmation_email
 from app.services.submission_service import create_submission
@@ -141,6 +146,28 @@ async def submit(
     # 7. Merge valid files deterministically (sorted by relative path)
     merged_path = merged_dir / "merged.txt"
     merge_source_files(source_files, extracted_dir, merged_path)
+
+    # 7b. Upload-time language validation: quick PQS check on merged source.
+    #     Only rejects when confidence is high that the code does not match
+    #     the expected language (e.g. Python inside a .java file).
+    try:
+        merged_text = merged_path.read_text(encoding="utf-8", errors="replace")
+        pqs, token_count = quick_parse_quality(merged_text, language=language)
+        if token_count >= UPLOAD_MIN_TOKENS_FOR_PQS and pqs < UPLOAD_REJECT_PQS_THRESHOLD:
+            lang_upper = language.upper()
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Your submission does not appear to contain valid {lang_upper} code. "
+                    f"Please check that your .{language} files contain actual {lang_upper} "
+                    "source code and try again."
+                ),
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        # If PQS computation fails for any reason, do not block the upload.
+        pass
 
     # 8. Persist Submission document in MongoDB
     doc = create_submission(

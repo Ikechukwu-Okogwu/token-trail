@@ -48,11 +48,23 @@ _PRODUCTION_BUNDLE_CPP = "cpp_20260401T154450_g017_i00_F0p824255"
 
 
 def _normalize_assignment_language(raw: object) -> str:
+    """Normalize and validate the assignment language.
+
+    Raises ValueError for unsupported or missing languages instead of
+    silently defaulting to Java (which produced garbage results for
+    mismatched content).
+    """
     if not isinstance(raw, str) or not raw.strip():
-        return "java"
+        raise ValueError(
+            "Assignment language is missing or empty — cannot run analysis. "
+            "Supported languages: java, c, cpp."
+        )
     lang = raw.strip().lower()
     if lang not in SUPPORTED_TOKENIZE_LANGUAGES:
-        return "java"
+        raise ValueError(
+            f"Unsupported assignment language {lang!r}. "
+            f"Supported languages: {', '.join(sorted(SUPPORTED_TOKENIZE_LANGUAGES))}."
+        )
     return lang
 
 
@@ -405,8 +417,8 @@ def run_analysis_for_assignment(
 
     Bundle is ``app/analysis/config/bundles/<gene-folder>/meta.json``, chosen by
     assignment ``language`` (``java`` / ``c`` / ``cpp``); see module-level
-    ``_PRODUCTION_BUNDLE_*`` constants. Unknown or missing language defaults to the
-    Java bundle.
+    ``_PRODUCTION_BUNDLE_*`` constants. Unknown or missing language raises
+    ``ValueError`` (caught by worker → run status ``"failed"``).
 
     If the assignment has non-empty ``exclusionCode``, it is passed as ``template`` for
     line-based template token dropping (see ``template_exclusion``).
@@ -453,7 +465,12 @@ def run_analysis_for_assignment(
         )
 
     pairs: list[dict[str, object]] = []
+    pairs_failed = 0
+    pairs_low_pqs = 0
+    run_warnings: list[str] = []
+
     for a, b in combinations(prepared, 2):
+        pair_warnings: list[str] = []
         try:
             result = run_tokenize_similarity_pipeline(
                 a["text"],
@@ -464,9 +481,31 @@ def run_analysis_for_assignment(
             )
             score = result.similarity
             regions = result.matching_regions_as_dicts()
-        except (ValueError, FileNotFoundError, OSError):
+            analysis_method = "tokenize"
+
+            # Check parse quality for each side
+            from app.analysis.tree_sitter_analysis.tokenize_workflow.token_preprocess import (
+                PARSE_QUALITY_THRESHOLD,
+            )
+            if result.parse_quality_a < PARSE_QUALITY_THRESHOLD:
+                pair_warnings.append(
+                    f"Left submission has low parse quality ({result.parse_quality_a:.3f}); "
+                    "content may not be valid for this language."
+                )
+                pairs_low_pqs += 1
+            if result.parse_quality_b < PARSE_QUALITY_THRESHOLD:
+                pair_warnings.append(
+                    f"Right submission has low parse quality ({result.parse_quality_b:.3f}); "
+                    "content may not be valid for this language."
+                )
+                pairs_low_pqs += 1
+        except (ValueError, FileNotFoundError, OSError) as exc:
             score = 0.0
             regions = []
+            analysis_method = "error_fallback"
+            pairs_failed += 1
+            pair_warnings.append(f"Pipeline error: {exc}")
+
         pairs.append(
             {
                 "resultId": f"{run_id}__{a['submissionId']}__{b['submissionId']}",
@@ -474,7 +513,20 @@ def run_analysis_for_assignment(
                 "submissionB": b["submissionId"],
                 "score": score,
                 "matchingRegions": regions,
+                "analysisMethod": analysis_method,
+                "warnings": pair_warnings,
             }
+        )
+
+    total_pairs = len(pairs)
+    if pairs_failed:
+        run_warnings.append(
+            f"{pairs_failed} of {total_pairs} pair(s) failed analysis and defaulted to score 0.0."
+        )
+    if pairs_low_pqs:
+        run_warnings.append(
+            f"{pairs_low_pqs} submission(s) had low parse quality — "
+            "content may not match the expected language."
         )
 
     result_doc = {
@@ -482,6 +534,9 @@ def run_analysis_for_assignment(
         "assignmentId": assignment_id,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "pairs": pairs,
+        "pairsAnalyzed": total_pairs,
+        "pairsFailed": pairs_failed,
+        "warnings": run_warnings,
     }
 
     db["similarity_results"].update_one(
