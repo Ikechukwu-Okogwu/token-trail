@@ -189,8 +189,6 @@ export default function AssignmentDetailPage() {
     }
   }
 
-<<<<<<< HEAD
-=======
   async function handleExportSubmissions() {
     if (!assignmentId) return
     setExportLoading(true); setExportError(null)
@@ -220,7 +218,6 @@ export default function AssignmentDetailPage() {
     }
   }
 
->>>>>>> 151127fefb4fb9c591724bc54dc49de9c8fca4c8
   useEffect(() => {
     if (!assignment || isEditing) return
     setDraftDueDate(getDateInputValue(assignment.dueDate))
