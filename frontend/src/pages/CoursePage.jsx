@@ -375,12 +375,12 @@ function AssignmentListItem({ assignment, courseId }) {
       <div className="flex items-center gap-6 shrink-0 ml-4">
         <div className="text-right">
           <div className="text-sm font-bold text-brand-purple">{assignment.submissionCount ?? 0}</div>
-          <div className="text-[11px] text-gray-400">submissions</div>
+          <div className="text-[11px] text-gray-400">Submissions</div>
         </div>
         {assignment.analysisProgress != null && (
           <div className="text-right">
             <div className="text-sm font-bold text-brand-purple">{assignment.analysisProgress}%</div>
-            <div className="text-[11px] text-gray-400">analysis</div>
+            <div className="text-[11px] text-gray-400">Analysis</div>
           </div>
         )}
         <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-brand-purple transition-colors" />
