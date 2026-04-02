@@ -89,6 +89,13 @@ export function getInstructorAssignmentById(assignmentId) {
   return apiFetch(`/instructor/assignments/${assignmentId}`)
 }
 
+export function updateInstructorAssignment(assignmentId, body) {
+  return apiFetch(`/instructor/assignments/${assignmentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
 export function getAssignmentSubmissions(assignmentId) {
   return apiFetch(`/instructor/assignments/${assignmentId}/submissions`)
 }

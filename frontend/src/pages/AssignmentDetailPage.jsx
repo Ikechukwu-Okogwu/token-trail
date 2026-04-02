@@ -5,6 +5,7 @@ import {
   getAssignmentSubmissions,
   getInstructorAssignmentById,
   queueAnalysisRun,
+  updateInstructorAssignment,
 } from '../services/api'
 import Sidebar from '../components/Sidebar/Sidebar'
 import Button from '../components/ui/Button'
@@ -39,6 +40,21 @@ function formatDate(value) {
   return date.toLocaleString()
 }
 
+function getDateInputValue(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  const pad = (num) => String(num).padStart(2, '0')
+  const year = date.getFullYear()
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const hours = pad(date.getHours())
+  const minutes = pad(date.getMinutes())
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
 function isOverdue(value) {
   if (!value) return false
   const d = new Date(value)
@@ -62,6 +78,14 @@ export default function AssignmentDetailPage() {
   const [statusLoading, setStatusLoading]         = useState(false)
   const [statusError, setStatusError]             = useState(null)
   const [isPolling, setIsPolling]                 = useState(false)
+  const [isExclusionExpanded, setIsExclusionExpanded] = useState(false)
+  const [isEditing, setIsEditing]                 = useState(false)
+  const [draftDueDate, setDraftDueDate]           = useState('')
+  const [draftAllowLate, setDraftAllowLate]       = useState(false)
+  const [draftAutoAnalysis, setDraftAutoAnalysis] = useState(false)
+  const [draftExclusionCode, setDraftExclusionCode] = useState('')
+  const [saveLoading, setSaveLoading]             = useState(false)
+  const [saveError, setSaveError]                 = useState(null)
   const [copied, setCopied]                       = useState(false)
 
   const hasLoadedAssignment = Boolean(assignment?.id)
@@ -152,7 +176,55 @@ export default function AssignmentDetailPage() {
     }
   }
 
-  const overdue = isOverdue(assignment?.dueDate)
+  useEffect(() => {
+    if (!assignment || isEditing) return
+    setDraftDueDate(getDateInputValue(assignment.dueDate))
+    setDraftAllowLate(Boolean(assignment.allowLate))
+    setDraftAutoAnalysis(Boolean(assignment.autoAnalysis))
+    setDraftExclusionCode(assignment.exclusionCode || '')
+    setSaveError(null)
+  }, [assignment, isEditing])
+
+  function startEdit() {
+    if (!assignment) return
+    setDraftDueDate(getDateInputValue(assignment.dueDate))
+    setDraftAllowLate(Boolean(assignment.allowLate))
+    setDraftAutoAnalysis(Boolean(assignment.autoAnalysis))
+    setDraftExclusionCode(assignment.exclusionCode || '')
+    setSaveError(null)
+    setIsEditing(true)
+  }
+
+  function cancelEdit() {
+    setIsEditing(false)
+    setSaveError(null)
+  }
+
+  async function handleSave() {
+    if (!assignment) return
+    setSaveLoading(true)
+    setSaveError(null)
+
+    const body = {
+      dueDate: draftDueDate || null,
+      allowLate: draftAllowLate,
+      autoAnalysis: draftAutoAnalysis,
+      exclusionCode: draftExclusionCode.trim() || null,
+    }
+
+    try {
+      const updated = await updateInstructorAssignment(assignment.id, body)
+      setAssignment(updated)
+      setIsEditing(false)
+    } catch (error) {
+      setSaveError(mapApiError(error, 'Could not save assignment details.'))
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
+  const assignmentDueDate = isEditing ? draftDueDate || null : assignment?.dueDate
+  const overdue = isOverdue(assignmentDueDate)
 
   return (
     <div className="h-screen flex">
@@ -203,10 +275,19 @@ export default function AssignmentDetailPage() {
               {/* ── Assignment Details ── */}
               {(assignment || assignmentError) && (
                 <section className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                  <div className="border-b border-gray-100 bg-gray-50/60 px-6 py-3.5">
+                  <div className="border-b border-gray-100 bg-gray-50/60 px-6 py-3.5 flex items-center justify-between gap-3">
                     <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
                       Assignment Details
                     </h2>
+                    {assignment && (
+                      <Button
+                        variant={isEditing ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={isEditing ? cancelEdit : startEdit}
+                      >
+                        {isEditing ? 'Cancel edit' : 'Edit'}
+                      </Button>
+                    )}
                   </div>
 
                   <div className="p-6">
@@ -241,50 +322,138 @@ export default function AssignmentDetailPage() {
                           </div>
 
                           {/* Due date */}
-                          <div className={`rounded-xl border p-4 ${
-                            overdue
-                              ? 'border-red-200 bg-red-50'
-                              : 'border-gray-200 bg-white'
-                          }`}>
-                            <div className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${
-                              overdue ? 'text-red-500' : 'text-gray-400'
-                            }`}>
-                              {overdue
-                                ? <AlertTriangle className="h-3 w-3" />
-                                : <Calendar className="h-3 w-3" />}
-                              Due Date
+                          <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                              <Calendar className="h-3 w-3" /> Due Date
                             </div>
-                            <p className={`text-sm font-semibold ${overdue ? 'text-red-600' : 'text-gray-800'}`}>
-                              {formatDate(assignment.dueDate)}
-                            </p>
+                            {isEditing ? (
+                              <input
+                                type="datetime-local"
+                                value={draftDueDate}
+                                onChange={(e) => setDraftDueDate(e.target.value)}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-purple focus:outline-none focus:ring-2 focus:ring-brand-purple/20"
+                              />
+                            ) : (
+                              <p className="text-sm font-semibold text-gray-800">
+                                {formatDate(assignment.dueDate)}
+                              </p>
+                            )}
                             {overdue && (
-                              <p className="mt-1 text-[11px] text-red-400">This assignment is past due</p>
+                              <p className="mt-1 flex items-center gap-1 text-[11px] text-[#fb2c36CC]">
+                                <AlertTriangle className="h-3 w-3" />
+                                This assignment is past due
+                              </p>
                             )}
                           </div>
                         </div>
 
                         {/* Secondary meta grid */}
                         <div className="grid gap-3 sm:grid-cols-3">
-                          <MetaCard icon={Code2}     label="Language"     value={assignment.language?.toUpperCase()} />
-                          <MetaCard icon={ToggleLeft} label="Allow Late"   value={assignment.allowLate ? 'Yes' : 'No'} />
-                          <MetaCard
-                            icon={assignment.autoAnalysis ? ToggleRight : ToggleLeft}
-                            label="Auto Analysis"
-                            value={assignment.autoAnalysis ? 'Yes' : 'No'}
-                          />
-                          <MetaCard icon={Clock}  label="Created"     value={formatDate(assignment.createdAt)} />
-                          <MetaCard icon={Clock}  label="Key Expiry"  value={formatDate(assignment.keyExpiry)} />
+                          <MetaCard icon={Code2} label="Language" value={assignment.language?.toUpperCase()} />
+
+                          <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
+                              <ToggleLeft className="h-3 w-3" /> Allow Lates
+                            </div>
+                            {isEditing ? (
+                              <div className="inline-flex overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-sm">
+                                <button
+                                  type="button"
+                                  onClick={() => setDraftAllowLate(true)}
+                                  className={`px-3 py-1.5 ${draftAllowLate ? 'bg-brand-purple text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                                >Yes</button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDraftAllowLate(false)}
+                                  className={`px-3 py-1.5 ${!draftAllowLate ? 'bg-brand-purple text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                                >No</button>
+                              </div>
+                            ) : (
+                              <p className="text-sm font-medium text-gray-800">
+                                {assignment.allowLate ? 'Yes' : 'No'}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="rounded-xl border border-gray-200 bg-white p-4">
+                            <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
+                              <ToggleLeft className="h-3 w-3" />
+                              Auto Analysis
+                            </div>
+                            {isEditing ? (
+                              <div className="inline-flex overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-sm">
+                                <button
+                                  type="button"
+                                  onClick={() => setDraftAutoAnalysis(true)}
+                                  className={`px-3 py-1.5 ${draftAutoAnalysis ? 'bg-brand-purple text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                                >Yes</button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDraftAutoAnalysis(false)}
+                                  className={`px-3 py-1.5 ${!draftAutoAnalysis ? 'bg-brand-purple text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                                >No</button>
+                              </div>
+                            ) : (
+                              <p className="text-sm font-medium text-gray-800">
+                                {assignment.autoAnalysis ? 'Yes' : 'No'}
+                              </p>
+                            )}
+                          </div>
+
+                          <MetaCard icon={Clock} label="Created" value={formatDate(assignment.createdAt)} />
                         </div>
 
                         {/* Exclusion code */}
                         <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-                          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
-                            <FileCode className="h-3 w-3" /> Exclusion Code
+                          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-1.5 text-xs text-gray-400 uppercase tracking-wide">
+                              <FileCode className="h-3 w-3" /> Exclusion Code
+                            </div>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setIsExclusionExpanded(prev => !prev)}
+                              className="self-start sm:self-auto"
+                            >
+                              {isExclusionExpanded ? 'Collapse' : 'Expand'}
+                            </Button>
                           </div>
-                          <pre className="max-h-40 overflow-x-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs font-mono text-gray-700">
-                            {assignment.exclusionCode ? assignment.exclusionCode : "N/A"}
-                          </pre>
+                          {isEditing ? (
+                            <textarea
+                              value={draftExclusionCode}
+                              onChange={(e) => setDraftExclusionCode(e.target.value)}
+                              rows={isExclusionExpanded ? 10 : 4}
+                              className={`w-full resize-y rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs font-mono text-gray-700 transition-all focus:border-brand-purple focus:outline-none focus:ring-2 focus:ring-brand-purple/10 ${isExclusionExpanded ? 'max-h-96' : 'max-h-40'}`}
+                            />
+                          ) : (
+                            <pre className={`overflow-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs font-mono text-gray-700 transition-all ${isExclusionExpanded ? 'max-h-96' : 'max-h-20'}`}>
+                              {assignment.exclusionCode ? assignment.exclusionCode : 'N/A'}
+                            </pre>
+                          )}
                         </div>
+
+                        {isEditing && (
+                          <>
+                            <ErrorBanner message={saveError} />
+                            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                              <Button
+                                variant="secondary"
+                                onClick={cancelEdit}
+                                disabled={saveLoading}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={handleSave}
+                                disabled={saveLoading}
+                              >
+                                {saveLoading
+                                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                                  : 'Save changes'}
+                              </Button>
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
