@@ -9,6 +9,11 @@ import {
   ChevronLeft, ChevronRight, Crosshair, Shield
 } from 'lucide-react'
 
+function truncateId(value) {
+  if (!value) return value
+  return value.length > 16 ? value.slice(0, 8) + '…' : value
+}
+
 /* ─── Score helpers ─── */
 
 function scoreMeta(score) {
@@ -296,11 +301,11 @@ const CodePane = forwardRef(function CodePane(
               <div className="flex items-center gap-2">
                 <User className="h-3.5 w-3.5 shrink-0 text-gray-500" />
                 <span className="truncate text-sm font-semibold text-gray-200">
-                  {studentName || <span className="italic text-gray-500">Unnamed Student</span>}
+                  {truncateId(studentName) || <span className="italic text-gray-500">Unnamed Student</span>}
                 </span>
               </div>
-              <div className="mt-0.5 truncate font-mono text-xs text-gray-500">
-                {studentId || '—'}
+              <div className="mt-0.5 truncate font-mono text-xs text-gray-500" title={studentId}>
+                {truncateId(studentId) || '—'}
               </div>
             </div>
           </div>

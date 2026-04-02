@@ -4,9 +4,6 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from pymongo.database import Database
 
-from app.services.anonymization_service import pseudonymize_student_identifier
-
-
 def create_submission(
     db: Database,
     *,
@@ -20,11 +17,10 @@ def create_submission(
     merged_storage_path: str,
 ) -> dict:
     """Insert a Submission document into the submissions collection."""
-    stored_identifier = pseudonymize_student_identifier(student_identifier)
     doc = {
         "_id": ObjectId(submission_id),
         "assignmentId": assignment_id,
-        "studentIdentifier": stored_identifier,
+        "studentIdentifier": student_identifier,
         "studentName": student_name,
         "studentEmail": student_email,
         "submittedAt": datetime.now(timezone.utc).isoformat(),

@@ -2,20 +2,47 @@
 from datetime import datetime, timezone
 from pathlib import Path
 import shutil
+import io
+import zipfile
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
-from app.core.config import UPLOAD_DIR
+from app.core.config import MAX_UPLOAD_MB, UPLOAD_DIR
 from app.core.db import get_db
 from app.core.deps import get_current_instructor, to_object_id
 from app.routers.instructor import _assignment_response, _generate_assignment_key
 from app.schemas.assignment import AssignmentResponse
 from app.schemas.exclusion import ExclusionCodeResponse, ExclusionCodeUpsertRequest
-from app.services.zip_service import build_submissions_archive
+from app.services.merge_service import merge_source_files
+from app.services.submission_service import create_submission
+from app.services.zip_service import (
+    build_submissions_archive,
+    list_valid_source_files,
+    safe_extract_zip,
+)
 
 router = APIRouter(prefix="/instructor", tags=["instructor-admin"])
+
+
+# ── Import response schema ───────────────────────────
+
+class _ImportedEntry(BaseModel):
+    folder: str
+    submissionId: str
+    fileCount: int
+
+class _SkippedEntry(BaseModel):
+    folder: str
+    reason: str
+
+class RepositoryImportResponse(BaseModel):
+    imported: int
+    skipped: int
+    details: list[_ImportedEntry]
+    skippedDetails: list[_SkippedEntry]
 
 
 def _require_owned_assignment(*, assignment_id: str, instructor_id: str) -> dict:
@@ -84,6 +111,203 @@ async def download_assignment_submissions_zip(
         iter([payload]),
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post(
+    "/assignments/{assignment_id}/submissions/import",
+    response_model=RepositoryImportResponse,
+    status_code=201,
+)
+async def import_repository_zip(
+    assignment_id: str,
+    zipFile: UploadFile = File(...),
+    current: dict = Depends(get_current_instructor),
+):
+    """Import a repository ZIP ("zip of zips") into an assignment.
+
+    Supports two layouts:
+
+    **Format A — flat zip of zips** (spec / round-robin standard)::
+
+        LastYearsCourse.zip
+        ├── StudentA.zip        # submission zip with source files
+        ├── StudentB.zip
+        └── StudentC.zip
+
+    **Format B — folder-per-submission with raw.zip** (Token Trail export)::
+
+        exported.zip
+        ├── 6abc…def/
+        │   └── raw.zip
+        └── 7fed…abc/
+            └── raw.zip
+
+    Detection is automatic: if the outer ZIP contains top-level ``.zip``
+    entries they are treated as Format A submissions.  Otherwise the
+    endpoint falls back to Format B (folder / ``raw.zip``).
+
+    The identifier for each submission is derived from the inner zip
+    filename (without ``.zip``) or the folder name respectively.
+    """
+    assignment = _require_owned_assignment(
+        assignment_id=assignment_id,
+        instructor_id=current["id"],
+    )
+    language = assignment["language"]
+    db = get_db()
+
+    # ── Read and validate outer ZIP ──────────────────────
+    contents = await zipFile.read()
+    if len(contents) > MAX_UPLOAD_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Repository ZIP exceeds {MAX_UPLOAD_MB} MB limit",
+        )
+    try:
+        outer_zf = zipfile.ZipFile(io.BytesIO(contents))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZIP")
+
+    # ── Detect format: top-level .zip files vs folder/raw.zip ─
+    #
+    # Build a list of (identifier, zip_bytes) pairs to process.
+    # Format A: top-level entries ending in .zip (no "/" before the name)
+    # Format B: <folder>/raw.zip entries
+    entries: list[tuple[str, bytes]] = []
+
+    # Check for Format A — top-level .zip files
+    for info in outer_zf.infolist():
+        name = info.filename
+        # Top-level means no "/" in the path (or only a single segment)
+        if "/" not in name and name.lower().endswith(".zip"):
+            try:
+                inner_bytes = outer_zf.read(info)
+                identifier = name[:-4]  # strip .zip extension
+                entries.append((identifier, inner_bytes))
+            except Exception:
+                pass
+
+    # If no top-level zips found, fall back to Format B — folder/raw.zip
+    if not entries:
+        folders: dict[str, list[zipfile.ZipInfo]] = {}
+        for info in outer_zf.infolist():
+            parts = info.filename.split("/")
+            if len(parts) < 2 or not parts[0]:
+                continue
+            folders.setdefault(parts[0], []).append(info)
+
+        for folder_name, members in sorted(folders.items()):
+            raw_member = None
+            for m in members:
+                if m.filename == f"{folder_name}/raw.zip":
+                    raw_member = m
+                    break
+            if raw_member is None:
+                # No raw.zip — but maybe the folder itself contains source
+                # files directly (not zipped).  Skip for now.
+                continue
+            try:
+                entries.append((folder_name, outer_zf.read(raw_member)))
+            except Exception:
+                pass
+
+    outer_zf.close()
+
+    if not entries:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Repository ZIP contains no submission zips. "
+                "Expected either top-level .zip files (e.g. StudentA.zip, StudentB.zip) "
+                "or folders each containing a raw.zip."
+            ),
+        )
+
+    # ── Collect existing identifiers to detect duplicates ─
+    existing_ids = {
+        doc["studentIdentifier"]
+        for doc in db.submissions.find(
+            {"assignmentId": assignment_id},
+            {"studentIdentifier": 1},
+        )
+    }
+
+    imported: list[_ImportedEntry] = []
+    skipped: list[_SkippedEntry] = []
+
+    # ── Process each submission entry ────────────────────
+    for identifier, inner_zip_bytes in sorted(entries, key=lambda e: e[0]):
+        # Check for duplicate
+        if identifier in existing_ids:
+            skipped.append(_SkippedEntry(
+                folder=identifier,
+                reason="Duplicate: a submission with this identifier already exists",
+            ))
+            continue
+
+        # Create submission directory structure
+        submission_id = str(ObjectId())
+        base = Path(UPLOAD_DIR) / assignment_id / submission_id
+        extracted_dir = base / "extracted"
+        merged_dir = base / "merged"
+        for d in [extracted_dir, merged_dir]:
+            d.mkdir(parents=True, exist_ok=True)
+
+        # Save the inner zip
+        zip_path = base / "raw.zip"
+        zip_path.write_bytes(inner_zip_bytes)
+
+        # Validate inner ZIP
+        try:
+            safe_extract_zip(zip_path, extracted_dir)
+        except zipfile.BadZipFile:
+            shutil.rmtree(base, ignore_errors=True)
+            skipped.append(_SkippedEntry(
+                folder=identifier,
+                reason="Submission zip is not a valid ZIP file",
+            ))
+            continue
+
+        # Filter valid source files by language
+        source_files = list_valid_source_files(extracted_dir, language)
+        if not source_files:
+            shutil.rmtree(base, ignore_errors=True)
+            skipped.append(_SkippedEntry(
+                folder=identifier,
+                reason=f"No valid {language} source files found",
+            ))
+            continue
+
+        # Merge source files
+        merged_path = merged_dir / "merged.txt"
+        merge_source_files(source_files, extracted_dir, merged_path)
+
+        # Create submission record
+        create_submission(
+            db,
+            submission_id=submission_id,
+            assignment_id=assignment_id,
+            student_identifier=identifier,
+            student_name=identifier,
+            student_email=None,
+            file_count=len(source_files),
+            zip_storage_path=str(zip_path),
+            merged_storage_path=str(merged_path),
+        )
+        existing_ids.add(identifier)
+
+        imported.append(_ImportedEntry(
+            folder=identifier,
+            submissionId=submission_id,
+            fileCount=len(source_files),
+        ))
+
+    return RepositoryImportResponse(
+        imported=len(imported),
+        skipped=len(skipped),
+        details=imported,
+        skippedDetails=skipped,
     )
 
 

@@ -124,3 +124,42 @@ export function getSimilarityPairDetail(resultId) {
 export function getSimilarityComparison(resultId) {
   return apiFetch(`/instructor/similarity-results/${resultId}/comparison`)
 }
+
+// --- Repository import/export (instructor, login required) ---
+
+export function importRepositoryZip(assignmentId, zipFile) {
+  const form = new FormData()
+  form.append('zipFile', zipFile)
+  return apiFetch(`/instructor/assignments/${assignmentId}/submissions/import`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export async function downloadSubmissionsZip(assignmentId) {
+  const url = `${API_BASE}/instructor/assignments/${assignmentId}/submissions/download`
+  const headers = {}
+  const token = localStorage.getItem('token')
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(url, { headers })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const error = new Error(body.detail || `HTTP ${res.status}`)
+    error.status = res.status
+    throw error
+  }
+
+  const blob = await res.blob()
+  const disposition = res.headers.get('Content-Disposition') || ''
+  const match = disposition.match(/filename="?([^"]+)"?/)
+  const filename = match ? match[1] : `assignment-${assignmentId}-submissions.zip`
+
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(a.href)
+}
