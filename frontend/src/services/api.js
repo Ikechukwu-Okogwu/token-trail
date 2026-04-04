@@ -1,3 +1,4 @@
+
 /**
  * Base API fetch helper for Token Trail.
  * Reads VITE_API_BASE_URL and attaches the JWT when present.
@@ -18,15 +19,24 @@ export async function apiFetch(path, options = {}) {
   }
 
   const res = await fetch(url, { ...options, headers })
-
+  
+  
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
+
+    if (res.status === 401) {
+      localStorage.removeItem('token') 
+      window.location.reload() //forcing reload on some protected will trigger the unauth splash screen
+      return
+    }
+
     const error = new Error(body.detail || `HTTP ${res.status}`)
     error.status = res.status
     throw error
   }
 
   if (res.status === 204) return null
+  
   return res.json()
 }
 
@@ -87,6 +97,13 @@ export function listSubmissions(assignmentId) {
 
 export function getInstructorAssignmentById(assignmentId) {
   return apiFetch(`/instructor/assignments/${assignmentId}`)
+}
+
+export function updateInstructorAssignment(assignmentId, body) {
+  return apiFetch(`/instructor/assignments/${assignmentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
 }
 
 export function getAssignmentSubmissions(assignmentId) {
