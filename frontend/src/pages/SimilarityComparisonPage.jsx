@@ -6,7 +6,8 @@ import ErrorBanner from '../components/ui/ErrorBanner'
 import { DarkWarningBanner } from '../components/ui/WarningBanner'
 import {
   ArrowLeft, Info, User, FileCode, Loader2,
-  ChevronLeft, ChevronRight, Crosshair, Shield
+  ChevronLeft, ChevronRight, Crosshair, Shield,
+  Moon, Sun
 } from 'lucide-react'
 
 function truncateId(value) {
@@ -50,6 +51,7 @@ export default function SimilarityComparisonPage() {
   const [error, setError]     = useState(null)
   const [activeMatch, setActiveMatch] = useState(0)
   const [showOnlyMatches, setShowOnlyMatches] = useState(false)
+  const [theme, setTheme] = useState('light')
 
   const leftPaneRef = useRef(null)
   const rightPaneRef = useRef(null)
@@ -93,41 +95,52 @@ export default function SimilarityComparisonPage() {
   const leftHighlights = buildLineHighlightMap(regions, 'left', activeMatch)
   const rightHighlights = buildLineHighlightMap(regions, 'right', activeMatch)
 
+  const isDark = theme === 'dark'
+  const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light')
+
   return (
     <div className="h-screen flex">
       <Sidebar />
-      <main className="ml-55 flex-1 flex flex-col overflow-hidden bg-gray-950">
+      <main className={`ml-55 flex-1 flex flex-col overflow-hidden ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}>
 
         {/* ── Top bar ── */}
-        <div className="flex-shrink-0 border-b border-gray-800 bg-gray-900/90 backdrop-blur-sm px-5 py-3">
+        <div className={`flex-shrink-0 border-b ${isDark ? 'border-gray-800 bg-gray-900/90' : 'border-gray-200 bg-white/90'} backdrop-blur-sm px-5 py-3`}>
           <div className="flex items-center gap-4">
             <Link
               to={`/similarity/${runId}`}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs text-gray-400 transition hover:bg-gray-800 hover:text-gray-200 no-underline"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition no-underline ${isDark ? 'text-gray-400 hover:bg-gray-800 hover:text-gray-200' : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'}`}
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Results
             </Link>
 
-            <div className="h-4 w-px bg-gray-700" />
+            <div className={`h-4 w-px ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
 
             <div className="flex items-center gap-2">
               <Crosshair className="h-4 w-4 text-brand-purple" />
-              <span className="text-sm font-semibold text-gray-200">Code Comparison</span>
+              <span className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Code Comparison</span>
             </div>
 
             {/* Score section */}
             {data && (
               <div className="ml-auto flex items-center gap-3">
-                <div className={`flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800/80 px-4 py-2 ring-1 ${meta.ringColor}`}>
+                <button
+                  onClick={toggleTheme}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition ${isDark ? 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-200 hover:text-gray-900'}`}
+                >
+                  {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                  {isDark ? 'Light' : 'Dark'}
+                </button>
+
+                <div className={`flex items-center gap-3 rounded-xl border ${isDark ? 'border-gray-700 bg-gray-800/80' : 'border-gray-300 bg-white/80'} px-4 py-2 ring-1 ${meta.ringColor}`}>
                   <div className="text-center">
                     <div className={`text-2xl font-black tabular-nums leading-none ${meta.color}`}>
                       {meta.pct}%
                     </div>
-                    <div className="mt-0.5 text-[10px] uppercase tracking-wider text-gray-500">Similarity</div>
+                    <div className={`mt-0.5 text-[10px] uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>Similarity</div>
                   </div>
                   <div className="h-8 w-px bg-gray-700" />
                   <div>
-                    <div className="flex h-1.5 w-20 overflow-hidden rounded-full bg-gray-700">
+                    <div className={`flex h-1.5 w-20 overflow-hidden rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`}>
                       <div
                         className={`h-full rounded-full transition-all ${meta.bg}`}
                         style={{ width: `${meta.pct}%` }}
@@ -138,19 +151,19 @@ export default function SimilarityComparisonPage() {
                 </div>
 
                 {data.confidence != null && (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-1.5">
+                  <div className={`flex items-center gap-1.5 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/60' : 'border-gray-300 bg-gray-100/60'} px-3 py-1.5`}>
                     <Shield className="h-3.5 w-3.5 text-gray-500" />
-                    <span className="text-xs text-gray-400">
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       {Math.round(data.confidence * 100)}% confidence
                     </span>
                   </div>
                 )}
 
                 {data.analysisMethod && (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/60 px-2.5 py-1.5">
-                    <span className="text-[10px] uppercase tracking-wider text-gray-500">Method</span>
+                  <div className={`flex items-center gap-1.5 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-800/60' : 'border-gray-300 bg-gray-100/60'} px-2.5 py-1.5`}>
+                    <span className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>Method</span>
                     <span className={`text-xs font-semibold ${
-                      data.analysisMethod === 'error_fallback' ? 'text-amber-400' : 'text-gray-300'
+                      data.analysisMethod === 'error_fallback' ? 'text-amber-400' : (isDark ? 'text-gray-300' : 'text-gray-800')
                     }`}>
                       {data.analysisMethod === 'tokenize' ? 'AST Token' : data.analysisMethod === 'error_fallback' ? 'Fallback' : data.analysisMethod}
                     </span>
@@ -163,9 +176,9 @@ export default function SimilarityComparisonPage() {
 
         {/* ── Context / explanation layer ── */}
         {data && (
-          <div className="flex-shrink-0 border-b border-gray-800/60 bg-gray-900/50 px-5 py-2">
-            <p className="text-xs text-gray-500 leading-relaxed">
-              <span className="text-gray-400">
+          <div className={`flex-shrink-0 border-b ${isDark ? 'border-gray-800/60 bg-gray-900/50' : 'border-gray-200/60 bg-gray-100/50'} px-5 py-2`}>
+            <p className="text-xs leading-relaxed">
+              <span className={isDark ? 'text-gray-400' : 'text-gray-700'}>
                 {data.summary || `Detected ${regions.length} matched block(s) across both submissions.`}
               </span>
               {' · '}
@@ -181,26 +194,26 @@ export default function SimilarityComparisonPage() {
 
         {/* ── Match navigation bar ── */}
         {data && regions.length > 0 && (
-          <div className="flex-shrink-0 flex items-center justify-between border-b border-gray-800/60 bg-gray-900/40 px-5 py-2">
+          <div className={`flex-shrink-0 flex items-center justify-between border-b ${isDark ? 'border-gray-800/60 bg-gray-900/40' : 'border-gray-200/60 bg-gray-100/40'} px-5 py-2`}>
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrev}
-                className="inline-flex items-center gap-1 rounded-lg border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs transition ${isDark ? 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-200 hover:text-gray-900'}`}
               >
                 <ChevronLeft className="h-3.5 w-3.5" /> Prev
               </button>
-              <span className="min-w-[90px] text-center text-xs font-medium text-gray-400">
+              <span className={`min-w-[90px] text-center text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 Match <span className="text-brand-purple font-bold">{activeMatch + 1}</span> of {regions.length}
               </span>
               <button
                 onClick={handleNext}
-                className="inline-flex items-center gap-1 rounded-lg border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs transition ${isDark ? 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-200 hover:text-gray-900'}`}
               >
                 Next <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">
+            <label className={`flex cursor-pointer items-center gap-1.5 text-xs transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-600 hover:text-gray-800'}`}>
               <input
                 type="checkbox"
                 checked={showOnlyMatches}
@@ -214,7 +227,7 @@ export default function SimilarityComparisonPage() {
 
         {/* Loading */}
         {loading && (
-          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-gray-500">
+          <div className={`flex flex-1 items-center justify-center gap-2 text-sm ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>
             <Loader2 className="h-5 w-5 animate-spin" />
             Loading comparison…
           </div>
@@ -238,6 +251,7 @@ export default function SimilarityComparisonPage() {
               code={data.leftCode}
               highlights={leftHighlights}
               showOnlyMatches={showOnlyMatches}
+              isDark={isDark}
             />
             <div className="w-px shrink-0 bg-brand-purple/20" />
             <CodePane
@@ -250,14 +264,15 @@ export default function SimilarityComparisonPage() {
               code={data.rightCode}
               highlights={rightHighlights}
               showOnlyMatches={showOnlyMatches}
+              isDark={isDark}
             />
           </div>
         )}
 
         {/* ── Footer disclaimer ── */}
         {data && (
-          <div className="flex-shrink-0 border-t border-gray-800 bg-gray-900/80 px-5 py-2.5">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className={`flex-shrink-0 border-t ${isDark ? 'border-gray-800 bg-gray-900/80' : 'border-gray-200 bg-gray-100/80'} px-5 py-2.5`}>
+            <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>
               <Info className="h-3.5 w-3.5 shrink-0 text-amber-500/70" />
               Similarity scores indicate structural overlap between submissions and are not proof of misconduct.
               Review the full context before drawing conclusions.
@@ -273,7 +288,7 @@ export default function SimilarityComparisonPage() {
 /* ─── Code Pane ─── */
 
 const CodePane = forwardRef(function CodePane(
-  { side, studentName, studentId, submissionId, filePath, code, highlights, showOnlyMatches },
+  { side, studentName, studentId, submissionId, filePath, code, highlights, showOnlyMatches, isDark },
   ref
 ) {
   const lines = (code || '').split('\n')
@@ -287,7 +302,7 @@ const CodePane = forwardRef(function CodePane(
   return (
     <div className="flex flex-1 flex-col overflow-hidden min-w-0">
       {/* Pane header */}
-      <div className="flex-shrink-0 border-b border-gray-800 bg-gray-900 px-4 py-3">
+      <div className={`flex-shrink-0 border-b ${isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-100'} px-4 py-3`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold shadow-sm ${
@@ -299,20 +314,20 @@ const CodePane = forwardRef(function CodePane(
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <User className="h-3.5 w-3.5 shrink-0 text-gray-500" />
-                <span className="truncate text-sm font-semibold text-gray-200">
-                  {truncateId(studentName) || <span className="italic text-gray-500">Unnamed Student</span>}
+                <User className={`h-3.5 w-3.5 shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-600'}`} />
+                <span className={`truncate text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                  {truncateId(studentName) || <span className={`italic ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>Unnamed Student</span>}
                 </span>
               </div>
-              <div className="mt-0.5 truncate font-mono text-xs text-gray-500" title={studentId}>
+              <div className={`mt-0.5 truncate font-mono text-xs ${isDark ? 'text-gray-500' : 'text-gray-600'}`} title={studentId}>
                 {truncateId(studentId) || '—'}
               </div>
             </div>
           </div>
           {fileName && (
-            <div className="flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-800 px-2 py-1 ring-1 ring-gray-700">
-              <FileCode className="h-3 w-3 text-gray-500" />
-              <span className="font-mono text-xs text-gray-400">{fileName}</span>
+            <div className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 ring-1 ${isDark ? 'bg-gray-800 ring-gray-700' : 'bg-gray-200 ring-gray-300'}`}>
+              <FileCode className={`h-3 w-3 ${isDark ? 'text-gray-500' : 'text-gray-600'}`} />
+              <span className={`font-mono text-xs ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{fileName}</span>
             </div>
           )}
         </div>
@@ -320,7 +335,7 @@ const CodePane = forwardRef(function CodePane(
 
       {/* Code body */}
       {!code ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-gray-600">
+        <div className={`flex flex-1 items-center justify-center text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>
           No source code available
         </div>
       ) : (
@@ -330,23 +345,23 @@ const CodePane = forwardRef(function CodePane(
               {visibleLines.map(({ line, num, visible }) => {
                 if (!visible) return null
                 const hl = highlights[num]
-                let rowCls = 'hover:bg-gray-800/60'
+                let rowCls = isDark ? 'hover:bg-gray-800/60' : 'hover:bg-gray-200/60'
                 let gutterExtra = ''
                 if (hl) {
                   rowCls = hl.isActive
-                    ? 'bg-brand-purple/15 hover:bg-brand-purple/20'
-                    : 'bg-brand-purple/[0.06] hover:bg-brand-purple/10'
+                    ? (isDark ? 'bg-brand-purple/15 hover:bg-brand-purple/20' : 'bg-brand-purple/10 hover:bg-brand-purple/15')
+                    : (isDark ? 'bg-brand-purple/[0.06] hover:bg-brand-purple/10' : 'bg-brand-purple/[0.04] hover:bg-brand-purple/8')
                   gutterExtra = hl.isActive
                     ? 'text-brand-purple border-r-brand-purple'
-                    : 'text-brand-purple/60 border-r-brand-purple/40'
+                    : (isDark ? 'text-brand-purple/60 border-r-brand-purple/40' : 'text-brand-purple/70 border-r-brand-purple/50')
                 }
 
                 return (
                   <tr key={num} className={rowCls} data-line={num}>
-                    <td className={`w-10 select-none border-r border-gray-800 py-px pl-3 pr-3 text-right leading-5 text-gray-600 ${gutterExtra}`}>
+                    <td className={`w-10 select-none border-r py-px pl-3 pr-3 text-right leading-5 ${isDark ? 'border-gray-800 text-gray-600' : 'border-gray-200 text-gray-500'} ${gutterExtra}`}>
                       {num}
                     </td>
-                    <td className="whitespace-pre py-px pl-4 pr-4 leading-5 text-gray-300">
+                    <td className={`whitespace-pre py-px pl-4 pr-4 leading-5 ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>
                       {line || ' '}
                     </td>
                   </tr>
@@ -354,7 +369,7 @@ const CodePane = forwardRef(function CodePane(
               })}
               {showOnlyMatches && !visibleLines.some(l => l.visible) && (
                 <tr>
-                  <td colSpan={2} className="py-8 text-center text-sm text-gray-600">
+                  <td colSpan={2} className={`py-8 text-center text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>
                     No matched regions found
                   </td>
                 </tr>

@@ -68,6 +68,7 @@ export default function SimilarityReportPage() {
   const [search, setSearch]   = useState('')
   const [threshold, setThreshold] = useState(0)
   const [sortDir, setSortDir] = useState('desc')
+  const [viewMode, setViewMode] = useState('detailed')
 
   useEffect(() => {
     setLoading(true)
@@ -110,6 +111,8 @@ export default function SimilarityReportPage() {
   }, [results, threshold, search, sortDir])
 
   const toggleSort = () => setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+  const toggleViewMode = () => setViewMode(m => m === 'detailed' ? 'compact' : 'detailed')
+  const isCompact = viewMode === 'compact'
   const backPath = runInfo?.courseId && runInfo?.assignmentId
     ? `/course/${runInfo.courseId}/assignment/${runInfo.assignmentId}`
     : '/dashboard'
@@ -195,6 +198,12 @@ export default function SimilarityReportPage() {
                   {sortDir === 'desc' ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />}
                   Score {sortDir === 'desc' ? 'High → Low' : 'Low → High'}
                 </button>
+                <button
+                  onClick={toggleViewMode}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-600 shadow-sm transition hover:bg-gray-50"
+                >
+                  {isCompact ? 'Detailed View' : 'Compact View'}
+                </button>
                 <span className="ml-auto text-xs text-gray-400">
                   {filtered.length} of {results.length} result{results.length !== 1 ? 's' : ''}
                 </span>
@@ -236,13 +245,17 @@ export default function SimilarityReportPage() {
                               <div className="font-semibold text-gray-900">
                                 {truncateId(row.leftStudentName) || <span className="text-gray-400 font-normal italic">Unnamed</span>}
                               </div>
-                              <div className="text-xs text-gray-400 font-mono mt-0.5" title={row.leftStudentIdentifier}>{truncateId(row.leftStudentIdentifier) || '—'}</div>
+                              {!isCompact && (
+                                <div className="text-xs text-gray-400 font-mono mt-0.5" title={row.leftStudentIdentifier}>{truncateId(row.leftStudentIdentifier) || '—'}</div>
+                              )}
                             </td>
                             <td className="px-4 py-3.5">
                               <div className="font-semibold text-gray-900">
                                 {truncateId(row.rightStudentName) || <span className="text-gray-400 font-normal italic">Unnamed</span>}
                               </div>
-                              <div className="text-xs text-gray-400 font-mono mt-0.5" title={row.rightStudentIdentifier}>{truncateId(row.rightStudentIdentifier) || '—'}</div>
+                              {!isCompact && (
+                                <div className="text-xs text-gray-400 font-mono mt-0.5" title={row.rightStudentIdentifier}>{truncateId(row.rightStudentIdentifier) || '—'}</div>
+                              )}
                             </td>
                             <td className="px-4 py-3.5">
                               <ScoreBar score={row.similarityScore} />
