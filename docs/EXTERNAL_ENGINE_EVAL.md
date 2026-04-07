@@ -1,6 +1,12 @@
 # Evaluating external ZIPs against the analysis engine
 
-External course bundles (for example under `ExternalTestSets/`) can be scored with the **same** code path as committed regression fixtures: safe ZIP extract, source merge, then pairwise similarity. For Java, the leaf-token (Tree-sitter) pipeline is used whenever backend imports succeed, **including** runs with `--template-exclusion`; character winnowing is only used if tokenization fails for a pair.
+External course bundles (for example under `ExternalTestSets/`) can be scored with the same code path as committed regression fixtures: safe ZIP extract, source merge, then pairwise similarity. For Java, the leaf-token (Tree-sitter) pipeline is used whenever backend imports succeed, including runs with `--template-exclusion`; character winnowing is only used if tokenization fails for a pair.
+
+Important parity note:
+
+- This script follows `tests/analysis/regression_runner.py`, not the production worker exactly.
+- Production analysis in `backend/app/services/analysis_service.py` is tokenize-first for `java`, `c`, and `cpp`.
+- The regression/external-eval path currently uses tokenize for Java only; non-Java runs still use character winnowing.
 
 ## Batch report (all bundled `ExternalTestSets/`)
 
@@ -45,6 +51,8 @@ Use `--csv` output as a **baseline** when authoring `result.txt` ranges for a ne
 4. Boilerplate: merge into `template.zip` (or a single `template.txt`) next to `submissions/`, then use `--template-exclusion`.
 
 Constraints match the fixture runner: homogeneous language per run; do not mix supported extensions (e.g. `.java` and `.cpp`) inside one submission zip.
+
+If you use this workflow to evaluate C or C++ data, treat the results as useful baseline measurements, not a perfect replica of the production scoring path.
 
 ## Promoting to CI regression
 
