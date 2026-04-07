@@ -210,6 +210,66 @@ def _load_template_text(assignment_dir: Path, language: str, work_dir: Path) -> 
     return ""
 
 
+def compute_pairwise_similarity_scores(
+    assignment_dir: Path,
+    submission_zip_paths: list[Path],
+    *,
+    language: str,
+    use_template: bool = False,
+) -> dict[tuple[str, str], float]:
+    """Run the same extract → merge → compare pipeline as fixtures without result.txt or markdown.
+
+    ``assignment_dir`` is used to resolve optional ``template.txt`` / ``template.zip``.
+    ``submission_zip_paths`` must contain at least two ``.zip`` files (typically under
+    ``assignment_dir / "submissions"``). Order does not matter; pairs are computed from
+    sorted zip basenames.
+    """
+    if language not in SUPPORTED_LANGUAGES:
+        raise FixtureValidationError(
+            f"Unsupported language {language!r}; expected one of {SUPPORTED_LANGUAGES}"
+        )
+    if len(submission_zip_paths) < 2:
+        raise FixtureValidationError("Expected at least two submission zip paths")
+
+    submission_zip_paths = sorted(submission_zip_paths, key=lambda p: p.name)
+    for zp in submission_zip_paths:
+        if zp.suffix.lower() != ".zip":
+            raise FixtureValidationError(f"Submission path must be a .zip file: {zp}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_dir = Path(tmp)
+        template_text = _load_template_text(assignment_dir, language, tmp_dir)
+
+        merged_text_by_zip: dict[str, str] = {}
+        for zip_path in submission_zip_paths:
+            merged_text_by_zip[zip_path.name] = _build_merged_text_for_zip(
+                zip_path=zip_path,
+                language=language,
+                work_dir=tmp_dir / "submissions",
+            )
+
+        use_java_tokenize = _JAVA_TOKENIZE_AVAILABLE and language == "java" and not use_template
+
+        scores: dict[tuple[str, str], float] = {}
+        for left_name, right_name in combinations(sorted(merged_text_by_zip.keys()), 2):
+            key = canonical_pair_key(left_name, right_name)
+            left_text = merged_text_by_zip[left_name]
+            right_text = merged_text_by_zip[right_name]
+            template = template_text if use_template else ""
+            if use_java_tokenize:
+                try:
+                    scores[key] = float(_compute_java(left_text, right_text, template))
+                    continue
+                except Exception:
+                    pass
+            result = compare_texts_with_template(
+                left_text, right_text, template, k=5, name_a=left_name, name_b=right_name
+            )
+            scores[key] = float(result["similarity"])
+
+    return scores
+
+
 def _validate_fixture_documentation(
     assignment_dir: Path, expectations: dict[tuple[str, str], PairExpectation], submission_zip_names: list[str]
 ) -> None:
@@ -263,35 +323,13 @@ def run_fixture_assignment(assignment_dir: Path) -> tuple[dict[tuple[str, str], 
         raise FixtureValidationError(f"Expected at least 2 submission zips in {submissions_dir}")
     _validate_fixture_documentation(assignment_dir, expectations, [path.name for path in submission_zips])
 
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_dir = Path(tmp)
-        template_text = _load_template_text(assignment_dir, language, tmp_dir)
-        use_template = _parse_bool(metadata.get("template_exclusion", "false"))
-
-        merged_text_by_zip: dict[str, str] = {}
-        for zip_path in submission_zips:
-            merged_text_by_zip[zip_path.name] = _build_merged_text_for_zip(
-                zip_path=zip_path,
-                language=language,
-                work_dir=tmp_dir / "submissions",
-            )
-
-        use_java_tokenize = _JAVA_TOKENIZE_AVAILABLE and language == "java" and not use_template
-
-        scores: dict[tuple[str, str], float] = {}
-        for left_name, right_name in combinations(sorted(merged_text_by_zip.keys()), 2):
-            key = canonical_pair_key(left_name, right_name)
-            left_text = merged_text_by_zip[left_name]
-            right_text = merged_text_by_zip[right_name]
-            template = template_text if use_template else ""
-            if use_java_tokenize:
-                try:
-                    scores[key] = float(_compute_java(left_text, right_text, template))
-                    continue
-                except Exception:
-                    pass
-            result = compare_texts_with_template(left_text, right_text, template, k=5, name_a=left_name, name_b=right_name)
-            scores[key] = float(result["similarity"])
+    use_template = _parse_bool(metadata.get("template_exclusion", "false"))
+    scores = compute_pairwise_similarity_scores(
+        assignment_dir,
+        submission_zips,
+        language=language,
+        use_template=use_template,
+    )
 
     return scores, metadata, expectations
 
