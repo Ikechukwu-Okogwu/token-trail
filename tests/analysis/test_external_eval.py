@@ -18,6 +18,7 @@ import pytest
 
 from tests.analysis.regression_runner import (
     FixtureValidationError,
+    canonical_pair_key,
     compute_pairwise_similarity_scores,
     parse_result_file,
     run_fixture_assignment,
@@ -53,6 +54,41 @@ def test_compute_pairwise_scores_rejects_fewer_than_two_zips(tmp_path: Path) -> 
 
     with pytest.raises(FixtureValidationError, match="at least two"):
         compute_pairwise_similarity_scores(tmp_path, [subs / "only.zip"], language="java")
+
+
+def test_compute_pairwise_java_with_template_still_invokes_tokenizer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: template_exclusion must not skip compute_javacode_similarity when imports work."""
+    import tests.analysis.regression_runner as rr
+
+    monkeypatch.setattr(rr, "_JAVA_TOKENIZE_AVAILABLE", True)
+    templates_seen: list[str] = []
+
+    def fake_compute(left: str, right: str, template: str = "") -> float:
+        templates_seen.append(template)
+        return 0.42
+
+    monkeypatch.setattr(rr, "_compute_java", fake_compute)
+
+    subs = tmp_path / "submissions"
+    subs.mkdir()
+    boiler = "class Boiler { void x() { int z = 0; } }\n"
+    for name, extra in (
+        ("A.zip", "class AOnly { int a = 1; }"),
+        ("B.zip", "class BOnly { int b = 2; }"),
+    ):
+        with zipfile.ZipFile(subs / name, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("Main.java", boiler + extra)
+
+    (tmp_path / "template.txt").write_text(boiler, encoding="utf-8")
+    zips = sorted(subs.glob("*.zip"))
+    scores = compute_pairwise_similarity_scores(
+        tmp_path, zips, language="java", use_template=True
+    )
+    key = canonical_pair_key("A.zip", "B.zip")
+    assert scores[key] == pytest.approx(0.42)
+    assert templates_seen == [boiler]
 
 
 def test_compute_pairwise_scores_returns_unit_interval(tmp_path: Path) -> None:

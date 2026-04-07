@@ -248,7 +248,9 @@ def compute_pairwise_similarity_scores(
                 work_dir=tmp_dir / "submissions",
             )
 
-        use_java_tokenize = _JAVA_TOKENIZE_AVAILABLE and language == "java" and not use_template
+        # Prefer Java leaf-token pipeline whenever available (including template exclusion:
+        # compute_javacode_similarity passes template into run_tokenize_similarity_pipeline).
+        use_java_tokenize = _JAVA_TOKENIZE_AVAILABLE and language == "java"
 
         scores: dict[tuple[str, str], float] = {}
         for left_name, right_name in combinations(sorted(merged_text_by_zip.keys()), 2):

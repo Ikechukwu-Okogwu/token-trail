@@ -1,7 +1,9 @@
 """Exploratory engine evaluation for external ZIP bundles (no result.txt / markdown).
 
 Uses the same pipeline as regression fixtures: safe ZIP extract, merge, pairwise
-``compare_texts_with_template`` (see ``regression_runner.compute_pairwise_similarity_scores``).
+similarity via ``regression_runner.compute_pairwise_similarity_scores`` (Java prefers
+``compute_javacode_similarity`` when imports succeed, including with template exclusion,
+with character winnowing as fallback).
 
 Normalize vendor data
 ---------------------

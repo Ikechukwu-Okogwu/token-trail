@@ -11,6 +11,11 @@ Optional:
 
 See docs/EXTERNAL_ENGINE_EVAL.md for layout details. This script applies the same
 homogeneous-language rules as production; mixed bundles use filtered subsets where noted.
+
+For Java, pairwise scores use the leaf-token (Tree-sitter) pipeline when the backend
+imports succeed, including runs with ``--template-exclusion`` (see
+``tests.analysis.regression_runner.compute_pairwise_similarity_scores``), and fall
+back to character winnowing only if tokenization fails for a pair.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # Evaluating external ZIPs against the analysis engine
 
-External course bundles (for example under `ExternalTestSets/`) can be scored with the **same** code path as committed regression fixtures: safe ZIP extract, source merge, then pairwise similarity.
+External course bundles (for example under `ExternalTestSets/`) can be scored with the **same** code path as committed regression fixtures: safe ZIP extract, source merge, then pairwise similarity. For Java, the leaf-token (Tree-sitter) pipeline is used whenever backend imports succeed, **including** runs with `--template-exclusion`; character winnowing is only used if tokenization fails for a pair.
 
 ## Batch report (all bundled `ExternalTestSets/`)
 
