@@ -1,0 +1,16 @@
+TestSet2: submissions=15 pairs=105 min=0.0152 max=0.4183 mean=0.0730 median=0.0522
+TestSet9: submissions=20 pairs=190 min=0.0508 max=0.5542 mean=0.1513 median=0.0721
+TestSet10: submissions=15 pairs=105 min=0.0490 max=0.6144 mean=0.1104 median=0.0820
+TestSet17: submissions=18 pairs=153 min=0.0227 max=1.0000 mean=0.0777 median=0.0474
+TestSet18: submissions=16 pairs=120 min=0.0361 max=0.5482 mean=0.0873 median=0.0684
+TestSet20: submissions=15 pairs=105 min=0.3905 max=0.9601 mean=0.5093 median=0.4938
+TestSet12_java_only: fewer than 2 java-only zips after excluding C/C++ sources
+TestSet13_java_only: submissions=8 pairs=28 min=0.0265 max=0.5570 mean=0.0982 median=0.0450
+TestSet15_java_only: submissions=7 pairs=21 min=0.0550 max=0.5530 mean=0.1515 median=0.0778
+testset5_java_only: fewer than 2 java-only zips after excluding C/C++ sources
+c_problem1: submissions=10 pairs=45 min=0.1234 max=0.8457 mean=0.3148 median=0.2285
+TestSet1_cpp_only: skip: only 1 zip(s) without .java/.c (need 2+ for pairwise)
+TestSet3_java_only: submissions=13 pairs=78 min=0.0333 max=0.6393 mean=0.1497 median=0.1032
+TestSet7(1): submissions=10 pairs=45 min=0.0879 max=0.3028 mean=0.1347 median=0.1171
+TestSet20+boilerplate: submissions=15 pairs=105 min=0.1176 max=0.9167 mean=0.2299 median=0.2056
+COSC_Java_50: submissions=50 pairs=1225 min=0.0780 max=0.6643 mean=0.2309 median=0.1954
