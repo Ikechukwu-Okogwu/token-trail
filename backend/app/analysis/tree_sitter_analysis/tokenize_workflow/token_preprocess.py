@@ -74,7 +74,7 @@ _EXPECTED_LEAF_TYPES: dict[str, frozenset[str]] = {
 }
 
 # PQS below this threshold triggers a low-parse-quality warning.
-PARSE_QUALITY_THRESHOLD = 0.05
+PARSE_QUALITY_THRESHOLD = 0.002
 
 
 def compute_parse_quality_score(

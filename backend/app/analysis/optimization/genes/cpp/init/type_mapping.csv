@@ -171,3 +171,12 @@ co_return,keyword
 static_assert,keyword
 raw_string_literal,literal
 user_defined_literal,literal
+#endif,keyword
+#ifdef,keyword
+#ifndef,keyword
+NULL,literal
+null_literal,literal
+string_fragment,literal
+sizeof,keyword
+extern,keyword
+>>>,operator

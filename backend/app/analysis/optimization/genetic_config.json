@@ -1,31 +1,31 @@
 {
-  "default_language": "java",
+  "default_language": "cpp",
   "random_seed": 42,
   "penalty_weight": 0.25,
-  "population_size": 20,
+  "population_size": 10,
   "generations": 20,
   "elitism_keep": 2,
   "mutation_config_file": "mutation_config.json",
   "languages": {
     "java": {
       "regression_fixture_subpaths": [
-        "regression/assignment_reordered_functions",
-        "regression/assignment_renamed_vars",
-        "regression/assignment_template_heavy",
-        "regression/assignment_stage3_rankset"
+        "regression_2/assignment_reordered_functions",
+        "regression_2/assignment_renamed_vars",
+        "regression_2/assignment_template_heavy",
+        "regression_2/assignment_stage3_rankset"
       ]
     },
     "c": {
       "regression_fixture_subpaths": [
-        "regression/assignment_renamed_vars_c",
-        "regression/assignment_reordered_functions_c",
-        "regression/assignment_template_heavy_c"
+        "regression_2/assignment_renamed_vars_c",
+        "regression_2/assignment_reordered_functions_c",
+        "regression_2/assignment_template_heavy_c"
       ]
     },
     "cpp": {
       "regression_fixture_subpaths": [
-        "regression/assignment_renamed_vars_cpp",
-        "regression/assignment_reordered_functions_cpp"
+        "regression_2/assignment_renamed_vars_cpp",
+        "regression_2/assignment_reordered_functions_cpp"
       ]
     }
   },
