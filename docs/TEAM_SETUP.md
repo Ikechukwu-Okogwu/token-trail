@@ -387,7 +387,9 @@ Expected `200`:
       "runId": "665f...",
       "assignmentId": "665f...",
       "leftSubmissionId": "665f...",
+      "leftStudentIdentifier": "student-1",
       "rightSubmissionId": "665f...",
+      "rightStudentIdentifier": "student-2",
       "similarityScore": 0.87
     }
   ]
@@ -412,9 +414,17 @@ Expected `200`:
   "rightFilePath": "uploads/.../merged/merged.txt",
   "leftCode": "//// FILE: ...",
   "rightCode": "//// FILE: ...",
-  "matchingRegions": []
+  "matchingRegions": [],
+  "excludedRegions": [],
+  "summary": "Detected 0 matched block(s) with similarity score 0.00%.",
+  "confidence": 0.0,
+  "snippets": [],
+  "analysisMethod": "tokenize",
+  "warnings": []
 }
 ```
+
+Comparison responses may be recomputed at read time if the worker did not persist the full comparison payload.
 
 ### Common failure responses (expected)
 
@@ -449,7 +459,7 @@ backend/
     │   ├── public.py                  POST /assignment-key/validate, POST /submissions
     │   ├── instructor.py              Courses, assignments, submissions list, analysis runs
     │   ├── instructor_similarity.py   Ranked results, pair detail, side-by-side compare
-    │   └── instructor_admin.py        Key management/admin routes (download/delete/exclusion)
+    │   └── instructor_admin.py        Key management/admin routes (download/import/delete/exclusion)
     ├── schemas/                       Pydantic models defining request/response shapes
     │   ├── auth.py                    SignupRequest, LoginRequest, AuthResponse, MeResponse
     │   ├── course.py                  CourseCreateRequest, CourseResponse
@@ -462,12 +472,12 @@ backend/
     │   ├── zip_service.py             safe_extract_zip, list_valid_source_files, is_binary_file
     │   ├── merge_service.py           merge_source_files (deterministic, sorted, with headers)
     │   ├── submission_service.py      create_submission helper (inserts Mongo doc)
-    │   ├── analysis_service.py        Baseline pairwise similarity analysis + result persistence
+    │   ├── analysis_service.py        Production analysis dispatch, metrics conversion, result persistence
     │   ├── retention_service.py       Stub — future 30-day cleanup/purge flow
     │   ├── anonymization_service.py   Stub — future student pseudonymization/hashing flow
     │   └── notification_service.py    Stub — future submission confirmation/replacement emails
     ├── models/                        Reserved for future data-model helpers
-    ├── analysis/                      Reserved for tokenisation + winnowing engine code
+    ├── analysis/                      Active analysis subsystem (tokenize pipeline, bundles, winnowing, optimization, localtest)
     └── worker/
         └── worker.py                  Standalone polling loop: claims queued runs, executes them
 ```
@@ -517,7 +527,11 @@ docs/
 ├── TEAM_SETUP.md                      This file
 ├── SETUP.md                           Shorter quick-start + troubleshooting
 ├── API_CONTRACT.md                    Full endpoint reference with request/response examples
-└── CONTRIBUTING.md                    Branching, PR, and code-style rules
+├── CONTRIBUTING.md                    Branching, PR, and code-style rules
+├── DEMO_RUNBOOK.md                    Frontend / Swagger demo flow
+├── ENGINE_CHANGE_NOTE.md              Analysis-engine change history and current notes
+├── EXTERNAL_ENGINE_EVAL.md            External ZIP evaluation workflow
+└── TEST_ZIPS.md                       Regression fixture rules and expectations
 .github/
 ├── pull_request_template.md           PR checklist (auto-loaded when you open a PR)
 └── ISSUE_TEMPLATE/
@@ -625,6 +639,7 @@ GET  /api/instructor/courses/{courseId}/assignments
 POST /api/instructor/assignments/{id}/regenerate-key
 POST /api/instructor/assignments/{id}/expire-key
 GET  /api/instructor/assignments/{id}/submissions/download
+POST /api/instructor/assignments/{id}/submissions/import
 DELETE /api/instructor/assignments/{id}/submissions
 DELETE /api/instructor/assignments/{id}
 GET/PUT/DELETE /api/instructor/assignments/{id}/exclusion-code

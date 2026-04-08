@@ -1,5 +1,20 @@
 # Engine Change Note — Hybrid AST/Token Integration
 
+> Historical note: the detailed sections below describe the earlier Phase B-D hybrid. They are no longer the current source of truth.
+>
+> Current behavior as of 2026-04-07:
+> - Production analysis in `backend/app/services/analysis_service.py` is tokenize-first for `java`, `c`, and `cpp`.
+> - Per-language production bundles are selected from `backend/app/analysis/config/bundles/`.
+> - Character winnowing is the fallback path in `build_similarity_metrics()`, not the primary C/C++ path.
+> - `backend/app/analysis/tree_sitter_analysis/template_exclusion.py` now documents line-based template exclusion as the main pipeline behavior; Java class stripping remains a legacy helper.
+> - `backend/app/analysis/analysis.py` passes `template` through to `run_tokenize_similarity_pipeline()`.
+>
+> Known current gap:
+> - worker analysis stores only partial comparison fields
+> - comparison responses usually recompute metrics
+> - recomputation currently does not pass assignment `exclusionCode`
+> - this can desynchronize stored `similarityScore` from returned regions/snippets for template-heavy assignments
+
 **Branch:** `main` (Phase B–D)
 **Author:** Charlotte / Ikechukwu
 **Date:** 2026-03-31

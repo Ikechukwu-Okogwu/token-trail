@@ -5,11 +5,13 @@ This document defines the offline regression fixture ZIPs used to evaluate the s
 ## Scope And Rules
 
 - Assignment fixtures are **homogeneous**: one fixture contains exactly one language (`java`, `c`, or `cpp`).
-- Current regression fixtures use `java`.
+- Current committed regression assets include Java, C, and C++ fixture sets.
 - Expected scores are normalized decimals in `0..1`.
 - Expected values are **aspirational, human-curated targets** (not generated from the current engine).
 - Pair keys are order-independent (`A.zip,B.zip` is equivalent to `B.zip,A.zip`).
-- Template-heavy fixtures use direct engine template exclusion (`compare_texts_with_template`) instead of placeholder exclusion endpoints.
+- Template-heavy fixtures use the regression runner's real scoring order:
+  Java prefers `compute_javacode_similarity()` when available, then falls back to `compare_texts_with_template()`;
+  non-Java fixtures use `compare_texts_with_template()`.
 
 ## Why Aspirational Values Are Valid
 
@@ -31,7 +33,13 @@ The regression runner mirrors backend ingestion behavior:
 - deterministic relative-path sorting
 - merged source text generation before similarity scoring
 
-This keeps regression outcomes aligned with how submissions are processed in the live system.
+Scoring-path parity is narrower:
+
+- Java fixtures prefer `app.analysis.analysis.compute_javacode_similarity()`, which loads the active tokenize config and passes `template` through to the tokenize pipeline.
+- C and C++ fixtures use character winnowing only in `tests/analysis/regression_runner.py`.
+- Production worker behavior in `backend/app/services/analysis_service.py` is tokenize-first for `java`, `c`, and `cpp`.
+
+So these fixtures preserve ingestion parity across languages, but do **not** currently provide full production-engine parity for C/C++.
 
 ## Fixture Location
 

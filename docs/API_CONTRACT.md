@@ -149,19 +149,112 @@ Response `200`: run status payload
 
 ### `GET /api/instructor/analysis-runs/{runId}/similarity-results`
 
-Response `200`: ranked similarity pairs payload
+Response `200`:
+```json
+{
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "results": [
+    {
+      "resultId": "665f...__leftSubmissionId__rightSubmissionId",
+      "runId": "665f...",
+      "assignmentId": "665f...",
+      "leftSubmissionId": "665f...",
+      "leftStudentIdentifier": "student-1",
+      "leftStudentName": "student-1",
+      "rightSubmissionId": "665f...",
+      "rightStudentIdentifier": "student-2",
+      "rightStudentName": "student-2",
+      "similarityScore": 0.87,
+      "confidence": 0.84,
+      "largestBlockSize": 12,
+      "analysisMethod": "tokenize",
+      "warnings": []
+    }
+  ]
+}
+```
+
+Notes:
+- `resultId` format is `runId__leftSubmissionId__rightSubmissionId`.
+- `analysisMethod` is currently `tokenize` or `error_fallback`.
+- `warnings` may include parse-quality warnings or pipeline-error messages captured during worker execution.
 
 ---
 
 ### `GET /api/instructor/similarity-results/{resultId}`
 
-Response `200`: pair detail payload
+Response `200`:
+```json
+{
+  "resultId": "665f...__leftSubmissionId__rightSubmissionId",
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "leftSubmissionId": "665f...",
+  "leftStudentIdentifier": "student-1",
+  "leftStudentName": "student-1",
+  "rightSubmissionId": "665f...",
+  "rightStudentIdentifier": "student-2",
+  "rightStudentName": "student-2",
+  "similarityScore": 0.87,
+  "summary": "Pair similarity computed from merged submission sources."
+}
+```
 
 ---
 
 ### `GET /api/instructor/similarity-results/{resultId}/comparison`
 
-Response `200`: comparison payload (`leftCode`, `rightCode`, `matchingRegions`, etc.)
+Response `200`:
+```json
+{
+  "resultId": "665f...__leftSubmissionId__rightSubmissionId",
+  "runId": "665f...",
+  "assignmentId": "665f...",
+  "leftSubmissionId": "665f...",
+  "leftStudentIdentifier": "student-1",
+  "leftStudentName": "student-1",
+  "rightSubmissionId": "665f...",
+  "rightStudentIdentifier": "student-2",
+  "rightStudentName": "student-2",
+  "similarityScore": 0.87,
+  "leftFilePath": "uploads/.../merged/merged.txt",
+  "rightFilePath": "uploads/.../merged/merged.txt",
+  "leftCode": "//// FILE: ...",
+  "rightCode": "//// FILE: ...",
+  "matchingRegions": [
+    {
+      "leftStartLine": 10,
+      "leftEndLine": 18,
+      "rightStartLine": 11,
+      "rightEndLine": 19,
+      "score": 0.42,
+      "evidenceType": "tokenize_group",
+      "snippet": "for (...) { ... }"
+    }
+  ],
+  "excludedRegions": [
+    {
+      "leftStartLine": 1,
+      "leftEndLine": 9,
+      "rightStartLine": null,
+      "rightEndLine": null,
+      "evidenceType": "non_match",
+      "reason": "No matching fingerprint group"
+    }
+  ],
+  "summary": "Detected 1 matched block(s) with similarity score 87.00%.",
+  "confidence": 0.84,
+  "snippets": ["for (...) { ... }"],
+  "analysisMethod": "tokenize",
+  "warnings": []
+}
+```
+
+Notes:
+- `matchingRegions[].evidenceType` is usually `tokenize_group` or `winnowing_group`.
+- Comparison responses may be recomputed at read time when full persisted comparison fields are unavailable.
+- Current known behavior: recomputation does not pass assignment `exclusionCode`, so template-heavy assignments can show regions/snippets that do not perfectly align with the stored pair score.
 
 ---
 
@@ -194,6 +287,32 @@ Response `200` with headers:
 Archive currently includes available:
 - `<submissionId>/raw.zip`
 - `<submissionId>/merged/merged.txt`
+
+---
+
+### `POST /api/instructor/assignments/{assignmentId}/submissions/import`
+
+Imports a repository ZIP into an assignment.
+
+Accepted outer ZIP layouts:
+- flat zip-of-zips: top-level `StudentA.zip`, `StudentB.zip`, ...
+- exported layout: `<folder>/raw.zip` per submission
+
+Response `201`:
+```json
+{
+  "imported": 2,
+  "skipped": 1,
+  "details": [
+    { "folder": "StudentA", "submissionId": "665f...", "fileCount": 3 }
+  ],
+  "skippedDetails": [
+    { "folder": "StudentB", "reason": "Duplicate: a submission with this identifier already exists" }
+  ]
+}
+```
+
+The submission identifier is derived from the inner zip filename or folder name.
 
 ---
 
@@ -307,11 +426,13 @@ Validation errors:
 - `400` assignment closed
 - `400` due date passed and `allowLate=false`
 - `400` invalid `studentEmail` format (when provided)
+- `422` merged submission appears not to contain valid code for the assignment language
 - `429` rate-limited (if enabled)
 
 Notes:
 - `studentEmail` is optional and non-blocking for submission success
 - Email confirmation delivery may be disabled by provider configuration
+- The `422` path is based on a quick parse-quality check on merged source and is intended to reject obvious language mismatches (for example, non-Java code inside a `.java` submission).
 
 ---
 
