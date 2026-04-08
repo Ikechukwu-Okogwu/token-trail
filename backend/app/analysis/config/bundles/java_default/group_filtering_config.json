@@ -1,58 +1,110 @@
 {
-  "keep_threshold": 0.5,
-  "default_similarity_no_match": 0.5001,
+  "keep_threshold": 0.4245575797941432,
+  "default_similarity_no_match": 0.4655251233085038,
   "features": [
     {
       "name": "structural_low_literal",
       "role": "evidence_positive",
       "intervals": {
-        "literal": [0.0, 0.14],
-        "name": [0.18, 0.32],
-        "keyword": [0.13, 0.22]
+        "keyword": [
+          0.1698993971607898,
+          0.22935305896262476
+        ],
+        "literal": [
+          0.02436815957813473,
+          0.17060642913664187
+        ],
+        "name": [
+          0.1750750987728001,
+          0.32598879103144374
+        ]
       },
-      "contribution": 0.72,
-      "weight": 1.0
+      "contribution": 0.6677272421973635,
+      "weight": 1.0663014712274657
     },
     {
       "name": "high_literal_clear_suspicion",
       "role": "evidence_negative",
       "intervals": {
-        "literal": [0.22, 1.0]
+        "literal": [
+          0.2193505934293348,
+          0.9743883343238354
+        ]
       },
-      "contribution": 0.12,
-      "weight": 2.5
+      "contribution": 0.15922918635115219,
+      "weight": 2.4531986045973126
     },
     {
       "name": "balanced_skeletal_code",
       "role": "evidence_positive",
       "intervals": {
-        "keyword": [0.14, 0.22],
-        "punct": [0.34, 0.45],
-        "operator": [0.08, 0.14]
+        "keyword": [
+          0.13931277694754873,
+          0.25847906736089404
+        ],
+        "operator": [
+          0.05331414733580409,
+          0.1363078645744007
+        ],
+        "punct": [
+          0.33915984501729596,
+          0.4631466252776672
+        ]
       },
-      "contribution": 0.66,
-      "weight": 1.1
+      "contribution": 0.6261726569410108,
+      "weight": 1.0626866547541884
     },
     {
       "name": "name_rich_low_keyword",
       "role": "evidence_positive",
       "intervals": {
-        "name": [0.2, 0.28],
-        "keyword": [0.12, 0.19],
-        "literal": [0.05, 0.12]
+        "keyword": [
+          0.12,
+          0.19
+        ],
+        "literal": [
+          0.05,
+          0.12
+        ],
+        "name": [
+          0.2,
+          0.28
+        ]
       },
-      "contribution": 0.7,
-      "weight": 0.9
+      "contribution": 0.7176577455488156,
+      "weight": 0.8052578934705004
     },
     {
       "name": "punct_heavy_fragment",
       "role": "evidence_positive",
       "intervals": {
-        "punct": [0.36, 0.5],
-        "name": [0.18, 0.27]
+        "name": [
+          0.1759186339211372,
+          0.26872955361620354
+        ],
+        "punct": [
+          0.34373554547615587,
+          0.5088701060172381
+        ]
       },
-      "contribution": 0.61,
-      "weight": 0.8
+      "contribution": 0.5410107117671268,
+      "weight": 0.8670781319680335
+    },
+    {
+      "name": "punct_heavy_fragment_dup_8473546",
+      "role": "evidence_positive",
+      "intervals": {
+        "name": [
+          0.17512736639684875,
+          0.2544308212041129
+        ],
+        "punct": [
+          0.33127869171020813,
+          0.510148193426927
+        ]
+      },
+      "contribution": 0.5410107117671268,
+      "weight": 0.8670781319680335
     }
   ]
 }

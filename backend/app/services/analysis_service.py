@@ -41,10 +41,10 @@ from app.core.deps import to_object_id
 
 _BUNDLES_DIR = CONFIG_PACKAGE_DIR / "bundles"
 
-# Production tokenize bundles: folder names under ``bundles/`` (copy new GA outputs here and update).
-_PRODUCTION_BUNDLE_JAVA = "java_20260401T014642_g001_i08_F0p824260"
-_PRODUCTION_BUNDLE_C = "c_20260401T151536_g001_i00_F1p000000"
-_PRODUCTION_BUNDLE_CPP = "cpp_20260401T154450_g017_i00_F0p824255"
+# Production tokenize bundles: folder names under ``bundles/`` (aligned with default_metas.json).
+_PRODUCTION_BUNDLE_JAVA = "java_default"
+_PRODUCTION_BUNDLE_C = "c_default"
+_PRODUCTION_BUNDLE_CPP = "cpp_default"
 
 
 def _normalize_assignment_language(raw: object) -> str:

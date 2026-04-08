@@ -59,6 +59,7 @@ def tokenize_cpp(source: str | bytes) -> list[Token]:
     Args:
         source: Full C++ translation unit (UTF-8).
     """
+    # print("tokenize_cpp")
     if isinstance(source, str):
         source = source.encode("utf-8")
     tree = _parser.parse(source)

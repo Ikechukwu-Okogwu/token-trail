@@ -117,7 +117,8 @@ def run_tokenize_similarity_pipeline(
     template: str = "",
 ) -> TokenizePipelineResult:
     """
-    1. Resolve ``config``: if ``None``, load ``bundles/<language>_default/meta.json``.
+    1. Resolve ``config``: if ``None``, load default bundle for ``language`` via
+       :func:`app.analysis.config.pipeline_config.load_tokenize_pipeline_config_for_language`.
     2. Build per-side leaf tokens and truth tables using ``config.type_mapping`` and
        ``config.default_categories``. If ``template`` is non-blank, tokens on lines
        that exactly match a non-blank template line get ``to_drop`` (language-agnostic;

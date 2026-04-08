@@ -59,6 +59,7 @@ def tokenize_c(source: str | bytes) -> list[Token]:
     Args:
         source: Full C translation unit (UTF-8).
     """
+    # print("tokenize_c")
     if isinstance(source, str):
         source = source.encode("utf-8")
     tree = _parser.parse(source)

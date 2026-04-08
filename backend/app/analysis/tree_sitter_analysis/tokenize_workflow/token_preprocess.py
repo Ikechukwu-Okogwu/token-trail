@@ -26,6 +26,9 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.cpp_leaf_tokenize impor
 from app.analysis.tree_sitter_analysis.tokenize_workflow.java_leaf_tokenize import (
     tokenize_java,
 )
+from app.analysis.tree_sitter_analysis.tokenize_workflow.java_pqs_veto import (
+    lowercase_type_identifier_veto,
+)
 from app.analysis.tree_sitter_analysis.tokenize_workflow.token_fingerprint import (
     Token,
     mapped_category_columns,
@@ -74,7 +77,7 @@ _EXPECTED_LEAF_TYPES: dict[str, frozenset[str]] = {
 }
 
 # PQS below this threshold triggers a low-parse-quality warning.
-PARSE_QUALITY_THRESHOLD = 0.05
+PARSE_QUALITY_THRESHOLD = 0.002
 
 
 def compute_parse_quality_score(
@@ -89,15 +92,23 @@ def compute_parse_quality_score(
     leaf tokens.  Python code parsed as Java has none of these — only
     ``identifier``, ``type_identifier``, and punctuation.
 
+    For Java only, if :func:`lowercase_type_identifier_veto`
+    triggers, returns ``0.0`` regardless of the keyword hit rate (wrong-language
+    heuristic consolidated here so all callers share one path).
+
     Returns 0.0 if there are no tokens.
     """
     if not tokens:
         return 0.0
-    expected = _EXPECTED_LEAF_TYPES.get(language, frozenset())
+    lang = (language or "").strip().lower()
+    expected = _EXPECTED_LEAF_TYPES.get(lang, frozenset())
     if not expected:
         return 1.0  # no expectation → assume fine
     hits = sum(1 for t in tokens if t.type in expected)
-    return hits / len(tokens)
+    pqs = hits / len(tokens)
+    if lang == "java" and lowercase_type_identifier_veto(tokens):
+        return 0.0
+    return pqs
 
 
 # Hard rejection threshold for upload-time validation.

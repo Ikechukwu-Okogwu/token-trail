@@ -212,6 +212,9 @@ uploads/*
 node_modules/
 frontend/.env
 
+# Local stage-3 repository batch test (ZIPs, logs, extracted trees — not for VCS)
+stage3_repository_test/
+
 # analysis developing
 backend/app/analysis/**
 !backend/app/analysis/

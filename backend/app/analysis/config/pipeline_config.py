@@ -1,8 +1,9 @@
 """
 Tokenize similarity pipeline configuration: meta.json → in-memory ``TokenizePipelineConfig``.
 
-Runtime config holds loaded objects only (no file paths). The active bundle is selected
-via ``currently_using_meta`` next to this package.
+Runtime config holds loaded objects only (no file paths). Per-language default bundles
+are listed in ``default_metas.json`` next to this package. The active bundle for Java-only
+helpers is still selected via ``currently_using_meta``.
 """
 
 from __future__ import annotations
@@ -26,10 +27,11 @@ from app.analysis.tree_sitter_analysis.tokenize_workflow.json_kgram_strategy imp
 CONFIG_PACKAGE_DIR = Path(__file__).resolve().parent
 BUNDLES_DIR = CONFIG_PACKAGE_DIR / "bundles"
 CURRENTLY_USING_META_FILENAME = "currently_using_meta"
+DEFAULT_METAS_FILENAME = "default_metas.json"
 
 STRATEGY_JSON_LEAF = "json_leaf"
 
-# Tokenizer + default bundle under ``bundles/{language}_default/meta.json``.
+# Tokenizer languages; default bundle folder per language comes from ``default_metas.json``.
 SUPPORTED_TOKENIZE_LANGUAGES: frozenset[str] = frozenset({"java", "c", "cpp"})
 
 
@@ -53,22 +55,49 @@ def _currently_using_meta_file() -> Path:
     return CONFIG_PACKAGE_DIR / CURRENTLY_USING_META_FILENAME
 
 
-def default_bundle_meta_path_for_language(language: str) -> Path:
-    """
-    Return ``bundles/<language>_default/meta.json`` under :data:`CONFIG_PACKAGE_DIR`.
+def _default_metas_file() -> Path:
+    return CONFIG_PACKAGE_DIR / DEFAULT_METAS_FILENAME
 
-    Raises:
-        ValueError: if ``language`` is not a supported tokenize language.
-    """
+
+def _bundle_folder_from_default_metas(language: str) -> str:
+    """Resolve training bundle folder name under ``bundles/`` from ``default_metas.json``."""
     lang = (language or "").strip().lower()
     if lang not in SUPPORTED_TOKENIZE_LANGUAGES:
         raise ValueError(
             f"unsupported tokenize language {language!r}; "
             f"expected one of {sorted(SUPPORTED_TOKENIZE_LANGUAGES)}"
         )
-    p = (BUNDLES_DIR / f"{lang}_default" / "meta.json").resolve()
+    meta_file = _default_metas_file()
+    if not meta_file.is_file():
+        raise FileNotFoundError(
+            f"missing {DEFAULT_METAS_FILENAME} (expected paths to default bundles under {CONFIG_PACKAGE_DIR})"
+        )
+    raw: Any = json.loads(meta_file.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"{DEFAULT_METAS_FILENAME} must be a JSON object")
+    entry = raw.get(lang)
+    if not isinstance(entry, str) or not entry.strip():
+        raise ValueError(
+            f"{DEFAULT_METAS_FILENAME} must set a non-empty string for language {lang!r}"
+        )
+    return entry.strip()
+
+
+def default_bundle_meta_path_for_language(language: str) -> Path:
+    """
+    Return ``bundles/<folder>/meta.json`` where ``folder`` is read from ``default_metas.json``.
+
+    Raises:
+        ValueError: if ``language`` is not a supported tokenize language or JSON entry is invalid.
+        FileNotFoundError: if ``default_metas.json`` or the resolved ``meta.json`` is missing.
+    """
+    lang = (language or "").strip().lower()
+    folder = _bundle_folder_from_default_metas(language)
+    p = (BUNDLES_DIR / folder / "meta.json").resolve()
     if not p.is_file():
-        raise FileNotFoundError(f"bundle meta.json not found for language={lang!r}: {p}")
+        raise FileNotFoundError(
+            f"bundle meta.json not found for language={lang!r} (folder={folder!r}): {p}"
+        )
     return p
 
 

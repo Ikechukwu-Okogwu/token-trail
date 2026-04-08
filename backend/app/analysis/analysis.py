@@ -74,3 +74,5 @@ def compute_javacode_similarity(
         text_a, text_b, config=cfg, template=template
     )
     return float(result.similarity)
+
+
